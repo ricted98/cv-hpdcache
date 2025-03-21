@@ -51,6 +51,7 @@ import hpdcache_pkg::*;
     input  hpdcache_way_vector_t  sel_dir_valid_i,
     input  hpdcache_way_vector_t  sel_dir_wback_i,
     input  hpdcache_way_vector_t  sel_dir_dirty_i,
+    input  hpdcache_way_vector_t  sel_dir_shared_i,
     input  hpdcache_way_vector_t  sel_dir_fetch_i,
     input  hpdcache_set_t         sel_victim_set_i,
     output hpdcache_way_vector_t  sel_victim_way_o
@@ -82,6 +83,7 @@ import hpdcache_pkg::*;
             .sel_dir_valid_i,
             .sel_dir_wback_i,
             .sel_dir_dirty_i,
+            .sel_dir_shared_i,
             .sel_dir_fetch_i,
             .sel_victim_set_i,
             .sel_victim_way_o
@@ -106,6 +108,7 @@ import hpdcache_pkg::*;
             .sel_dir_valid_i,
             .sel_dir_wback_i,
             .sel_dir_dirty_i,
+            .sel_dir_shared_i,
             .sel_dir_fetch_i,
             .sel_victim_set_i,
             .sel_victim_way_o

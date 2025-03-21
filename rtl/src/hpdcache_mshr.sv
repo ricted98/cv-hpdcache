@@ -69,6 +69,7 @@ import hpdcache_pkg::*;
     input  logic                  alloc_need_rsp_i,
     input  logic                  alloc_is_prefetch_i,
     input  logic                  alloc_wback_i,
+    input  logic                  alloc_is_inval_i,
     output logic                  alloc_full_o,
     output mshr_way_t             alloc_way_o,
 
@@ -85,7 +86,8 @@ import hpdcache_pkg::*;
     output hpdcache_word_t        ack_word_o,
     output logic                  ack_need_rsp_o,
     output logic                  ack_is_prefetch_o,
-    output logic                  ack_wback_o
+    output logic                  ack_wback_o,
+    output logic                  ack_is_inval_o
 );
     //  }}}
 
@@ -100,6 +102,7 @@ import hpdcache_pkg::*;
         logic              wback;
         logic              need_rsp;
         logic              is_prefetch;
+        logic              is_inval;
     } mshr_entry_t;
 
 
@@ -198,6 +201,7 @@ import hpdcache_pkg::*;
             mshr_wentry[i].need_rsp = alloc_need_rsp_i;
             mshr_wentry[i].is_prefetch = alloc_is_prefetch_i;
             mshr_wentry[i].wback = alloc_wback_i;
+            mshr_wentry[i].is_inval = alloc_is_inval_i;
         end
     end
     //  }}}
@@ -245,6 +249,7 @@ import hpdcache_pkg::*;
     assign ack_need_rsp_o    = mshr_rentry[ack_way_q].need_rsp;
     assign ack_is_prefetch_o = mshr_rentry[ack_way_q].is_prefetch;
     assign ack_wback_o       = mshr_rentry[ack_way_q].wback;
+    assign ack_is_inval_o    = mshr_rentry[ack_way_q].is_inval;
     //  }}}
 
     //  Global control signals

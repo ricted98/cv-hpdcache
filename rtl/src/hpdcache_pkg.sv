@@ -309,6 +309,40 @@ package hpdcache_pkg;
         //  Reserved           = 4'b1111
     } hpdcache_mem_atomic_e;
 
+    typedef enum logic [1:0] {       // inval, load
+        HPDCACHE_MSHR_OP_STORE_REFILL = 2'b00,
+        HPDCACHE_MSHR_OP_LOAD_REFILL  = 2'b01,
+        HPDCACHE_MSHR_OP_STORE_INVAL  = 2'b10
+    } hpdcache_mshr_op_e;
+
+    typedef enum logic [2:0] {
+        HPDCACHE_MEM_COH_READ_NO_SNOOP  = 3'd0,
+        HPDCACHE_MEM_COH_READ_SHARED    = 3'd1,
+        HPDCACHE_MEM_COH_READ_CLEAN     = 3'd2,
+        HPDCACHE_MEM_COH_READ_UNIQUE    = 3'd3,
+        HPDCACHE_MEM_COH_CLEAN_UNIQUE   = 3'd4,
+        HPDCACHE_MEM_COH_WRITE_NO_SNOOP = 3'd5,
+        HPDCACHE_MEM_COH_WRITE_UNIQUE   = 3'd6,
+        HPDCACHE_MEM_COH_WRITE_BACK     = 3'd7
+        // READ_NO_SNOOP
+        // READ_ONCE
+        // READ_SHARED
+        // READ_CLEAN
+        // READ_NOT_SHARED_DIRTY
+        // READ_UNIQUE
+        // CLEAN_UNIQUE
+        // MAKE_UNIQUE
+        // CLEAN_SHARED
+        // CLEAN_INVALID
+        // MAKE_INVALID
+        // WRITE_NO_SNOOP
+        // WRITE_UNIQUE
+        // WRITE_LINE_UNIQUE
+        // WRITE_CLEAN
+        // WRITE_BACK
+        // EVICT
+    } hpdcache_mem_coh_e;
+
     function automatic hpdcache_mem_size_t get_hpdcache_mem_size(int unsigned bytes);
         if      (bytes ==   0) return 0;
         else if (bytes <=   2) return 1;

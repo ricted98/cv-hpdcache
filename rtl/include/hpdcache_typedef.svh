@@ -35,6 +35,7 @@
         hpdcache_pkg::hpdcache_mem_command_e  mem_req_command; \
         hpdcache_pkg::hpdcache_mem_atomic_e   mem_req_atomic; \
         logic                                 mem_req_cacheable; \
+        hpdcache_pkg::hpdcache_mem_coh_e      mem_req_coherence; \
     }
 
 `define HPDCACHE_DECL_MEM_RESP_R_T(__id_t, __data_t) \

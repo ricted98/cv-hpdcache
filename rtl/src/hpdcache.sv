@@ -163,10 +163,11 @@ import hpdcache_pkg::*;
         //            {1,1,0,0}: Write-back (clean)
         //            {1,1,1,0}: Write-back (dirty)
         //  {{{
-        logic valid; //  valid cacheline
-        logic wback; //  cacheline in write-back mode
-        logic dirty; //  cacheline is locally modified (memory is obsolete)
-        logic fetch; //  cacheline is reserved for a new cacheline being fetched
+        logic valid;  //  valid cacheline
+        logic wback;  //  cacheline in write-back mode
+        logic dirty;  //  cacheline is locally modified (memory is obsolete)
+        logic shared; //  cacheline is shared with other agents (coherence only)
+        logic fetch;  //  cacheline is reserved for a new cacheline being fetched
         //  }}}
 
         //  Cacheline address tag
@@ -225,6 +226,7 @@ import hpdcache_pkg::*;
     logic                  miss_mshr_alloc_need_rsp;
     logic                  miss_mshr_alloc_is_prefetch;
     logic                  miss_mshr_alloc_wback;
+    hpdcache_mshr_op_e     miss_mshr_alloc_op;
 
     logic                  wbuf_flush_all;
     logic                  wbuf_write;
@@ -288,12 +290,14 @@ import hpdcache_pkg::*;
     hpdcache_way_vector_t  cmo_dir_check_nline_hit_way;
     logic                  cmo_dir_check_nline_wback;
     logic                  cmo_dir_check_nline_dirty;
+    logic                  cmo_dir_check_nline_shared;
     logic                  cmo_dir_check_entry;
     hpdcache_set_t         cmo_dir_check_entry_set;
     hpdcache_way_vector_t  cmo_dir_check_entry_way;
     logic                  cmo_dir_check_entry_valid;
     logic                  cmo_dir_check_entry_wback;
     logic                  cmo_dir_check_entry_dirty;
+    logic                  cmo_dir_check_entry_shared;
     hpdcache_tag_t         cmo_dir_check_entry_tag;
     logic                  cmo_dir_updt;
     hpdcache_set_t         cmo_dir_updt_set;
@@ -301,6 +305,7 @@ import hpdcache_pkg::*;
     logic                  cmo_dir_updt_valid;
     logic                  cmo_dir_updt_wback;
     logic                  cmo_dir_updt_dirty;
+    logic                  cmo_dir_updt_shared;
     logic                  cmo_dir_updt_fetch;
     hpdcache_tag_t         cmo_dir_updt_tag;
     logic                  cmo_wait;
@@ -506,6 +511,7 @@ import hpdcache_pkg::*;
         .st2_mshr_alloc_need_rsp_o          (miss_mshr_alloc_need_rsp),
         .st2_mshr_alloc_is_prefetch_o       (miss_mshr_alloc_is_prefetch),
         .st2_mshr_alloc_wback_o             (miss_mshr_alloc_wback),
+        .st2_mshr_alloc_op_o                (miss_mshr_alloc_op),
 
         .refill_req_valid_i                 (refill_req_valid),
         .refill_req_ready_o                 (refill_req_ready),
@@ -608,12 +614,14 @@ import hpdcache_pkg::*;
         .cmo_dir_check_nline_hit_way_o      (cmo_dir_check_nline_hit_way),
         .cmo_dir_check_nline_wback_o        (cmo_dir_check_nline_wback),
         .cmo_dir_check_nline_dirty_o        (cmo_dir_check_nline_dirty),
+        .cmo_dir_check_nline_shared_o       (cmo_dir_check_nline_shared),
         .cmo_dir_check_entry_i              (cmo_dir_check_entry),
         .cmo_dir_check_entry_set_i          (cmo_dir_check_entry_set),
         .cmo_dir_check_entry_way_i          (cmo_dir_check_entry_way),
         .cmo_dir_check_entry_valid_o        (cmo_dir_check_entry_valid),
         .cmo_dir_check_entry_wback_o        (cmo_dir_check_entry_wback),
         .cmo_dir_check_entry_dirty_o        (cmo_dir_check_entry_dirty),
+        .cmo_dir_check_entry_shared_o       (cmo_dir_check_entry_shared),
         .cmo_dir_check_entry_tag_o          (cmo_dir_check_entry_tag),
         .cmo_dir_updt_i                     (cmo_dir_updt),
         .cmo_dir_updt_set_i                 (cmo_dir_updt_set),
@@ -621,6 +629,7 @@ import hpdcache_pkg::*;
         .cmo_dir_updt_valid_i               (cmo_dir_updt_valid),
         .cmo_dir_updt_wback_i               (cmo_dir_updt_wback),
         .cmo_dir_updt_dirty_i               (cmo_dir_updt_dirty),
+        .cmo_dir_updt_shared_i              (cmo_dir_updt_shared),
         .cmo_dir_updt_fetch_i               (cmo_dir_updt_fetch),
         .cmo_dir_updt_tag_i                 (cmo_dir_updt_tag),
         .cmo_core_rsp_ready_o               (cmo_core_rsp_ready),
@@ -771,6 +780,7 @@ import hpdcache_pkg::*;
         .mshr_alloc_need_rsp_i              (miss_mshr_alloc_need_rsp),
         .mshr_alloc_is_prefetch_i           (miss_mshr_alloc_is_prefetch),
         .mshr_alloc_wback_i                 (miss_mshr_alloc_wback),
+        .mshr_alloc_op_i                    (miss_mshr_alloc_op),
 
         .refill_req_ready_i                 (refill_req_ready),
         .refill_req_valid_o                 (refill_req_valid),
@@ -949,6 +959,7 @@ import hpdcache_pkg::*;
         .dir_check_nline_hit_way_i     (cmo_dir_check_nline_hit_way),
         .dir_check_nline_wback_i       (cmo_dir_check_nline_wback),
         .dir_check_nline_dirty_i       (cmo_dir_check_nline_dirty),
+        .dir_check_nline_shared_i      (cmo_dir_check_nline_shared),
 
         .dir_check_entry_o             (cmo_dir_check_entry),
         .dir_check_entry_set_o         (cmo_dir_check_entry_set),
@@ -956,6 +967,7 @@ import hpdcache_pkg::*;
         .dir_check_entry_valid_i       (cmo_dir_check_entry_valid),
         .dir_check_entry_wback_i       (cmo_dir_check_entry_wback),
         .dir_check_entry_dirty_i       (cmo_dir_check_entry_dirty),
+        .dir_check_entry_shared_i      (cmo_dir_check_entry_shared),
         .dir_check_entry_tag_i         (cmo_dir_check_entry_tag),
 
         .dir_updt_o                    (cmo_dir_updt),
@@ -964,6 +976,7 @@ import hpdcache_pkg::*;
         .dir_updt_valid_o              (cmo_dir_updt_valid),
         .dir_updt_wback_o              (cmo_dir_updt_wback),
         .dir_updt_dirty_o              (cmo_dir_updt_dirty),
+        .dir_updt_shared_o             (cmo_dir_updt_shared),
         .dir_updt_fetch_o              (cmo_dir_updt_fetch),
         .dir_updt_tag_o                (cmo_dir_updt_tag),
 

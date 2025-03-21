@@ -666,6 +666,7 @@ import hpdcache_pkg::*;
     assign mem_req_write_o.mem_req_command = HPDCACHE_MEM_WRITE;
     assign mem_req_write_o.mem_req_atomic = HPDCACHE_MEM_ATOMIC_ADD;
     assign mem_req_write_o.mem_req_cacheable = ~wbuf_meta_send_q.meta_uc;
+    assign mem_req_write_o.mem_req_coherence = HPDCACHE_MEM_COH_WRITE_UNIQUE; // TODO: can WRITE_LINE_UNIQUE be used?
 
     assign mem_req_write_data_o.mem_req_w_last = 1'b1;
 
