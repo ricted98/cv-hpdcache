@@ -100,6 +100,7 @@ public:
         top->mem_req_read_id_o (mem_req_read_id);
         top->mem_req_read_command_o (mem_req_read_command);
         top->mem_req_read_atomic_o (mem_req_read_atomic);
+        top->mem_req_read_coherence_o (mem_req_read_coherence);
         top->mem_req_read_cacheable_o (mem_req_read_cacheable);
         top->mem_resp_read_ready_o (mem_resp_read_ready);
         top->mem_resp_read_valid_i (mem_resp_read_valid);
@@ -115,6 +116,7 @@ public:
         top->mem_req_write_id_o (mem_req_write_id);
         top->mem_req_write_command_o (mem_req_write_command);
         top->mem_req_write_atomic_o (mem_req_write_atomic);
+        top->mem_req_write_coherence_o (mem_req_write_coherence);
         top->mem_req_write_cacheable_o (mem_req_write_cacheable);
         top->mem_req_write_data_ready_i (mem_req_write_data_ready);
         top->mem_req_write_data_valid_o (mem_req_write_data_valid);
@@ -171,6 +173,7 @@ public:
         hpdcache_test_mem_resp_model_i->mem_req_read_id_i (mem_req_read_id);
         hpdcache_test_mem_resp_model_i->mem_req_read_command_i (mem_req_read_command);
         hpdcache_test_mem_resp_model_i->mem_req_read_atomic_i (mem_req_read_atomic);
+        hpdcache_test_mem_resp_model_i->mem_req_read_coherence_i (mem_req_read_coherence);
         hpdcache_test_mem_resp_model_i->mem_req_read_cacheable_i (mem_req_read_cacheable);
         hpdcache_test_mem_resp_model_i->mem_resp_read_ready_i (mem_resp_read_ready);
         hpdcache_test_mem_resp_model_i->mem_resp_read_valid_o (mem_resp_read_valid);
@@ -186,6 +189,7 @@ public:
         hpdcache_test_mem_resp_model_i->mem_req_write_id_i (mem_req_write_id);
         hpdcache_test_mem_resp_model_i->mem_req_write_command_i (mem_req_write_command);
         hpdcache_test_mem_resp_model_i->mem_req_write_atomic_i (mem_req_write_atomic);
+        hpdcache_test_mem_resp_model_i->mem_req_write_coherence_i (mem_req_write_coherence);
         hpdcache_test_mem_resp_model_i->mem_req_write_cacheable_i (mem_req_write_cacheable);
         hpdcache_test_mem_resp_model_i->mem_req_write_data_ready_o (mem_req_write_data_ready);
         hpdcache_test_mem_resp_model_i->mem_req_write_data_valid_i (mem_req_write_data_valid);
@@ -370,6 +374,7 @@ private:
     sc_core::sc_signal <uint32_t> mem_req_read_id;
     sc_core::sc_signal <uint32_t> mem_req_read_command;
     sc_core::sc_signal <uint32_t> mem_req_read_atomic;
+    sc_core::sc_signal <uint32_t> mem_req_read_coherence;
     sc_core::sc_signal <bool> mem_req_read_cacheable;
     sc_core::sc_signal <bool> mem_resp_read_ready;
     sc_core::sc_signal <bool> mem_resp_read_valid;
@@ -385,6 +390,7 @@ private:
     sc_core::sc_signal <uint32_t> mem_req_write_id;
     sc_core::sc_signal <uint32_t> mem_req_write_command;
     sc_core::sc_signal <uint32_t> mem_req_write_atomic;
+    sc_core::sc_signal <uint32_t> mem_req_write_coherence;
     sc_core::sc_signal <bool> mem_req_write_cacheable;
     sc_core::sc_signal <bool> mem_req_write_data_ready;
     sc_core::sc_signal <bool> mem_req_write_data_valid;

@@ -51,6 +51,7 @@ public:
     sc_in<uint32_t>                                        mem_req_read_id_i;
     sc_in<uint32_t>                                        mem_req_read_command_i;
     sc_in<uint32_t>                                        mem_req_read_atomic_i;
+    sc_in<uint32_t>                                        mem_req_read_coherence_i;
     sc_in<bool>                                            mem_req_read_cacheable_i;
 
     sc_in<bool>                                            mem_resp_read_ready_i;
@@ -68,6 +69,7 @@ public:
     sc_in<uint32_t>                                        mem_req_write_id_i;
     sc_in<uint32_t>                                        mem_req_write_command_i;
     sc_in<uint32_t>                                        mem_req_write_atomic_i;
+    sc_in<uint32_t>                                        mem_req_write_coherence_i;
     sc_in<bool>                                            mem_req_write_cacheable_i;
 
     sc_out<bool>                                           mem_req_write_data_ready_o;

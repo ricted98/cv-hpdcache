@@ -136,6 +136,7 @@ import hpdcache_pkg::*;
     output wire hpdcache_mem_command_e         mem_req_read_command_o,
     output wire hpdcache_mem_atomic_e          mem_req_read_atomic_o,
     output wire logic                          mem_req_read_cacheable_o,
+    output wire hpdcache_mem_coh_e             mem_req_read_coherence_o,
 
     output var  logic                          mem_resp_read_ready_o,
     input  wire logic                          mem_resp_read_valid_i,
@@ -154,6 +155,7 @@ import hpdcache_pkg::*;
     output wire hpdcache_mem_command_e         mem_req_write_command_o,
     output wire hpdcache_mem_atomic_e          mem_req_write_atomic_o,
     output wire logic                          mem_req_write_cacheable_o,
+    output wire hpdcache_mem_coh_e             mem_req_write_coherence_o,
 
     input  wire logic                          mem_req_write_data_ready_i,
     output wire logic                          mem_req_write_data_valid_o,
@@ -234,7 +236,8 @@ import hpdcache_pkg::*;
            mem_req_read_id_o        = mem_req_read.mem_req_id,
            mem_req_read_command_o   = mem_req_read.mem_req_command,
            mem_req_read_atomic_o    = mem_req_read.mem_req_atomic,
-           mem_req_read_cacheable_o = mem_req_read.mem_req_cacheable;
+           mem_req_read_cacheable_o = mem_req_read.mem_req_cacheable,
+           mem_req_read_coherence_o = mem_req_read.mem_req_coherence;
 
     assign mem_resp_read.mem_resp_r_error = mem_resp_read_error_i,
            mem_resp_read.mem_resp_r_id    = mem_resp_read_id_i,
@@ -247,7 +250,8 @@ import hpdcache_pkg::*;
            mem_req_write_id_o        = mem_req_write.mem_req_id,
            mem_req_write_command_o   = mem_req_write.mem_req_command,
            mem_req_write_atomic_o    = mem_req_write.mem_req_atomic,
-           mem_req_write_cacheable_o = mem_req_write.mem_req_cacheable;
+           mem_req_write_cacheable_o = mem_req_write.mem_req_cacheable,
+           mem_req_write_coherence_o = mem_req_write.mem_req_coherence;
 
     assign mem_req_write_data_o      = mem_req_write_data.mem_req_w_data,
            mem_req_write_be_o        = mem_req_write_data.mem_req_w_be,
