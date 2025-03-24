@@ -212,6 +212,7 @@ import hpdcache_pkg::*;
     //   {{{
     output logic                   evt_cache_write_miss_o,
     output logic                   evt_cache_read_miss_o,
+    output logic                   evt_cache_inval_shared_o,
     output logic                   evt_uncached_req_o,
     output logic                   evt_cmo_req_o,
     output logic                   evt_write_req_o,
@@ -349,6 +350,7 @@ import hpdcache_pkg::*;
 
         evt_cache_write_miss_o              = 1'b0;
         evt_cache_read_miss_o               = 1'b0;
+        evt_cache_inval_shared_o            = 1'b0;
         evt_uncached_req_o                  = 1'b0;
         evt_cmo_req_o                       = 1'b0;
         evt_write_req_o                     = 1'b0;
@@ -917,6 +919,8 @@ import hpdcache_pkg::*;
                                     // FIXME: add dedicated signal for this scenario?
 
                                     st1_nop = 1'b1;
+
+                                    evt_cache_inval_shared_o = 1'b1;
 
                                 end
 
