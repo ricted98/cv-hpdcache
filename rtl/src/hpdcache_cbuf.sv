@@ -9,6 +9,13 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+//
+// Authors       : Riccardo Tedeschi
+// Creation Date : April, 2025
+// Description   : Coalesce buffer
+// History       :
+//
+
 module hpdcache_cbuf
 import hpdcache_pkg::*;
     //  Parameters
@@ -67,15 +74,12 @@ import hpdcache_pkg::*;
         end
     end
 
-    always_comb begin
-        alloc_id_o = '0;
-        for (hpdcache_uint i = 0; i < cbufEntries; i++) begin
-            if (!valid_q[i]) begin
-                alloc_id_o = cbuf_id_t'(i);
-                break;
-            end
-        end
-    end
+    hpdcache_prio_bin_encoder #(
+        .N (cbufEntries)
+    ) cbuf_prio_bin_encoder_i (
+        .val_i (~valid_q),
+        .val_o (alloc_id_o)
+    );
 
     always_ff @(posedge clk_i or negedge rst_ni) begin
         if (!rst_ni) begin
