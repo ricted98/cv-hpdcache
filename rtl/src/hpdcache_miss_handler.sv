@@ -649,24 +649,25 @@ import hpdcache_pkg::*;
     );
 
     always_comb begin
-        automatic logic [HPDcacheCfg.reqDataBytes-1:0] dirty_be;
-        automatic logic [HPDcacheCfg.reqDataWidth-1:0] dirty_data;
-        automatic logic [HPDcacheCfg.accessWidth-1:0]  refill_data;
-        dirty_be   = refill_dirty_be;
-        dirty_data = refill_dirty_wdata;
-        refill_data = refill_fifo_resp_data_rdata;
+        automatic logic [HPDcacheCfg.accessBytes-1:0]      v_dirty_be;
+        automatic logic [HPDcacheCfg.accessBytes-1:0][7:0] v_dirty_data;
+        automatic logic [HPDcacheCfg.accessBytes-1:0][7:0] v_refill_data;
+
+        automatic hpdcache_uint                            v_current_rsp;
+
+        v_dirty_be    = {REFILL_REQ_RATIO{refill_dirty_be}};
+        v_dirty_data  = {REFILL_REQ_RATIO{refill_dirty_wdata}};
+        v_refill_data = refill_fifo_resp_data_rdata;
+
         if (refill_core_rsp_valid_o && refill_dirty) begin
-            for (hpdcache_uint i = 0; i < REFILL_REQ_RATIO; i++) begin
-                if (i == refill_core_rsp_word[$clog2(REFILL_REQ_RATIO)-1:0]) begin
-                    for (hpdcache_uint j = 0; j < HPDcacheCfg.reqDataBytes; j++) begin
-                        if (dirty_be[j])
-                            refill_data [HPDcacheCfg.reqDataWidth * i + 8 * j +: 8] =
-                                dirty_data[8 * j +: 8];
-                    end
-                end
+            for (hpdcache_uint i = 0; i < HPDcacheCfg.accessBytes; i++) begin
+                v_current_rsp = i / HPDcacheCfg.reqDataBytes;
+                if (v_dirty_be[i] &&
+                    v_current_rsp == refill_core_rsp_word[$clog2(REFILL_REQ_RATIO)-1:0])
+                    v_refill_data[i] = v_dirty_data[i];
             end
         end
-        refill_data_o = hpdcache_refill_data_t'(refill_data);
+        refill_data_o = hpdcache_refill_data_t'(v_refill_data);
     end
 
     //      The DATA fifo is only used for refill responses
