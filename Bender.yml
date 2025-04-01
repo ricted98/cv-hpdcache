@@ -39,6 +39,7 @@ sources:
   - rtl/src/hpdcache_ctrl.sv
   - rtl/src/hpdcache_ctrl_pe.sv
   - rtl/src/hpdcache_memctrl.sv
+  - rtl/src/hpdcache_cbuf.sv
   - rtl/src/hpdcache_miss_handler.sv
   - rtl/src/hpdcache_mshr.sv
   - rtl/src/hpdcache_rtab.sv
