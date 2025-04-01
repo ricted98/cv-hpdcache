@@ -484,6 +484,14 @@ import hpdcache_pkg::*;
                             st1_nop = 1'b1;
                         end
 
+                        //  Pending miss on the same line
+                        else if (st1_mshr_hit_i) begin
+                            //  Put the request in the replay table
+                            st1_rtab_alloc = 1'b1;
+                            st1_rtab_mshr_hit_o = 1'b1;
+                            st1_nop = 1'b1;
+                        end
+
                         //  Process the AMO request
                         else begin
                             uc_req_valid_o = 1'b1;
