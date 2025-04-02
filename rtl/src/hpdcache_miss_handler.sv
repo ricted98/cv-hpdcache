@@ -662,6 +662,7 @@ import hpdcache_pkg::*;
         v_dirty_be    = {REFILL_REQ_RATIO{refill_dirty_be}};
         v_dirty_data  = {REFILL_REQ_RATIO{refill_dirty_wdata}};
         v_refill_data = refill_fifo_resp_data_rdata;
+        v_current_rsp = '0;
 
         //  The refill counter is pointing to the refill data slice
         //  that should be (partially) replaced by buffered wdata AND
