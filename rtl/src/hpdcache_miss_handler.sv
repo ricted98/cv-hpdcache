@@ -648,7 +648,11 @@ import hpdcache_pkg::*;
         .rlast_o(/* unused */)
     );
 
+    //  Refill data multiplexing logic
     always_comb begin
+        //  Multiplexing has a byte granularity
+        //  REFILL_REQ_RATIO is always greater or equal to 1
+        //  Use `accessBytes` bytes long signals
         automatic logic [HPDcacheCfg.accessBytes-1:0]      v_dirty_be;
         automatic logic [HPDcacheCfg.accessBytes-1:0][7:0] v_dirty_data;
         automatic logic [HPDcacheCfg.accessBytes-1:0][7:0] v_refill_data;
@@ -659,8 +663,14 @@ import hpdcache_pkg::*;
         v_dirty_data  = {REFILL_REQ_RATIO{refill_dirty_wdata}};
         v_refill_data = refill_fifo_resp_data_rdata;
 
+        //  The refill counter is pointing to the refill data slice
+        //  that should be (partially) replaced by buffered wdata AND
+        //  the refill is effectively coalesced with a store
         if (refill_core_rsp_valid_o && refill_dirty) begin
             for (hpdcache_uint i = 0; i < HPDcacheCfg.accessBytes; i++) begin
+                //  Iterate on all `accessBytes` bytes
+                //  Locate each byte to be replaced in the refill data
+                //  AND replace it if the byte enable is set
                 v_current_rsp = i / HPDcacheCfg.reqDataBytes;
                 if (v_dirty_be[i] &&
                     v_current_rsp == refill_core_rsp_word[$clog2(REFILL_REQ_RATIO)-1:0])
