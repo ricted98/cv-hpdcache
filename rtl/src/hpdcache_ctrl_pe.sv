@@ -826,10 +826,6 @@ import hpdcache_pkg::*;
                                     st2_mshr_alloc_wback_o = 1'b1;
                                     st2_mshr_alloc_dirty_o = 1'b1;
 
-                                    //  Put the request in the replay table
-                                    // st1_rtab_alloc = 1'b1;
-                                    // st1_rtab_write_miss_o = 1'b1;
-
                                     //  If the request comes from the replay table, free the
                                     //  corresponding RTAB entry
                                     st1_rtab_commit_o = st1_req_rtab_i;
