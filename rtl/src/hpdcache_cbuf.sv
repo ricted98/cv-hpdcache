@@ -22,10 +22,9 @@ import hpdcache_pkg::*;
     //  {{{
 #(
     parameter hpdcache_cfg_t HPDcacheCfg = '0,
-    parameter hpdcache_uint  cbufEntries = 0,
-    parameter type hpdcache_req_data_t = logic,
-    parameter type hpdcache_req_be_t   = logic,
-    parameter type cbuf_id_t           = logic
+    parameter type hpdcache_req_data_t   = logic,
+    parameter type hpdcache_req_be_t     = logic,
+    parameter type cbuf_id_t             = logic
 )
     //  }}}
 
@@ -51,8 +50,8 @@ import hpdcache_pkg::*;
         hpdcache_req_be_t   be;
     } cbuf_entry_t;
 
-    cbuf_entry_t [cbufEntries-1:0] entries_q, entries_d;
-    logic        [cbufEntries-1:0] valid_q, valid_d;
+    cbuf_entry_t [HPDcacheCfg.u.cbufEntries-1:0] entries_q, entries_d;
+    logic        [HPDcacheCfg.u.cbufEntries-1:0] valid_q, valid_d;
 
     assign alloc_full_o = &valid_q;
 
@@ -75,7 +74,7 @@ import hpdcache_pkg::*;
     end
 
     hpdcache_prio_bin_encoder #(
-        .N (cbufEntries)
+        .N (HPDcacheCfg.u.cbufEntries)
     ) cbuf_prio_bin_encoder_i (
         .val_i (~valid_q),
         .val_o (alloc_id_o)

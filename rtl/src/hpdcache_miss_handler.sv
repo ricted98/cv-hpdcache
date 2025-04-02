@@ -151,8 +151,6 @@ import hpdcache_pkg::*;
     localparam hpdcache_uint REFILL_LAST_CHUNK_WORD = HPDcacheCfg.u.clWords -
                                                       HPDcacheCfg.u.accessWords;
 
-    localparam hpdcache_uint cbufEntries = 4;
-
     typedef enum logic {
         MISS_REQ_IDLE = 1'b0,
         MISS_REQ_SEND = 1'b1
@@ -175,7 +173,7 @@ import hpdcache_pkg::*;
     typedef logic [HPDcacheCfg.mshrWayWidth-1:0] mshr_way_t;
     typedef logic [HPDcacheCfg.mshrSetWidth-1:0] mshr_set_t;
 
-    typedef logic [$clog2(cbufEntries)-1:0] cbuf_id_t;
+    typedef logic [HPDcacheCfg.cbufEntryWidth-1:0] cbuf_id_t;
     //  }}}
 
     //  Declaration of internal signals and registers
@@ -821,7 +819,6 @@ import hpdcache_pkg::*;
 
     hpdcache_cbuf #(
         .HPDcacheCfg         (HPDcacheCfg),
-        .cbufEntries         (cbufEntries),
         .hpdcache_req_data_t (hpdcache_req_data_t),
         .hpdcache_req_be_t   (hpdcache_req_be_t),
         .cbuf_id_t           (cbuf_id_t)
