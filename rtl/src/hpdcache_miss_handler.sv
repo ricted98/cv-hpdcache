@@ -198,6 +198,7 @@ import hpdcache_pkg::*;
     hpdcache_word_t          refill_core_rsp_word_q;
     hpdcache_way_t           refill_way;
     logic                    refill_dirty;
+    logic                    refill_dirty_valid;
     hpdcache_req_data_t      refill_dirty_wdata;
     hpdcache_req_be_t        refill_dirty_be;
 
@@ -336,6 +337,7 @@ import hpdcache_pkg::*;
 
         refill_dirty_wdata      = refill_dirty_wdata_q;
         refill_dirty_be         = refill_dirty_be_q;
+        refill_dirty_valid      = 1'b0;
 
         inval_check_dir_o       = 1'b0;
         inval_write_dir_o       = 1'b0;
@@ -396,8 +398,9 @@ import hpdcache_pkg::*;
                 if (refill_cnt_q == 0) begin
                     core_rsp_word = hpdcache_uint'(mshr_ack_word)/HPDcacheCfg.u.accessWords;
 
-                    if (mshr_ack_need_rsp) begin
-                        refill_core_rsp_valid = (hpdcache_uint'(core_rsp_word) == 0);
+                    if (hpdcache_uint'(core_rsp_word) == 0) begin
+                        refill_core_rsp_valid = mshr_ack_need_rsp;
+                        refill_dirty_valid = mshr_ack_dirty;
                     end
 
                     refill_core_rsp_sid = mshr_ack_src_id;
@@ -406,13 +409,15 @@ import hpdcache_pkg::*;
                     refill_core_rsp_word = hpdcache_word_t'(
                         hpdcache_uint'(mshr_ack_word)/HPDcacheCfg.u.reqWords);
                 end else begin
+                    automatic hpdcache_uint refill_cnt;
+
                     core_rsp_word = hpdcache_uint'(refill_core_rsp_word_q)/
                                                    HPDcacheCfg.u.accessWords;
+                    refill_cnt = hpdcache_uint'(refill_cnt_q)/HPDcacheCfg.u.accessWords;
 
-                    if (refill_need_rsp_q) begin
-                        automatic hpdcache_uint refill_cnt;
-                        refill_cnt = hpdcache_uint'(refill_cnt_q)/HPDcacheCfg.u.accessWords;
-                        refill_core_rsp_valid = (core_rsp_word == refill_cnt);
+                    if (core_rsp_word == refill_cnt) begin
+                        refill_core_rsp_valid = refill_need_rsp_q;
+                        refill_dirty_valid = refill_dirty_q;
                     end
 
                     refill_core_rsp_sid = refill_sid_q;
@@ -665,7 +670,7 @@ import hpdcache_pkg::*;
         //  The refill counter is pointing to the refill data slice
         //  that should be (partially) replaced by buffered wdata AND
         //  the refill is effectively coalesced with a store
-        if (refill_core_rsp_valid_o && refill_dirty) begin
+        if (refill_dirty_valid) begin
             for (hpdcache_uint i = 0; i < HPDcacheCfg.accessBytes; i++) begin
                 //  Iterate on all `accessBytes` bytes
                 //  Locate each byte to be replaced in the refill data
