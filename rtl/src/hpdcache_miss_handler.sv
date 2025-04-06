@@ -677,7 +677,8 @@ import hpdcache_pkg::*;
                 //  AND replace it if the byte enable is set
                 v_current_rsp = i / HPDcacheCfg.reqDataBytes;
                 if (v_dirty_be[i] &&
-                    v_current_rsp == refill_core_rsp_word[$clog2(REFILL_REQ_RATIO)-1:0])
+                    (REFILL_REQ_RATIO == 1 ||
+                    v_current_rsp == refill_core_rsp_word[$clog2(REFILL_REQ_RATIO)-1:0]))
                     v_refill_data[i] = v_dirty_data[i];
             end
         end
