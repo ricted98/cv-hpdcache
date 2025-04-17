@@ -692,6 +692,7 @@ import hpdcache_pkg::*;
         mem_req_read_o.mem_req_cacheable = 1'b0;
         mem_req_read_o.mem_req_command   = HPDCACHE_MEM_READ;
         mem_req_read_o.mem_req_atomic    = HPDCACHE_MEM_ATOMIC_ADD;
+        mem_req_read_o.mem_req_coherence = HPDCACHE_MEM_COHERENCE_READ_NO_SNOOP;
 
         unique case (1'b1)
             req_op_q.is_ld: begin
@@ -701,6 +702,7 @@ import hpdcache_pkg::*;
                 mem_req_read_o.mem_req_command = HPDCACHE_MEM_ATOMIC;
                 mem_req_read_o.mem_req_atomic  = HPDCACHE_MEM_ATOMIC_LDEX;
                 mem_req_read_valid_o           = (uc_fsm_q == UC_MEM_REQ);
+                // FIXME: correct coherence transaction for AMO LR
             end
             default: begin
                 mem_req_read_valid_o           = 1'b0;
@@ -719,35 +721,43 @@ import hpdcache_pkg::*;
         mem_req_write_o.mem_req_size      = req_size_q;
         mem_req_write_o.mem_req_id        = mem_write_id_i;
         mem_req_write_o.mem_req_cacheable = 1'b0;
+        mem_req_write_o.mem_req_coherence = HPDCACHE_MEM_COHERENCE_WRITE_NO_SNOOP;
         unique case (1'b1)
             req_op_q.is_amo_sc: begin
                 mem_req_write_o.mem_req_command = HPDCACHE_MEM_ATOMIC;
                 mem_req_write_o.mem_req_atomic  = HPDCACHE_MEM_ATOMIC_STEX;
+                 // FIXME: correct coherence transaction for AMO SC
             end
             req_op_q.is_amo_swap: begin
                 mem_req_write_o.mem_req_command = HPDCACHE_MEM_ATOMIC;
                 mem_req_write_o.mem_req_atomic  = HPDCACHE_MEM_ATOMIC_SWAP;
+                // FIXME: correct coherence transaction for AMO ATOP
             end
             req_op_q.is_amo_add: begin
                 mem_req_write_o.mem_req_command = HPDCACHE_MEM_ATOMIC;
                 mem_req_write_o.mem_req_atomic  = HPDCACHE_MEM_ATOMIC_ADD;
+                // FIXME: correct coherence transaction for AMO ATOP
             end
             req_op_q.is_amo_and: begin
                 mem_req_write_data              = ~req_data_q;
                 mem_req_write_o.mem_req_command = HPDCACHE_MEM_ATOMIC;
                 mem_req_write_o.mem_req_atomic  = HPDCACHE_MEM_ATOMIC_CLR;
+                // FIXME: correct coherence transaction for AMO ATOP
             end
             req_op_q.is_amo_or: begin
                 mem_req_write_o.mem_req_command = HPDCACHE_MEM_ATOMIC;
                 mem_req_write_o.mem_req_atomic  = HPDCACHE_MEM_ATOMIC_SET;
+                // FIXME: correct coherence transaction for AMO ATOP
             end
             req_op_q.is_amo_xor: begin
                 mem_req_write_o.mem_req_command = HPDCACHE_MEM_ATOMIC;
                 mem_req_write_o.mem_req_atomic  = HPDCACHE_MEM_ATOMIC_EOR;
+                // FIXME: correct coherence transaction for AMO ATOP
             end
             req_op_q.is_amo_max: begin
                 mem_req_write_o.mem_req_command = HPDCACHE_MEM_ATOMIC;
                 mem_req_write_o.mem_req_atomic  = HPDCACHE_MEM_ATOMIC_SMAX;
+                // FIXME: correct coherence transaction for AMO ATOP
             end
             req_op_q.is_amo_maxu: begin
                 mem_req_write_o.mem_req_command = HPDCACHE_MEM_ATOMIC;
@@ -756,14 +766,17 @@ import hpdcache_pkg::*;
             req_op_q.is_amo_min: begin
                 mem_req_write_o.mem_req_command = HPDCACHE_MEM_ATOMIC;
                 mem_req_write_o.mem_req_atomic  = HPDCACHE_MEM_ATOMIC_SMIN;
+                // FIXME: correct coherence transaction for AMO ATOP
             end
             req_op_q.is_amo_minu: begin
                 mem_req_write_o.mem_req_command = HPDCACHE_MEM_ATOMIC;
                 mem_req_write_o.mem_req_atomic  = HPDCACHE_MEM_ATOMIC_UMIN;
+                // FIXME: correct coherence transaction for AMO ATOP
             end
             default: begin
                 mem_req_write_o.mem_req_command = HPDCACHE_MEM_WRITE;
                 mem_req_write_o.mem_req_atomic  = HPDCACHE_MEM_ATOMIC_ADD;
+                // FIXME: correct coherence transaction for AMO ATOP
             end
         endcase
 

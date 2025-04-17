@@ -138,6 +138,7 @@ import hpdcache_pkg::*;
     output wire hpdcache_mem_command_e         mem_req_read_command_o,
     output wire hpdcache_mem_atomic_e          mem_req_read_atomic_o,
     output wire logic                          mem_req_read_cacheable_o,
+    output wire hpdcache_mem_coherence_e       mem_req_read_coherence_o,
 
     output var  logic                          mem_resp_read_ready_o,
     input  wire logic                          mem_resp_read_valid_i,
@@ -145,6 +146,8 @@ import hpdcache_pkg::*;
     input  wire hpdcache_mem_id_t              mem_resp_read_id_i,
     input  wire hpdcache_mem_data_t            mem_resp_read_data_i,
     input  wire logic                          mem_resp_read_last_i,
+    input  wire logic                          mem_resp_read_dirty_i,
+    input  wire logic                          mem_resp_read_shared_i,
 
     //      Memory write interface
     input  wire logic                          mem_req_write_ready_i,
@@ -156,6 +159,7 @@ import hpdcache_pkg::*;
     output wire hpdcache_mem_command_e         mem_req_write_command_o,
     output wire hpdcache_mem_atomic_e          mem_req_write_atomic_o,
     output wire logic                          mem_req_write_cacheable_o,
+    output wire hpdcache_mem_coherence_e       mem_req_write_coherence_o,
 
     input  wire logic                          mem_req_write_data_ready_i,
     output wire logic                          mem_req_write_data_valid_o,
@@ -172,8 +176,10 @@ import hpdcache_pkg::*;
     //      Performance events
     output wire  logic                         evt_cache_write_miss_o,
     output wire  logic                         evt_cache_read_miss_o,
+    output wire  logic                         evt_cache_inval_shared_o,
     output wire  logic                         evt_uncached_req_o,
     output wire  logic                         evt_cmo_req_o,
+    output wire  logic                         evt_snoop_req_o,
     output wire  logic                         evt_write_req_o,
     output wire  logic                         evt_read_req_o,
     output wire  logic                         evt_prefetch_req_o,
@@ -236,12 +242,15 @@ import hpdcache_pkg::*;
            mem_req_read_id_o        = mem_req_read.mem_req_id,
            mem_req_read_command_o   = mem_req_read.mem_req_command,
            mem_req_read_atomic_o    = mem_req_read.mem_req_atomic,
-           mem_req_read_cacheable_o = mem_req_read.mem_req_cacheable;
+           mem_req_read_cacheable_o = mem_req_read.mem_req_cacheable,
+           mem_req_read_coherence_o = mem_req_read.mem_req_coherence;
 
-    assign mem_resp_read.mem_resp_r_error = mem_resp_read_error_i,
-           mem_resp_read.mem_resp_r_id    = mem_resp_read_id_i,
-           mem_resp_read.mem_resp_r_data  = mem_resp_read_data_i,
-           mem_resp_read.mem_resp_r_last  = mem_resp_read_last_i;
+    assign mem_resp_read.mem_resp_r_error  = mem_resp_read_error_i,
+           mem_resp_read.mem_resp_r_id     = mem_resp_read_id_i,
+           mem_resp_read.mem_resp_r_data   = mem_resp_read_data_i,
+           mem_resp_read.mem_resp_r_last   = mem_resp_read_last_i,
+           mem_resp_read.mem_resp_r_dirty  = mem_resp_read_dirty_i,
+           mem_resp_read.mem_resp_r_shared = mem_resp_read_shared_i;
 
     assign mem_req_write_addr_o      = mem_req_write.mem_req_addr,
            mem_req_write_len_o       = mem_req_write.mem_req_len,
@@ -249,7 +258,8 @@ import hpdcache_pkg::*;
            mem_req_write_id_o        = mem_req_write.mem_req_id,
            mem_req_write_command_o   = mem_req_write.mem_req_command,
            mem_req_write_atomic_o    = mem_req_write.mem_req_atomic,
-           mem_req_write_cacheable_o = mem_req_write.mem_req_cacheable;
+           mem_req_write_cacheable_o = mem_req_write.mem_req_cacheable,
+           mem_req_write_coherence_o = mem_req_write.mem_req_coherence;
 
     assign mem_req_write_data_o      = mem_req_write_data.mem_req_w_data,
            mem_req_write_be_o        = mem_req_write_data.mem_req_w_be,
@@ -322,6 +332,11 @@ import hpdcache_pkg::*;
         .core_rsp_valid_o                  (core_rsp_valid),
         .core_rsp_o                        (core_rsp),
 
+        .core_rsp_coherence_o              (),
+        .core_rsp_coherence_data_ready_i   ('1),
+        .core_rsp_coherence_data_valid_o   (),
+        .core_rsp_coherence_data_o         (),
+
         .mem_req_read_ready_i              (mem_req_read_ready_i),
         .mem_req_read_valid_o              (mem_req_read_valid_o),
         .mem_req_read_o                    (mem_req_read),
@@ -344,8 +359,10 @@ import hpdcache_pkg::*;
 
         .evt_cache_write_miss_o,
         .evt_cache_read_miss_o,
+        .evt_cache_inval_shared_o,
         .evt_uncached_req_o,
         .evt_cmo_req_o,
+        .evt_snoop_req_o,
         .evt_write_req_o,
         .evt_read_req_o,
         .evt_prefetch_req_o,

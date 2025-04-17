@@ -52,6 +52,7 @@ public:
     sc_in<sc_bv<HPDCACHE_MEM_ID_WIDTH> >                   mem_req_read_id_i;
     sc_in<sc_bv<2> >                                       mem_req_read_command_i;
     sc_in<sc_bv<4> >                                       mem_req_read_atomic_i;
+    sc_in<sc_bv<4>>                                        mem_req_read_coherence_i;
     sc_in<bool>                                            mem_req_read_cacheable_i;
 
     sc_in<bool>                                            mem_resp_read_ready_i;
@@ -60,6 +61,8 @@ public:
     sc_out<sc_bv<HPDCACHE_MEM_ID_WIDTH> >                  mem_resp_read_id_o;
     sc_out<sc_bv<HPDCACHE_MEM_DATA_WIDTH> >                mem_resp_read_data_o;
     sc_out<bool>                                           mem_resp_read_last_o;
+    sc_out<bool>                                           mem_resp_read_dirty_o;
+    sc_out<bool>                                           mem_resp_read_shared_o;
 
     sc_out<bool>                                           mem_req_write_ready_o;
     sc_in<bool>                                            mem_req_write_valid_i;
@@ -69,6 +72,7 @@ public:
     sc_in<sc_bv<HPDCACHE_MEM_ID_WIDTH> >                   mem_req_write_id_i;
     sc_in<sc_bv<2> >                                       mem_req_write_command_i;
     sc_in<sc_bv<4> >                                       mem_req_write_atomic_i;
+    sc_in<sc_bv<4>>                                        mem_req_write_coherence_i;
     sc_in<bool>                                            mem_req_write_cacheable_i;
 
     sc_out<bool>                                           mem_req_write_data_ready_o;
@@ -334,6 +338,8 @@ private:
             mem_resp_read_id_o.write(read_resp.id);
             mem_resp_read_data_o.write(read_resp.data);
             mem_resp_read_last_o.write(read_resp.last);
+            mem_resp_read_dirty_o.write(false);  // FIXME: placeholders, drive them properly
+            mem_resp_read_shared_o.write(false); // FIXME: placeholders, drive them properly
             do wait(); while (!mem_resp_read_ready_i.read());
             mem_resp_read_valid_o.write(false);
         }

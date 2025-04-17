@@ -28,13 +28,14 @@
 
 `define HPDCACHE_DECL_MEM_REQ_T(__addr_t, __id_t) \
     struct packed { \
-        __addr_t                              mem_req_addr; \
-        hpdcache_pkg::hpdcache_mem_len_t      mem_req_len; \
-        hpdcache_pkg::hpdcache_mem_size_t     mem_req_size; \
-        __id_t                                mem_req_id; \
-        hpdcache_pkg::hpdcache_mem_command_e  mem_req_command; \
-        hpdcache_pkg::hpdcache_mem_atomic_e   mem_req_atomic; \
-        logic                                 mem_req_cacheable; \
+        __addr_t                               mem_req_addr; \
+        hpdcache_pkg::hpdcache_mem_len_t       mem_req_len; \
+        hpdcache_pkg::hpdcache_mem_size_t      mem_req_size; \
+        __id_t                                 mem_req_id; \
+        hpdcache_pkg::hpdcache_mem_command_e   mem_req_command; \
+        hpdcache_pkg::hpdcache_mem_atomic_e    mem_req_atomic; \
+        logic                                  mem_req_cacheable; \
+        hpdcache_pkg::hpdcache_mem_coherence_e mem_req_coherence; \
     }
 
 `define HPDCACHE_DECL_MEM_RESP_R_T(__id_t, __data_t) \
@@ -43,6 +44,8 @@
         __id_t                                mem_resp_r_id; \
         __data_t                              mem_resp_r_data; \
         logic                                 mem_resp_r_last; \
+        logic                                 mem_resp_r_dirty; \
+        logic                                 mem_resp_r_shared; \
     }
 
 `define HPDCACHE_DECL_MEM_REQ_W_T(__data_t, __be_t) \

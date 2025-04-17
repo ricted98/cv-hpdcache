@@ -101,6 +101,7 @@ public:
         top->mem_req_read_id_o (mem_req_read_id);
         top->mem_req_read_command_o (mem_req_read_command);
         top->mem_req_read_atomic_o (mem_req_read_atomic);
+        top->mem_req_read_coherence_o (mem_req_read_coherence);
         top->mem_req_read_cacheable_o (mem_req_read_cacheable);
         top->mem_resp_read_ready_o (mem_resp_read_ready);
         top->mem_resp_read_valid_i (mem_resp_read_valid);
@@ -108,6 +109,8 @@ public:
         top->mem_resp_read_id_i (mem_resp_read_id);
         top->mem_resp_read_data_i (mem_resp_read_data);
         top->mem_resp_read_last_i (mem_resp_read_last);
+        top->mem_resp_read_dirty_i (mem_resp_read_dirty);
+        top->mem_resp_read_shared_i (mem_resp_read_shared);
         top->mem_req_write_ready_i (mem_req_write_ready);
         top->mem_req_write_valid_o (mem_req_write_valid);
         top->mem_req_write_addr_o (mem_req_write_addr);
@@ -116,6 +119,7 @@ public:
         top->mem_req_write_id_o (mem_req_write_id);
         top->mem_req_write_command_o (mem_req_write_command);
         top->mem_req_write_atomic_o (mem_req_write_atomic);
+        top->mem_req_write_coherence_o (mem_req_write_coherence);
         top->mem_req_write_cacheable_o (mem_req_write_cacheable);
         top->mem_req_write_data_ready_i (mem_req_write_data_ready);
         top->mem_req_write_data_valid_o (mem_req_write_data_valid);
@@ -129,8 +133,10 @@ public:
         top->mem_resp_write_id_i (mem_resp_write_id);
         top->evt_cache_write_miss_o (evt_cache_write_miss);
         top->evt_cache_read_miss_o (evt_cache_read_miss);
+        top->evt_cache_inval_shared_o (evt_cache_inval_shared);
         top->evt_uncached_req_o (evt_uncached_req);
         top->evt_cmo_req_o (evt_cmo_req);
+        top->evt_snoop_req_o (evt_snoop_req);
         top->evt_write_req_o (evt_write_req);
         top->evt_read_req_o (evt_read_req);
         top->evt_prefetch_req_o (evt_prefetch_req);
@@ -172,6 +178,7 @@ public:
         hpdcache_test_mem_resp_model_i->mem_req_read_id_i (mem_req_read_id);
         hpdcache_test_mem_resp_model_i->mem_req_read_command_i (mem_req_read_command);
         hpdcache_test_mem_resp_model_i->mem_req_read_atomic_i (mem_req_read_atomic);
+        hpdcache_test_mem_resp_model_i->mem_req_read_coherence_i (mem_req_read_coherence);
         hpdcache_test_mem_resp_model_i->mem_req_read_cacheable_i (mem_req_read_cacheable);
         hpdcache_test_mem_resp_model_i->mem_resp_read_ready_i (mem_resp_read_ready);
         hpdcache_test_mem_resp_model_i->mem_resp_read_valid_o (mem_resp_read_valid);
@@ -179,6 +186,8 @@ public:
         hpdcache_test_mem_resp_model_i->mem_resp_read_id_o (mem_resp_read_id);
         hpdcache_test_mem_resp_model_i->mem_resp_read_data_o (mem_resp_read_data);
         hpdcache_test_mem_resp_model_i->mem_resp_read_last_o (mem_resp_read_last);
+        hpdcache_test_mem_resp_model_i->mem_resp_read_dirty_o (mem_resp_read_dirty);
+        hpdcache_test_mem_resp_model_i->mem_resp_read_shared_o (mem_resp_read_shared);
         hpdcache_test_mem_resp_model_i->mem_req_write_ready_o (mem_req_write_ready);
         hpdcache_test_mem_resp_model_i->mem_req_write_valid_i (mem_req_write_valid);
         hpdcache_test_mem_resp_model_i->mem_req_write_addr_i (mem_req_write_addr);
@@ -187,6 +196,7 @@ public:
         hpdcache_test_mem_resp_model_i->mem_req_write_id_i (mem_req_write_id);
         hpdcache_test_mem_resp_model_i->mem_req_write_command_i (mem_req_write_command);
         hpdcache_test_mem_resp_model_i->mem_req_write_atomic_i (mem_req_write_atomic);
+        hpdcache_test_mem_resp_model_i->mem_req_write_coherence_i (mem_req_write_coherence);
         hpdcache_test_mem_resp_model_i->mem_req_write_cacheable_i (mem_req_write_cacheable);
         hpdcache_test_mem_resp_model_i->mem_req_write_data_ready_o (mem_req_write_data_ready);
         hpdcache_test_mem_resp_model_i->mem_req_write_data_valid_i (mem_req_write_data_valid);
@@ -212,8 +222,10 @@ public:
         hpdcache_test_scoreboard_i->mem_write_resp_i (sb_mem_write_resp);
         hpdcache_test_scoreboard_i->evt_cache_write_miss_i (evt_cache_write_miss);
         hpdcache_test_scoreboard_i->evt_cache_read_miss_i (evt_cache_read_miss);
+        hpdcache_test_scoreboard_i->evt_cache_inval_shared_i (evt_cache_inval_shared);
         hpdcache_test_scoreboard_i->evt_uncached_req_i (evt_uncached_req);
         hpdcache_test_scoreboard_i->evt_cmo_req_i (evt_cmo_req);
+        hpdcache_test_scoreboard_i->evt_snoop_req_i (evt_snoop_req);
         hpdcache_test_scoreboard_i->evt_write_req_i (evt_write_req);
         hpdcache_test_scoreboard_i->evt_read_req_i (evt_read_req);
         hpdcache_test_scoreboard_i->evt_prefetch_req_i (evt_prefetch_req);
@@ -371,6 +383,7 @@ private:
     sc_core::sc_signal <sc_bv<HPDCACHE_MEM_ID_WIDTH> > mem_req_read_id;
     sc_core::sc_signal <sc_bv<2> > mem_req_read_command;
     sc_core::sc_signal <sc_bv<4> > mem_req_read_atomic;
+    sc_core::sc_signal <sc_bv<4>> mem_req_read_coherence;
     sc_core::sc_signal <bool> mem_req_read_cacheable;
     sc_core::sc_signal <bool> mem_resp_read_ready;
     sc_core::sc_signal <bool> mem_resp_read_valid;
@@ -378,6 +391,8 @@ private:
     sc_core::sc_signal <sc_bv<HPDCACHE_MEM_ID_WIDTH> > mem_resp_read_id;
     sc_core::sc_signal <sc_bv<HPDCACHE_MEM_DATA_WIDTH> > mem_resp_read_data;
     sc_core::sc_signal <bool> mem_resp_read_last;
+    sc_core::sc_signal <bool> mem_resp_read_dirty;
+    sc_core::sc_signal <bool> mem_resp_read_shared;
     sc_core::sc_signal <bool> mem_req_write_ready;
     sc_core::sc_signal <bool> mem_req_write_valid;
     sc_core::sc_signal <sc_bv<HPDCACHE_MEM_ADDR_WIDTH> > mem_req_write_addr;
@@ -386,6 +401,7 @@ private:
     sc_core::sc_signal <sc_bv<HPDCACHE_MEM_ID_WIDTH> > mem_req_write_id;
     sc_core::sc_signal <sc_bv<2> > mem_req_write_command;
     sc_core::sc_signal <sc_bv<4> > mem_req_write_atomic;
+    sc_core::sc_signal <sc_bv<4>> mem_req_write_coherence;
     sc_core::sc_signal <bool> mem_req_write_cacheable;
     sc_core::sc_signal <bool> mem_req_write_data_ready;
     sc_core::sc_signal <bool> mem_req_write_data_valid;
@@ -407,8 +423,10 @@ private:
 
     sc_core::sc_signal <bool> evt_cache_write_miss;
     sc_core::sc_signal <bool> evt_cache_read_miss;
+    sc_core::sc_signal <bool> evt_cache_inval_shared;
     sc_core::sc_signal <bool> evt_uncached_req;
     sc_core::sc_signal <bool> evt_cmo_req;
+    sc_core::sc_signal <bool> evt_snoop_req;
     sc_core::sc_signal <bool> evt_write_req;
     sc_core::sc_signal <bool> evt_read_req;
     sc_core::sc_signal <bool> evt_prefetch_req;

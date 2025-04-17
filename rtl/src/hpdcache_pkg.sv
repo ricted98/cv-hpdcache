@@ -53,31 +53,49 @@ package hpdcache_pkg;
     //      Definition of operation codes
     //      {{{
     typedef enum logic [4:0] {
-        HPDCACHE_REQ_LOAD                  = 5'h00,
-        HPDCACHE_REQ_STORE                 = 5'h01,
-        // RESERVED                        = 5'h02,
-        // RESERVED                        = 5'h03,
-        HPDCACHE_REQ_AMO_LR                = 5'h04,
-        HPDCACHE_REQ_AMO_SC                = 5'h05,
-        HPDCACHE_REQ_AMO_SWAP              = 5'h06,
-        HPDCACHE_REQ_AMO_ADD               = 5'h07,
-        HPDCACHE_REQ_AMO_AND               = 5'h08,
-        HPDCACHE_REQ_AMO_OR                = 5'h09,
-        HPDCACHE_REQ_AMO_XOR               = 5'h0a,
-        HPDCACHE_REQ_AMO_MAX               = 5'h0b,
-        HPDCACHE_REQ_AMO_MAXU              = 5'h0c,
-        HPDCACHE_REQ_AMO_MIN               = 5'h0d,
-        HPDCACHE_REQ_AMO_MINU              = 5'h0e,
-        // RESERVED                        = 5'h0f,
-        HPDCACHE_REQ_CMO_FENCE             = 5'h10,
-        HPDCACHE_REQ_CMO_PREFETCH          = 5'h11,
-        HPDCACHE_REQ_CMO_INVAL_NLINE       = 5'h12,
-        HPDCACHE_REQ_CMO_INVAL_ALL         = 5'h13,
-        HPDCACHE_REQ_CMO_FLUSH_NLINE       = 5'h14,
-        HPDCACHE_REQ_CMO_FLUSH_ALL         = 5'h15,
-        HPDCACHE_REQ_CMO_FLUSH_INVAL_NLINE = 5'h16,
-        HPDCACHE_REQ_CMO_FLUSH_INVAL_ALL   = 5'h17
+        HPDCACHE_REQ_LOAD                        = 5'h00,
+        HPDCACHE_REQ_STORE                       = 5'h01,
+        // RESERVED                              = 5'h02,
+        // RESERVED                              = 5'h03,
+        HPDCACHE_REQ_AMO_LR                      = 5'h04,
+        HPDCACHE_REQ_AMO_SC                      = 5'h05,
+        HPDCACHE_REQ_AMO_SWAP                    = 5'h06,
+        HPDCACHE_REQ_AMO_ADD                     = 5'h07,
+        HPDCACHE_REQ_AMO_AND                     = 5'h08,
+        HPDCACHE_REQ_AMO_OR                      = 5'h09,
+        HPDCACHE_REQ_AMO_XOR                     = 5'h0a,
+        HPDCACHE_REQ_AMO_MAX                     = 5'h0b,
+        HPDCACHE_REQ_AMO_MAXU                    = 5'h0c,
+        HPDCACHE_REQ_AMO_MIN                     = 5'h0d,
+        HPDCACHE_REQ_AMO_MINU                    = 5'h0e,
+        // RESERVED                              = 5'h0f,
+        HPDCACHE_REQ_CMO_FENCE                   = 5'h10,
+        HPDCACHE_REQ_CMO_PREFETCH                = 5'h11,
+        HPDCACHE_REQ_CMO_INVAL_NLINE             = 5'h12,
+        HPDCACHE_REQ_CMO_INVAL_ALL               = 5'h13,
+        HPDCACHE_REQ_CMO_FLUSH_NLINE             = 5'h14,
+        HPDCACHE_REQ_CMO_FLUSH_ALL               = 5'h15,
+        HPDCACHE_REQ_CMO_FLUSH_INVAL_NLINE       = 5'h16,
+        HPDCACHE_REQ_CMO_FLUSH_INVAL_ALL         = 5'h17,
+        HPDCACHE_REQ_SNOOP_CLEAN_INVALID         = 5'h18,
+        HPDCACHE_REQ_SNOOP_CLEAN_SHARED          = 5'h19,
+        HPDCACHE_REQ_SNOOP_MAKE_INVALID          = 5'h1a,
+        HPDCACHE_REQ_SNOOP_READ_CLEAN            = 5'h1b,
+        HPDCACHE_REQ_SNOOP_READ_NOT_SHARED_DIRTY = 5'h1c,
+        HPDCACHE_REQ_SNOOP_READ_ONCE             = 5'h1d,
+        HPDCACHE_REQ_SNOOP_READ_SHARED           = 5'h1e,
+        HPDCACHE_REQ_SNOOP_READ_UNIQUE           = 5'h1f
     } hpdcache_req_op_t;
+    //      }}}
+
+    //      Definition of coherence response flags
+    //      {{{
+    typedef struct packed {
+        logic was_unique;
+        logic is_shared;
+        logic pass_dirty;
+        logic data_transfer;
+    } hpdcache_coherence_t;
     //      }}}
 
     //      Definition of Write Policy Hint
@@ -271,6 +289,100 @@ package hpdcache_pkg;
                 is_cmo_prefetch(op));
     endfunction
 
+    function automatic logic is_snoop(input hpdcache_req_op_t op);
+        return (op inside {
+            HPDCACHE_REQ_SNOOP_CLEAN_INVALID,
+            HPDCACHE_REQ_SNOOP_CLEAN_SHARED,
+            HPDCACHE_REQ_SNOOP_MAKE_INVALID,
+            HPDCACHE_REQ_SNOOP_READ_CLEAN,
+            HPDCACHE_REQ_SNOOP_READ_NOT_SHARED_DIRTY,
+            HPDCACHE_REQ_SNOOP_READ_ONCE,
+            HPDCACHE_REQ_SNOOP_READ_SHARED,
+            HPDCACHE_REQ_SNOOP_READ_UNIQUE
+        });
+    endfunction
+
+    function automatic logic is_snoop_clean_invalid(input hpdcache_req_op_t op);
+        return (op == HPDCACHE_REQ_SNOOP_CLEAN_INVALID);
+    endfunction
+
+    function automatic logic is_snoop_read_unique(input hpdcache_req_op_t op);
+        return (op == HPDCACHE_REQ_SNOOP_READ_UNIQUE);
+    endfunction
+
+    function automatic logic is_snoop_read_shared(input hpdcache_req_op_t op);
+        return (op == HPDCACHE_REQ_SNOOP_READ_SHARED);
+    endfunction
+
+    function automatic logic is_snoop_clean_shared(input hpdcache_req_op_t op);
+        return (op == HPDCACHE_REQ_SNOOP_CLEAN_SHARED);
+    endfunction
+
+    function automatic logic is_snoop_make_invalid(input hpdcache_req_op_t op);
+        return (op == HPDCACHE_REQ_SNOOP_MAKE_INVALID);
+    endfunction
+
+    function automatic logic is_snoop_read_once(input hpdcache_req_op_t op);
+        return (op == HPDCACHE_REQ_SNOOP_READ_ONCE);
+    endfunction
+
+    function automatic logic is_snoop_read_not_shared_dirty(input hpdcache_req_op_t op);
+        return (op == HPDCACHE_REQ_SNOOP_READ_NOT_SHARED_DIRTY);
+    endfunction
+
+    function automatic logic is_snoop_read_clean(input hpdcache_req_op_t op);
+        return (op == HPDCACHE_REQ_SNOOP_READ_CLEAN);
+    endfunction
+
+    // Snoop transactions to internal operations mapping
+
+    function automatic logic is_snoop_inval_by_nline(input hpdcache_req_op_t op);
+        return (op inside {
+            HPDCACHE_REQ_SNOOP_MAKE_INVALID
+        });
+    endfunction
+
+    function automatic logic is_snoop_flush_inval_by_nline(input hpdcache_req_op_t op);
+        return (op inside {
+            HPDCACHE_REQ_SNOOP_CLEAN_INVALID,
+            HPDCACHE_REQ_SNOOP_READ_UNIQUE
+        });
+    endfunction
+
+    function automatic logic is_snoop_flush_by_nline(input hpdcache_req_op_t op);
+        return (op inside {
+            HPDCACHE_REQ_SNOOP_CLEAN_SHARED,
+            HPDCACHE_REQ_SNOOP_READ_CLEAN,
+            HPDCACHE_REQ_SNOOP_READ_NOT_SHARED_DIRTY,
+            HPDCACHE_REQ_SNOOP_READ_ONCE,
+            HPDCACHE_REQ_SNOOP_READ_SHARED
+        });
+    endfunction
+
+    function automatic logic is_snoop_flush_force_inval_by_nline(input hpdcache_req_op_t op);
+        return (op inside {
+            HPDCACHE_REQ_SNOOP_READ_UNIQUE
+        });
+    endfunction
+
+    function automatic logic is_snoop_cmo(input hpdcache_req_op_t op);
+        return (op inside {
+            HPDCACHE_REQ_SNOOP_CLEAN_INVALID,
+            HPDCACHE_REQ_SNOOP_CLEAN_SHARED,
+            HPDCACHE_REQ_SNOOP_MAKE_INVALID,
+            HPDCACHE_REQ_SNOOP_READ_UNIQUE
+        });
+    endfunction
+
+    function automatic logic is_snoop_read(input hpdcache_req_op_t op);
+        return (op inside {
+            HPDCACHE_REQ_SNOOP_READ_CLEAN,
+            HPDCACHE_REQ_SNOOP_READ_NOT_SHARED_DIRTY,
+            HPDCACHE_REQ_SNOOP_READ_ONCE,
+            HPDCACHE_REQ_SNOOP_READ_SHARED
+        });
+    endfunction
+
     //      }}}
     //  }}}
 
@@ -309,6 +421,20 @@ package hpdcache_pkg;
         //  Reserved           = 4'b1110,
         //  Reserved           = 4'b1111
     } hpdcache_mem_atomic_e;
+
+    typedef enum logic [3:0] {
+        // Read channel coherence operations
+        HPDCACHE_MEM_COHERENCE_READ_NO_SNOOP  = 4'h0,
+        HPDCACHE_MEM_COHERENCE_READ_SHARED    = 4'h1,
+        HPDCACHE_MEM_COHERENCE_READ_CLEAN     = 4'h2,
+        HPDCACHE_MEM_COHERENCE_READ_UNIQUE    = 4'h3,
+        HPDCACHE_MEM_COHERENCE_CLEAN_UNIQUE   = 4'h4,
+        // Write channel coherence operations
+        HPDCACHE_MEM_COHERENCE_WRITE_NO_SNOOP = 4'h5,
+        HPDCACHE_MEM_COHERENCE_WRITE_UNIQUE   = 4'h6,
+        HPDCACHE_MEM_COHERENCE_WRITE_BACK     = 4'h7,
+        HPDCACHE_MEM_COHERENCE_EVICT          = 4'h8
+    } hpdcache_mem_coherence_e;
 
     function automatic hpdcache_mem_size_t get_hpdcache_mem_size(int unsigned bytes);
         if      (bytes ==   0) return 0;
@@ -350,6 +476,7 @@ package hpdcache_pkg;
     //  Definition of constants and types for the CMO request handler (CMOH)
     //  {{{
     typedef struct packed {
+        logic is_flush_force_inval_by_nline;
         logic is_flush_inval_by_nline;
         logic is_flush_inval_all;
         logic is_flush_by_nline;
