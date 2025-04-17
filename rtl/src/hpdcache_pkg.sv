@@ -310,6 +310,20 @@ package hpdcache_pkg;
         //  Reserved           = 4'b1111
     } hpdcache_mem_atomic_e;
 
+    typedef enum logic [3:0] {
+        // Read channel coherence operations
+        HPDCACHE_MEM_COHERENCE_READ_NO_SNOOP  = 4'h0,
+        HPDCACHE_MEM_COHERENCE_READ_SHARED    = 4'h1,
+        HPDCACHE_MEM_COHERENCE_READ_CLEAN     = 4'h2,
+        HPDCACHE_MEM_COHERENCE_READ_UNIQUE    = 4'h3,
+        HPDCACHE_MEM_COHERENCE_CLEAN_UNIQUE   = 4'h4,
+        // Write channel coherence operations
+        HPDCACHE_MEM_COHERENCE_WRITE_NO_SNOOP = 4'h5,
+        HPDCACHE_MEM_COHERENCE_WRITE_UNIQUE   = 4'h6,
+        HPDCACHE_MEM_COHERENCE_WRITE_BACK     = 4'h7,
+        HPDCACHE_MEM_COHERENCE_EVICT          = 4'h8
+    } hpdcache_mem_coherence_e;
+
     function automatic hpdcache_mem_size_t get_hpdcache_mem_size(int unsigned bytes);
         if      (bytes ==   0) return 0;
         else if (bytes <=   2) return 1;

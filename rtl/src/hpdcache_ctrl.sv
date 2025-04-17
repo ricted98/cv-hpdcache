@@ -109,6 +109,8 @@ import hpdcache_pkg::*;
     output logic                  st2_mshr_alloc_is_prefetch_o,
     output logic                  st2_mshr_alloc_wback_o,
     output logic                  st2_mshr_alloc_dirty_o,
+    output logic                  st2_mshr_alloc_inval_o,
+    output logic                  st2_mshr_alloc_store_o,
 
     //      Refill interface
     input  logic                  refill_req_valid_i,
@@ -225,12 +227,14 @@ import hpdcache_pkg::*;
     output hpdcache_way_vector_t  cmo_dir_check_nline_hit_way_o,
     output logic                  cmo_dir_check_nline_wback_o,
     output logic                  cmo_dir_check_nline_dirty_o,
+    output logic                  cmo_dir_check_nline_shared_o,
     input  logic                  cmo_dir_check_entry_i,
     input  hpdcache_set_t         cmo_dir_check_entry_set_i,
     input  hpdcache_way_vector_t  cmo_dir_check_entry_way_i,
     output logic                  cmo_dir_check_entry_valid_o,
     output logic                  cmo_dir_check_entry_wback_o,
     output logic                  cmo_dir_check_entry_dirty_o,
+    output logic                  cmo_dir_check_entry_shared_o,
     output hpdcache_tag_t         cmo_dir_check_entry_tag_o,
     input  logic                  cmo_dir_updt_i,
     input  hpdcache_set_t         cmo_dir_updt_set_i,
@@ -238,6 +242,7 @@ import hpdcache_pkg::*;
     input  logic                  cmo_dir_updt_valid_i,
     input  logic                  cmo_dir_updt_wback_i,
     input  logic                  cmo_dir_updt_dirty_i,
+    input  logic                  cmo_dir_updt_shared_i,
     input  logic                  cmo_dir_updt_fetch_i,
     input  hpdcache_tag_t         cmo_dir_updt_tag_i,
     output logic                  cmo_core_rsp_ready_o,
@@ -291,6 +296,8 @@ import hpdcache_pkg::*;
     logic                    st2_mshr_alloc_wback_q, st2_mshr_alloc_wback_d;
     logic                    st2_mshr_alloc_dirty_q, st2_mshr_alloc_dirty_d;
     logic                    st2_mshr_alloc_need_rsp_q, st2_mshr_alloc_need_rsp_d;
+    logic                    st2_mshr_alloc_inval_q, st2_mshr_alloc_inval_d;
+    logic                    st2_mshr_alloc_store_q, st2_mshr_alloc_store_d;
     hpdcache_req_addr_t      st2_mshr_alloc_addr_q;
     hpdcache_req_sid_t       st2_mshr_alloc_sid_q;
     hpdcache_req_tid_t       st2_mshr_alloc_tid_q;
@@ -309,6 +316,7 @@ import hpdcache_pkg::*;
     logic                    st2_dir_updt_valid_q, st2_dir_updt_valid_d;
     logic                    st2_dir_updt_wback_q, st2_dir_updt_wback_d;
     logic                    st2_dir_updt_dirty_q, st2_dir_updt_dirty_d;
+    logic                    st2_dir_updt_shared_q, st2_dir_updt_shared_d;
     logic                    st2_dir_updt_fetch_q, st2_dir_updt_fetch_d;
     //  }}}
 
@@ -375,6 +383,7 @@ import hpdcache_pkg::*;
     logic                    st1_dir_hit;
     logic                    st1_dir_hit_wback;
     logic                    st1_dir_hit_dirty;
+    logic                    st1_dir_hit_shared;
     logic                    st1_dir_hit_fetch;
     hpdcache_way_vector_t    st1_dir_hit_way;
     hpdcache_way_t           st1_dir_hit_way_index;
@@ -383,6 +392,7 @@ import hpdcache_pkg::*;
     logic                    st1_dir_victim_valid;
     logic                    st1_dir_victim_wback;
     logic                    st1_dir_victim_dirty;
+    logic                    st1_dir_victim_shared;
     hpdcache_tag_t           st1_dir_victim_tag;
     hpdcache_way_vector_t    st1_dir_victim_way;
     hpdcache_nline_t         st1_victim_nline;
@@ -582,11 +592,13 @@ import hpdcache_pkg::*;
         .st1_req_wr_auto_i                  (st1_req_wr_auto),
         .st1_dir_hit_wback_i                (st1_dir_hit_wback),
         .st1_dir_hit_dirty_i                (st1_dir_hit_dirty),
+        .st1_dir_hit_shared_i               (st1_dir_hit_shared),
         .st1_dir_hit_fetch_i                (st1_dir_hit_fetch),
         .st1_dir_victim_unavailable_i       (st1_dir_victim_unavailable),
         .st1_dir_victim_valid_i             (st1_dir_victim_valid),
         .st1_dir_victim_wback_i             (st1_dir_victim_wback),
         .st1_dir_victim_dirty_i             (st1_dir_victim_dirty),
+        .st1_dir_victim_shared_i            (st1_dir_victim_shared),
         .st1_req_valid_o                    (st1_req_valid_d),
         .st1_req_is_error_o                 (st1_req_is_error_d),
         .st1_rsp_valid_o                    (st1_rsp_valid),
@@ -601,21 +613,27 @@ import hpdcache_pkg::*;
         .st2_mshr_alloc_is_prefetch_i       (st2_mshr_alloc_is_prefetch_q),
         .st2_mshr_alloc_wback_i             (st2_mshr_alloc_wback_q),
         .st2_mshr_alloc_dirty_i             (st2_mshr_alloc_dirty_q),
+        .st2_mshr_alloc_inval_i             (st2_mshr_alloc_inval_q),
+        .st2_mshr_alloc_store_i             (st2_mshr_alloc_store_q),
         .st2_mshr_alloc_o                   (st2_mshr_alloc_d),
         .st2_mshr_alloc_cs_o                (st2_mshr_alloc_cs_o),
         .st2_mshr_alloc_need_rsp_o          (st2_mshr_alloc_need_rsp_d),
         .st2_mshr_alloc_wback_o             (st2_mshr_alloc_wback_d),
         .st2_mshr_alloc_dirty_o             (st2_mshr_alloc_dirty_d),
+        .st2_mshr_alloc_inval_o             (st2_mshr_alloc_inval_d),
+        .st2_mshr_alloc_store_o             (st2_mshr_alloc_store_d),
 
         .st2_dir_updt_i                     (st2_dir_updt_q),
         .st2_dir_updt_valid_i               (st2_dir_updt_valid_q),
         .st2_dir_updt_wback_i               (st2_dir_updt_wback_q),
         .st2_dir_updt_dirty_i               (st2_dir_updt_dirty_q),
+        .st2_dir_updt_shared_i              (st2_dir_updt_shared_q),
         .st2_dir_updt_fetch_i               (st2_dir_updt_fetch_q),
         .st2_dir_updt_o                     (st2_dir_updt_d),
         .st2_dir_updt_valid_o               (st2_dir_updt_valid_d),
         .st2_dir_updt_wback_o               (st2_dir_updt_wback_d),
         .st2_dir_updt_dirty_o               (st2_dir_updt_dirty_d),
+        .st2_dir_updt_shared_o              (st2_dir_updt_shared_d),
         .st2_dir_updt_fetch_o               (st2_dir_updt_fetch_d),
 
         .req_cachedata_read_o               (data_req_read),
@@ -819,6 +837,8 @@ import hpdcache_pkg::*;
             st2_mshr_alloc_is_prefetch_q <= st1_req_is_cmo_prefetch;
             st2_mshr_alloc_wback_q       <= st2_mshr_alloc_wback_d;
             st2_mshr_alloc_dirty_q       <= st2_mshr_alloc_dirty_d;
+            st2_mshr_alloc_inval_q       <= st2_mshr_alloc_inval_d;
+            st2_mshr_alloc_store_q       <= st2_mshr_alloc_store_d;
             st2_mshr_alloc_victim_way_q  <= st1_dir_victim_way;
         end
 
@@ -834,6 +854,7 @@ import hpdcache_pkg::*;
             st2_dir_updt_valid_q  <= st2_dir_updt_valid_d;
             st2_dir_updt_wback_q  <= st2_dir_updt_wback_d;
             st2_dir_updt_dirty_q  <= st2_dir_updt_dirty_d;
+            st2_dir_updt_shared_q <= st2_dir_updt_shared_d;
             st2_dir_updt_fetch_q  <= st2_dir_updt_fetch_d;
         end
     end
@@ -912,6 +933,7 @@ import hpdcache_pkg::*;
         .dir_hit_tag_o                 (st1_dir_hit_tag),
         .dir_hit_wback_o               (st1_dir_hit_wback),
         .dir_hit_dirty_o               (st1_dir_hit_dirty),
+        .dir_hit_shared_o              (st1_dir_hit_shared),
         .dir_hit_fetch_o               (st1_dir_hit_fetch),
 
         .dir_updt_i                    (st2_dir_updt_q),
@@ -921,6 +943,7 @@ import hpdcache_pkg::*;
         .dir_updt_valid_i              (st2_dir_updt_valid_q),
         .dir_updt_wback_i              (st2_dir_updt_wback_q),
         .dir_updt_dirty_i              (st2_dir_updt_dirty_q),
+        .dir_updt_shared_i             (st2_dir_updt_shared_q),
         .dir_updt_fetch_i              (st2_dir_updt_fetch_q),
 
         .dir_amo_match_i               (uc_dir_amo_match_i),
@@ -940,6 +963,7 @@ import hpdcache_pkg::*;
         .dir_victim_valid_o            (st1_dir_victim_valid),
         .dir_victim_wback_o            (st1_dir_victim_wback),
         .dir_victim_dirty_o            (st1_dir_victim_dirty),
+        .dir_victim_shared_o           (st1_dir_victim_shared),
         .dir_victim_tag_o              (st1_dir_victim_tag),
         .dir_victim_way_o              (st1_dir_victim_way),
 
@@ -954,6 +978,7 @@ import hpdcache_pkg::*;
         .dir_cmo_check_nline_hit_way_o (cmo_dir_check_nline_hit_way_o),
         .dir_cmo_check_nline_wback_o   (cmo_dir_check_nline_wback_o),
         .dir_cmo_check_nline_dirty_o   (cmo_dir_check_nline_dirty_o),
+        .dir_cmo_check_nline_shared_o  (cmo_dir_check_nline_shared_o),
 
         .dir_cmo_check_entry_i         (cmo_dir_check_entry_i),
         .dir_cmo_check_entry_set_i     (cmo_dir_check_entry_set_i),
@@ -961,6 +986,7 @@ import hpdcache_pkg::*;
         .dir_cmo_check_entry_valid_o   (cmo_dir_check_entry_valid_o),
         .dir_cmo_check_entry_wback_o   (cmo_dir_check_entry_wback_o),
         .dir_cmo_check_entry_dirty_o   (cmo_dir_check_entry_dirty_o),
+        .dir_cmo_check_entry_shared_o  (cmo_dir_check_entry_shared_o),
         .dir_cmo_check_entry_tag_o     (cmo_dir_check_entry_tag_o),
 
         .dir_cmo_updt_i                (cmo_dir_updt_i),
@@ -970,6 +996,7 @@ import hpdcache_pkg::*;
         .dir_cmo_updt_valid_i          (cmo_dir_updt_valid_i),
         .dir_cmo_updt_wback_i          (cmo_dir_updt_wback_i),
         .dir_cmo_updt_dirty_i          (cmo_dir_updt_dirty_i),
+        .dir_cmo_updt_shared_i         (cmo_dir_updt_shared_i),
         .dir_cmo_updt_fetch_i          (cmo_dir_updt_fetch_i),
 
         .data_req_read_i               (data_req_read),
@@ -1039,6 +1066,8 @@ import hpdcache_pkg::*;
     assign st2_mshr_alloc_need_rsp_o    = st2_mshr_alloc_need_rsp_q;
     assign st2_mshr_alloc_is_prefetch_o = st2_mshr_alloc_is_prefetch_q;
     assign st2_mshr_alloc_wback_o       = st2_mshr_alloc_wback_q;
+    assign st2_mshr_alloc_inval_o       = st2_mshr_alloc_inval_q;
+    assign st2_mshr_alloc_store_o       = st2_mshr_alloc_store_q;
     assign st2_mshr_alloc_dirty_o       = st2_mshr_alloc_dirty_q;
     //  }}}
 

@@ -101,6 +101,8 @@ import hpdcache_pkg::*;
     input  logic                  mshr_alloc_is_prefetch_i,
     input  logic                  mshr_alloc_wback_i,
     input  logic                  mshr_alloc_dirty_i,
+    input  logic                  mshr_alloc_store_i,
+    input  logic                  mshr_alloc_inval_i,
     input  hpdcache_req_data_t    mshr_alloc_wdata_i,
     input  hpdcache_req_be_t      mshr_alloc_be_i,
 
@@ -161,7 +163,8 @@ import hpdcache_pkg::*;
         REFILL_IDLE,
         REFILL_WRITE,
         REFILL_WRITE_DIR,
-        REFILL_INVAL
+        REFILL_INVAL,       // Invalidation is received via mem intf
+        REFILL_INVAL_ACK    // Invalidation is issued via mem intf
     } refill_fsm_e;
 
     typedef struct packed {
@@ -182,6 +185,7 @@ import hpdcache_pkg::*;
     miss_req_fsm_e           miss_req_fsm_q, miss_req_fsm_d;
     mshr_way_t               mshr_alloc_way_q, mshr_alloc_way_d;
     hpdcache_nline_t         mshr_alloc_nline_q;
+    hpdcache_mem_coherence_e mem_req_coherence_q, mem_req_coherence_d;
 
     refill_fsm_e             refill_fsm_q, refill_fsm_d;
     hpdcache_set_t           refill_set_q;
@@ -239,10 +243,12 @@ import hpdcache_pkg::*;
     logic                    mshr_ack_is_prefetch;
     logic                    mshr_ack_wback;
     logic                    mshr_ack_dirty;
+    logic                    mshr_ack_inval;
     cbuf_id_t                mshr_ack_cbuf_id;
     hpdcache_req_data_t      mshr_ack_wdata;
     hpdcache_req_be_t        mshr_ack_be;
     logic                    mshr_empty;
+
     //  }}}
 
     //  Miss Request FSM
@@ -301,11 +307,27 @@ import hpdcache_pkg::*;
         assign mem_req_o.mem_req_id = '0;
     end
 
+    always_comb begin : mem_req_coherence_comb
+        priority case (1'b1)
+            mshr_alloc_inval_i:
+                mem_req_coherence_d = HPDCACHE_MEM_COHERENCE_CLEAN_UNIQUE;
+            mshr_alloc_store_i:
+                mem_req_coherence_d = HPDCACHE_MEM_COHERENCE_READ_UNIQUE;
+            mshr_alloc_wback_i:
+                mem_req_coherence_d = HPDCACHE_MEM_COHERENCE_READ_SHARED;
+            default:
+                mem_req_coherence_d = HPDCACHE_MEM_COHERENCE_READ_CLEAN;
+        endcase
+    end
+
+    assign mem_req_o.mem_req_coherence = mem_req_coherence_q;
+
     always_ff @(posedge clk_i)
     begin : miss_req_fsm_internal_ff
         if (mshr_alloc) begin
             mshr_alloc_way_q <= mshr_alloc_way_d;
             mshr_alloc_nline_q <= mshr_alloc_nline_i;
+            mem_req_coherence_q <= mem_req_coherence_d;
         end
     end
 
@@ -395,87 +417,101 @@ import hpdcache_pkg::*;
                 automatic logic is_prefetch;
                 automatic hpdcache_uint core_rsp_word;
 
-                //  Respond to the core (when needed)
-                if (refill_cnt_q == 0) begin
-                    core_rsp_word = hpdcache_uint'(mshr_ack_word)/HPDcacheCfg.u.accessWords;
+                if (mshr_ack_inval) begin
+                    //  The outstanding transaction was an invalidation broadcast operation
+                    //  Wait an additional cycle to write the directory. This allows to prevent
+                    //  a RAM-to-RAM timing path between the MSHR and the DIR.
+                    refill_fsm_d = REFILL_INVAL_ACK;
 
-                    if (hpdcache_uint'(core_rsp_word) == 0) begin
-                        refill_core_rsp_valid = mshr_ack_need_rsp;
-                        refill_dirty_valid = mshr_ack_dirty;
-                    end
+                    refill_write_data_o = 1'b0;
 
-                    refill_core_rsp_sid = mshr_ack_src_id;
-                    refill_core_rsp_tid = mshr_ack_req_id;
-                    refill_core_rsp_error = refill_is_error_o;
-                    refill_core_rsp_word = hpdcache_word_t'(
-                        hpdcache_uint'(mshr_ack_word)/HPDcacheCfg.u.reqWords);
-                end else begin
-                    automatic hpdcache_uint refill_cnt;
-
-                    core_rsp_word = hpdcache_uint'(refill_core_rsp_word_q)/
-                                                   HPDcacheCfg.u.accessWords;
-                    refill_cnt = hpdcache_uint'(refill_cnt_q)/HPDcacheCfg.u.accessWords;
-
-                    if (core_rsp_word == refill_cnt) begin
-                        refill_core_rsp_valid = refill_need_rsp_q;
-                        refill_dirty_valid = refill_dirty_q;
-                    end
-
-                    refill_core_rsp_sid = refill_sid_q;
-                    refill_core_rsp_tid = refill_tid_q;
-                    refill_core_rsp_error = refill_is_error_o;
-                    refill_core_rsp_word = hpdcache_word_t'(
-                        hpdcache_uint'(refill_core_rsp_word_q)/HPDcacheCfg.u.reqWords);
+                    //  Consume data from the FIFO buffer in the memory interface
+                    refill_fifo_resp_data_r = 1'b1;
                 end
 
-                //  Write the the data in the cache data array
-                if (refill_cnt_q == 0) begin
-                    refill_set_o = mshr_ack_cache_set;
-                    refill_way = mshr_ack_cache_way;
-                    is_prefetch = mshr_ack_is_prefetch;
-                    refill_dirty = mshr_ack_dirty;
-                    refill_dirty_wdata = mshr_ack_wdata;
-                    refill_dirty_be = mshr_ack_be;
-                end else begin
-                    refill_set_o = refill_set_q;
-                    refill_way = refill_way_q;
-                    is_prefetch = refill_is_prefetch_q;
-                    refill_dirty = refill_dirty_q;
-                    refill_dirty_wdata = refill_dirty_wdata_q;
-                    refill_dirty_be = refill_dirty_be_q;
-                end
-                refill_write_data_o = ~refill_is_error_o;
+                else begin
+                    //  Respond to the core (when needed)
+                    if (refill_cnt_q == 0) begin
+                        core_rsp_word = hpdcache_uint'(mshr_ack_word)/HPDcacheCfg.u.accessWords;
 
-                //  Consume chunk of data from the FIFO buffer in the memory interface
-                refill_fifo_resp_data_r = 1'b1;
+                        if (hpdcache_uint'(core_rsp_word) == 0) begin
+                            refill_core_rsp_valid = mshr_ack_need_rsp;
+                            refill_dirty_valid = mshr_ack_dirty;
+                        end
 
-                //  Update directory on the last chunk of data
-                refill_cnt_d = refill_cnt_q + hpdcache_word_t'(HPDcacheCfg.u.accessWords);
-
-                if (hpdcache_uint'(refill_cnt_q) == REFILL_LAST_CHUNK_WORD) begin
-                    if (REFILL_LAST_CHUNK_WORD == 0) begin
-                        //  Special case: if the cache-line data can be written in a single cycle,
-                        //  wait an additional cycle to write the directory. This allows to prevent
-                        //  a RAM-to-RAM timing path between the MSHR and the DIR.
-                        refill_fsm_d = REFILL_WRITE_DIR;
+                        refill_core_rsp_sid = mshr_ack_src_id;
+                        refill_core_rsp_tid = mshr_ack_req_id;
+                        refill_core_rsp_error = refill_is_error_o;
+                        refill_core_rsp_word = hpdcache_word_t'(
+                            hpdcache_uint'(mshr_ack_word)/HPDcacheCfg.u.reqWords);
                     end else begin
-                        //  Write the new entry in the cache directory
-                        refill_write_dir_o = 1'b1;
+                        automatic hpdcache_uint refill_cnt;
 
-                        //  Update the victim selection. Only in the following cases:
-                        //  - There is no error in response AND
-                        //  - It is a prefetch and the cfg_prefetch_updt_sel_victim_i is set OR
-                        //  - It is a read miss.
-                        refill_updt_sel_victim_o  =  ~refill_is_error_o &
-                                                    (~is_prefetch | cfg_prefetch_updt_sel_victim_i);
+                        core_rsp_word = hpdcache_uint'(refill_core_rsp_word_q)/
+                                                    HPDcacheCfg.u.accessWords;
+                        refill_cnt = hpdcache_uint'(refill_cnt_q)/HPDcacheCfg.u.accessWords;
 
-                        //  Update dependency flags in the retry table
-                        refill_updt_rtab_o  = 1'b1;
+                        if (core_rsp_word == refill_cnt) begin
+                            refill_core_rsp_valid = refill_need_rsp_q;
+                            refill_dirty_valid = refill_dirty_q;
+                        end
 
-                        //  consume the response from the network
-                        refill_fifo_resp_meta_r = 1'b1;
+                        refill_core_rsp_sid = refill_sid_q;
+                        refill_core_rsp_tid = refill_tid_q;
+                        refill_core_rsp_error = refill_is_error_o;
+                        refill_core_rsp_word = hpdcache_word_t'(
+                            hpdcache_uint'(refill_core_rsp_word_q)/HPDcacheCfg.u.reqWords);
+                    end
 
-                        refill_fsm_d = REFILL_IDLE;
+                    //  Write the the data in the cache data array
+                    if (refill_cnt_q == 0) begin
+                        refill_set_o = mshr_ack_cache_set;
+                        refill_way = mshr_ack_cache_way;
+                        is_prefetch = mshr_ack_is_prefetch;
+                        refill_dirty = mshr_ack_dirty;
+                        refill_dirty_wdata = mshr_ack_wdata;
+                        refill_dirty_be = mshr_ack_be;
+                    end else begin
+                        refill_set_o = refill_set_q;
+                        refill_way = refill_way_q;
+                        is_prefetch = refill_is_prefetch_q;
+                        refill_dirty = refill_dirty_q;
+                        refill_dirty_wdata = refill_dirty_wdata_q;
+                        refill_dirty_be = refill_dirty_be_q;
+                    end
+                    refill_write_data_o = ~refill_is_error_o;
+
+                    //  Consume chunk of data from the FIFO buffer in the memory interface
+                    refill_fifo_resp_data_r = 1'b1;
+
+                    //  Update directory on the last chunk of data
+                    refill_cnt_d = refill_cnt_q + hpdcache_word_t'(HPDcacheCfg.u.accessWords);
+
+                    if (hpdcache_uint'(refill_cnt_q) == REFILL_LAST_CHUNK_WORD) begin
+                        if (REFILL_LAST_CHUNK_WORD == 0) begin
+                            //  Special case: if the cache-line data can be written in a single cycle,
+                            //  wait an additional cycle to write the directory. This allows to prevent
+                            //  a RAM-to-RAM timing path between the MSHR and the DIR.
+                            refill_fsm_d = REFILL_WRITE_DIR;
+                        end else begin
+                            //  Write the new entry in the cache directory
+                            refill_write_dir_o = 1'b1;
+
+                            //  Update the victim selection. Only in the following cases:
+                            //  - There is no error in response AND
+                            //  - It is a prefetch and the cfg_prefetch_updt_sel_victim_i is set OR
+                            //  - It is a read miss.
+                            refill_updt_sel_victim_o  =  ~refill_is_error_o &
+                                                        (~is_prefetch | cfg_prefetch_updt_sel_victim_i);
+
+                            //  Update dependency flags in the retry table
+                            refill_updt_rtab_o  = 1'b1;
+
+                            //  consume the response from the network
+                            refill_fifo_resp_meta_r = 1'b1;
+
+                            refill_fsm_d = REFILL_IDLE;
+                        end
                     end
                 end
             end
@@ -520,6 +556,23 @@ import hpdcache_pkg::*;
 
                 refill_fsm_d = REFILL_IDLE;
             end
+            //  }}}
+
+            //  Process the invalidation acknowledgment
+            //  {{{
+            REFILL_INVAL_ACK: begin
+                //  Select the target set and way
+                refill_set_o = refill_set_q;
+                refill_way = refill_way_q;
+                //  Write the new entry in the cache directory
+                refill_write_dir_o  = 1'b1;
+                //  Update dependency flags in the retry table
+                refill_updt_rtab_o = 1'b1;
+                //  consume the response from the network
+                refill_fifo_resp_meta_r = 1'b1;
+                refill_fsm_d = REFILL_IDLE;
+            end
+            //  }}}
 
             default: begin
 `ifndef HPDCACHE_ASSERT_OFF
@@ -565,6 +618,7 @@ import hpdcache_pkg::*;
         valid   : ~refill_is_error_o,
         wback   : ~refill_is_error_o & refill_wback_q,
         dirty   : ~refill_is_error_o & refill_dirty_q,
+        shared  : 1'b0, // FIXME: it should be set based on the R response
         fetch   : 1'b0,
         tag     : refill_tag_q,
         default :'0
@@ -781,6 +835,7 @@ import hpdcache_pkg::*;
         .alloc_need_rsp_i         (mshr_alloc_need_rsp_i),
         .alloc_is_prefetch_i      (mshr_alloc_is_prefetch_i),
         .alloc_wback_i            (mshr_alloc_wback_i),
+        .alloc_inval_i            (mshr_alloc_inval_i),
         .alloc_dirty_i            (mshr_alloc_dirty_i),
         .alloc_cbuf_id_i          (mshr_alloc_cbuf_id),
         .alloc_full_o             (mshr_alloc_full_o),
@@ -800,6 +855,7 @@ import hpdcache_pkg::*;
         .ack_is_prefetch_o        (mshr_ack_is_prefetch),
         .ack_wback_o              (mshr_ack_wback),
         .ack_dirty_o              (mshr_ack_dirty),
+        .ack_inval_o              (mshr_ack_inval),
         .ack_cbuf_id_o            (mshr_ack_cbuf_id)
     );
 

@@ -85,11 +85,13 @@ import hpdcache_pkg::*;
     input  logic                   st1_req_wr_auto_i,
     input  logic                   st1_dir_hit_wback_i,
     input  logic                   st1_dir_hit_dirty_i,
+    input  logic                   st1_dir_hit_shared_i,
     input  logic                   st1_dir_hit_fetch_i,
     input  logic                   st1_dir_victim_unavailable_i,
     input  logic                   st1_dir_victim_valid_i,
     input  logic                   st1_dir_victim_wback_i,
     input  logic                   st1_dir_victim_dirty_i,
+    input  logic                   st1_dir_victim_shared_i,
     output logic                   st1_req_valid_o,
     output logic                   st1_req_is_error_o,
     output logic                   st1_rsp_valid_o,
@@ -111,21 +113,27 @@ import hpdcache_pkg::*;
     input  logic                   st2_mshr_alloc_is_prefetch_i,
     input  logic                   st2_mshr_alloc_wback_i,
     input  logic                   st2_mshr_alloc_dirty_i,
+    input  logic                   st2_mshr_alloc_inval_i,
+    input  logic                   st2_mshr_alloc_store_i,
     output logic                   st2_mshr_alloc_o,
     output logic                   st2_mshr_alloc_cs_o,
     output logic                   st2_mshr_alloc_need_rsp_o,
     output logic                   st2_mshr_alloc_wback_o,
     output logic                   st2_mshr_alloc_dirty_o,
+    output logic                   st2_mshr_alloc_inval_o,
+    output logic                   st2_mshr_alloc_store_o,
 
     input  logic                   st2_dir_updt_i,
     input  logic                   st2_dir_updt_valid_i,
     input  logic                   st2_dir_updt_wback_i,
     input  logic                   st2_dir_updt_dirty_i,
+    input  logic                   st2_dir_updt_shared_i,
     input  logic                   st2_dir_updt_fetch_i,
     output logic                   st2_dir_updt_o,
     output logic                   st2_dir_updt_valid_o,
     output logic                   st2_dir_updt_wback_o,
     output logic                   st2_dir_updt_dirty_o,
+    output logic                   st2_dir_updt_shared_o,
     output logic                   st2_dir_updt_fetch_o,
     //   }}}
 
@@ -315,6 +323,9 @@ import hpdcache_pkg::*;
         st2_mshr_alloc_need_rsp_o           = 1'b0;
         st2_mshr_alloc_wback_o              = st2_mshr_alloc_wback_i;
         st2_mshr_alloc_dirty_o              = st2_mshr_alloc_dirty_i;
+        st2_mshr_alloc_inval_o              = st2_mshr_alloc_inval_i;
+        st2_mshr_alloc_store_o              = st2_mshr_alloc_store_i;
+
 
         st2_flush_alloc_o                   = st2_flush_alloc_i;
 
@@ -322,6 +333,7 @@ import hpdcache_pkg::*;
         st2_dir_updt_valid_o                = st2_dir_updt_valid_i;
         st2_dir_updt_wback_o                = st2_dir_updt_wback_i;
         st2_dir_updt_dirty_o                = st2_dir_updt_dirty_i;
+        st2_dir_updt_shared_o               = st2_dir_updt_shared_i;
         st2_dir_updt_fetch_o                = st2_dir_updt_fetch_i;
 
         st2_nop                             = 1'b0;
@@ -616,13 +628,17 @@ import hpdcache_pkg::*;
                                 st2_mshr_alloc_wback_o = (st1_req_wr_auto_i & cfg_default_wb_i) |
                                                           st1_req_wr_wb_i;
                                 st2_mshr_alloc_dirty_o = 1'b0;
+                                st2_mshr_alloc_inval_o = 1'b0;
+                                st2_mshr_alloc_store_o = 1'b0;
+
 
                                 //  Update the cache directory state to FETCHING
                                 st2_dir_updt_o = 1'b1;
-                                st2_dir_updt_valid_o = st1_dir_victim_valid_i;
-                                st2_dir_updt_wback_o = st1_dir_victim_wback_i;
-                                st2_dir_updt_dirty_o = 1'b0;
-                                st2_dir_updt_fetch_o = 1'b1;
+                                st2_dir_updt_valid_o  = st1_dir_victim_valid_i;
+                                st2_dir_updt_wback_o  = st1_dir_victim_wback_i;
+                                st2_dir_updt_dirty_o  = 1'b0;
+                                st2_dir_updt_shared_o = st1_dir_hit_shared_i;
+                                st2_dir_updt_fetch_o  = 1'b1;
                             end
                         end
                         //  }}}
@@ -675,10 +691,11 @@ import hpdcache_pkg::*;
                                     if (st1_req_wr_wt_i && st1_dir_hit_wback_i) begin
                                         //  Update the directory state of the cacheline to WT
                                         st2_dir_updt_o = 1'b1;
-                                        st2_dir_updt_valid_o = 1'b1;
-                                        st2_dir_updt_wback_o = 1'b0;
-                                        st2_dir_updt_dirty_o = 1'b0;
-                                        st2_dir_updt_fetch_o = 1'b0;
+                                        st2_dir_updt_valid_o  = 1'b1;
+                                        st2_dir_updt_wback_o  = 1'b0;
+                                        st2_dir_updt_dirty_o  = 1'b0;
+                                        st2_dir_updt_shared_o = st1_dir_hit_shared_i;
+                                        st2_dir_updt_fetch_o  = 1'b0;
 
                                         //  Cacheline is dirty, flush its data to the memory
                                         st2_flush_alloc_o = st1_dir_hit_dirty_i;
@@ -692,10 +709,11 @@ import hpdcache_pkg::*;
                                     if (st1_req_wr_wb_i && !st1_dir_hit_wback_i) begin
                                         //  Update the directory state of the cacheline to WB
                                         st2_dir_updt_o = 1'b1;
-                                        st2_dir_updt_valid_o = 1'b1;
-                                        st2_dir_updt_wback_o = 1'b1;
-                                        st2_dir_updt_dirty_o = 1'b0;
-                                        st2_dir_updt_fetch_o = 1'b0;
+                                        st2_dir_updt_valid_o  = 1'b1;
+                                        st2_dir_updt_wback_o  = 1'b1;
+                                        st2_dir_updt_dirty_o  = 1'b0;
+                                        st2_dir_updt_shared_o = st1_dir_hit_shared_i;
+                                        st2_dir_updt_fetch_o  = 1'b0;
 
                                         st1_nop = 1'b1;
                                     end
@@ -809,14 +827,17 @@ import hpdcache_pkg::*;
 
                                     //  Update the directory state of the cacheline to FETCHING
                                     st2_dir_updt_o = 1'b1;
-                                    st2_dir_updt_valid_o = st1_dir_victim_valid_i;
-                                    st2_dir_updt_wback_o = st1_dir_victim_wback_i;
-                                    st2_dir_updt_dirty_o = 1'b0;
-                                    st2_dir_updt_fetch_o = 1'b1;
+                                    st2_dir_updt_valid_o  = st1_dir_victim_valid_i;
+                                    st2_dir_updt_wback_o  = st1_dir_victim_wback_i;
+                                    st2_dir_updt_dirty_o  = 1'b0;
+                                    st2_dir_updt_shared_o = st1_dir_victim_shared_i;
+                                    st2_dir_updt_fetch_o  = 1'b1;
 
                                     //  Send a miss request to the memory (write-allocate)
                                     st2_mshr_alloc_o = 1'b1;
                                     st2_mshr_alloc_wback_o = 1'b1;
+                                    st2_mshr_alloc_inval_o = 1'b0;
+                                    st2_mshr_alloc_store_o = 1'b1;
 
                                     //  No available slot in the Coalesce Buffer:
                                     //  - Put the write operation into the replay table (but the
@@ -910,15 +931,31 @@ import hpdcache_pkg::*;
                                     st1_rtab_alloc = 1'b1;
                                     st1_rtab_wbuf_hit_o = 1'b1;
                                     st1_nop = 1'b1;
+                                end
 
-                                end else begin
+                                else if (st1_dir_hit_shared_i) begin
+                                    // The required cacheline is valid but shared
+                                    // Any store operation must be broadcasted
+                                    // Allocate an invalidation request to the MSHR
+                                    st2_mshr_alloc_o = 1'b1;
+                                    st2_mshr_alloc_need_rsp_o = 1'b0;
+                                    st2_mshr_alloc_wback_o = 1'b1;
+                                    st2_mshr_alloc_inval_o = 1'b1;
+                                    // Put the request in the replay table
+                                    st1_rtab_alloc = 1'b1;
+                                    // FIXME: which RTAB dependency signal is correct?
+                                    // st1_rtab_write_miss_o = 1'b1;
+                                end
+
+                                else begin
                                     // Update the directory state of the cacheline to dirty
                                     if (!st1_dir_hit_wback_i || !st1_dir_hit_dirty_i) begin
-                                        st2_dir_updt_o       = 1'b1;
-                                        st2_dir_updt_valid_o = 1'b1;
-                                        st2_dir_updt_wback_o = 1'b1;
-                                        st2_dir_updt_dirty_o = 1'b1;
-                                        st2_dir_updt_fetch_o = 1'b0;
+                                        st2_dir_updt_o        = 1'b1;
+                                        st2_dir_updt_valid_o  = 1'b1;
+                                        st2_dir_updt_wback_o  = 1'b1;
+                                        st2_dir_updt_dirty_o  = 1'b1;
+                                        st2_dir_updt_shared_o = 1'b0;
+                                        st2_dir_updt_fetch_o  = 1'b0;
 
                                         st1_nop = 1'b1;
                                     end
@@ -965,10 +1002,11 @@ import hpdcache_pkg::*;
 
                                     //  Update the state to WT in the directory
                                     st2_dir_updt_o = 1'b1;
-                                    st2_dir_updt_valid_o = 1'b1;
-                                    st2_dir_updt_wback_o = 1'b0;
-                                    st2_dir_updt_dirty_o = 1'b0;
-                                    st2_dir_updt_fetch_o = 1'b0;
+                                    st2_dir_updt_valid_o  = 1'b1;
+                                    st2_dir_updt_wback_o  = 1'b0;
+                                    st2_dir_updt_dirty_o  = 1'b0;
+                                    st2_dir_updt_shared_o = 1'b0;
+                                    st2_dir_updt_fetch_o  = 1'b0;
 
                                     //  Put the request in the replay table while waiting for the
                                     //  memory flushing
