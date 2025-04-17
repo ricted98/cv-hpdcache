@@ -279,6 +279,51 @@ package hpdcache_pkg;
                 is_cmo_prefetch(op));
     endfunction
 
+    function automatic logic is_snoop(input hpdcache_req_op_t op);
+        return (op inside {
+            HPDCACHE_REQ_SNOOP_CLEAN_INVALID,
+            HPDCACHE_REQ_SNOOP_CLEAN_SHARED,
+            HPDCACHE_REQ_SNOOP_MAKE_INVALID,
+            HPDCACHE_REQ_SNOOP_READ_CLEAN,
+            HPDCACHE_REQ_SNOOP_READ_NOT_SHARED_DIRTY,
+            HPDCACHE_REQ_SNOOP_READ_ONCE,
+            HPDCACHE_REQ_SNOOP_READ_SHARED,
+            HPDCACHE_REQ_SNOOP_READ_UNIQUE
+        });
+    endfunction
+
+    function automatic logic is_snoop_clean_invalid(input hpdcache_req_op_t op);
+        return (op == HPDCACHE_REQ_SNOOP_CLEAN_INVALID);
+    endfunction
+
+    function automatic logic is_snoop_read_unique(input hpdcache_req_op_t op);
+        return (op == HPDCACHE_REQ_SNOOP_READ_UNIQUE);
+    endfunction
+
+    function automatic logic is_snoop_read_shared(input hpdcache_req_op_t op);
+        return (op == HPDCACHE_REQ_SNOOP_READ_SHARED);
+    endfunction
+
+    function automatic logic is_snoop_clean_shared(input hpdcache_req_op_t op);
+        return (op == HPDCACHE_REQ_SNOOP_CLEAN_SHARED);
+    endfunction
+
+    function automatic logic is_snoop_make_invalid(input hpdcache_req_op_t op);
+        return (op == HPDCACHE_REQ_SNOOP_MAKE_INVALID);
+    endfunction
+
+    function automatic logic is_snoop_read_once(input hpdcache_req_op_t op);
+        return (op == HPDCACHE_REQ_SNOOP_READ_ONCE);
+    endfunction
+
+    function automatic logic is_snoop_read_not_shared_dirty(input hpdcache_req_op_t op);
+        return (op == HPDCACHE_REQ_SNOOP_READ_NOT_SHARED_DIRTY);
+    endfunction
+
+    function automatic logic is_snoop_read_clean(input hpdcache_req_op_t op);
+        return (op == HPDCACHE_REQ_SNOOP_READ_CLEAN);
+    endfunction
+
     //      }}}
     //  }}}
 
