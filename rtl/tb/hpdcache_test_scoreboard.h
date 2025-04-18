@@ -68,6 +68,7 @@ public:
 
     sc_in<bool>                                          evt_cache_write_miss_i;
     sc_in<bool>                                          evt_cache_read_miss_i;
+    sc_in<bool>                                          evt_cache_inval_shared_i;
     sc_in<bool>                                          evt_uncached_req_i;
     sc_in<bool>                                          evt_cmo_req_i;
     sc_in<bool>                                          evt_write_req_i;
@@ -99,6 +100,7 @@ public:
             sb_error_limit_m(0),
             evt_cache_write_miss(0),
             evt_cache_read_miss(0),
+            evt_cache_inval_shared(0),
             evt_uncached_req(0),
             evt_cmo_req(0),
             evt_write_req(0),
@@ -181,6 +183,7 @@ public:
                << "SB.NB_MEM_WRITE_RESP    : " << nb_mem_write_resp      << std::endl
                << "CACHE.WRITE_MISSES      : " << evt_cache_write_miss   << std::endl
                << "CACHE.READ_MISSES       : " << evt_cache_read_miss    << std::endl
+               << "CACHE.INVAL_SHARED      : " << evt_cache_inval_shared << std::endl
                << "CACHE.UNCACHED_REQUESTS : " << evt_uncached_req       << std::endl
                << "CACHE.CMO_REQUESTS      : " << evt_cmo_req            << std::endl
                << "CACHE.WRITE_REQUESTS    : " << evt_write_req          << std::endl
@@ -237,6 +240,7 @@ private:
 
     uint64_t evt_cache_write_miss;
     uint64_t evt_cache_read_miss;
+    uint64_t evt_cache_inval_shared;
     uint64_t evt_uncached_req;
     uint64_t evt_cmo_req;
     uint64_t evt_write_req;
@@ -354,17 +358,18 @@ private:
     void perf_events_process()
     {
         nb_cycles++;
-        if (evt_cache_write_miss_i.read()) evt_cache_write_miss++;
-        if (evt_cache_read_miss_i.read())  evt_cache_read_miss++;
-        if (evt_uncached_req_i.read())     evt_uncached_req++;
-        if (evt_cmo_req_i.read())          evt_cmo_req++;
-        if (evt_write_req_i.read())        evt_write_req++;
-        if (evt_read_req_i.read())         evt_read_req++;
-        if (evt_prefetch_req_i.read())     evt_prefetch_req++;
-        if (evt_req_on_hold_i.read())      evt_req_on_hold++;
-        if (evt_rtab_rollback_i.read())    evt_rtab_rollback++;
-        if (evt_stall_refill_i.read())     evt_stall_refill++;
-        if (evt_stall_i.read())            evt_stall++;
+        if (evt_cache_write_miss_i.read())   evt_cache_write_miss++;
+        if (evt_cache_read_miss_i.read())    evt_cache_read_miss++;
+        if (evt_cache_inval_shared_i.read()) evt_cache_inval_shared++;
+        if (evt_uncached_req_i.read())       evt_uncached_req++;
+        if (evt_cmo_req_i.read())            evt_cmo_req++;
+        if (evt_write_req_i.read())          evt_write_req++;
+        if (evt_read_req_i.read())           evt_read_req++;
+        if (evt_prefetch_req_i.read())       evt_prefetch_req++;
+        if (evt_req_on_hold_i.read())        evt_req_on_hold++;
+        if (evt_rtab_rollback_i.read())      evt_rtab_rollback++;
+        if (evt_stall_refill_i.read())       evt_stall_refill++;
+        if (evt_stall_i.read())              evt_stall++;
     }
 
     static uint64_t align_to(uint64_t val, uint64_t align)

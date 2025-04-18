@@ -131,6 +131,7 @@ public:
         top->mem_resp_write_id_i (mem_resp_write_id);
         top->evt_cache_write_miss_o (evt_cache_write_miss);
         top->evt_cache_read_miss_o (evt_cache_read_miss);
+        top->evt_cache_inval_shared_o (evt_cache_inval_shared);
         top->evt_uncached_req_o (evt_uncached_req);
         top->evt_cmo_req_o (evt_cmo_req);
         top->evt_write_req_o (evt_write_req);
@@ -216,6 +217,7 @@ public:
         hpdcache_test_scoreboard_i->mem_write_resp_i (sb_mem_write_resp);
         hpdcache_test_scoreboard_i->evt_cache_write_miss_i (evt_cache_write_miss);
         hpdcache_test_scoreboard_i->evt_cache_read_miss_i (evt_cache_read_miss);
+        hpdcache_test_scoreboard_i->evt_cache_inval_shared_i (evt_cache_inval_shared);
         hpdcache_test_scoreboard_i->evt_uncached_req_i (evt_uncached_req);
         hpdcache_test_scoreboard_i->evt_cmo_req_i (evt_cmo_req);
         hpdcache_test_scoreboard_i->evt_write_req_i (evt_write_req);
@@ -413,6 +415,7 @@ private:
 
     sc_core::sc_signal <bool> evt_cache_write_miss;
     sc_core::sc_signal <bool> evt_cache_read_miss;
+    sc_core::sc_signal <bool> evt_cache_inval_shared;
     sc_core::sc_signal <bool> evt_uncached_req;
     sc_core::sc_signal <bool> evt_cmo_req;
     sc_core::sc_signal <bool> evt_write_req;

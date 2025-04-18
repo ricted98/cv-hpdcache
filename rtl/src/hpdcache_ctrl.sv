@@ -261,6 +261,7 @@ import hpdcache_pkg::*;
     //   Performance events
     output logic                  evt_cache_write_miss_o,
     output logic                  evt_cache_read_miss_o,
+    output logic                  evt_cache_inval_shared_o,
     output logic                  evt_uncached_req_o,
     output logic                  evt_cmo_req_o,
     output logic                  evt_write_req_o,
@@ -694,6 +695,7 @@ import hpdcache_pkg::*;
 
         .evt_cache_write_miss_o,
         .evt_cache_read_miss_o,
+        .evt_cache_inval_shared_o,
         .evt_uncached_req_o,
         .evt_cmo_req_o,
         .evt_write_req_o,
