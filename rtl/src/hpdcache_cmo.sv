@@ -451,7 +451,7 @@ import hpdcache_pkg::*;
                     dir_updt_valid_o  = ~cmoh_flush_req_inval_q;
                     dir_updt_wback_o  = ~cmoh_flush_req_inval_q & dir_check_entry_wback_i;
                     dir_updt_dirty_o  = 1'b0;
-                    dir_updt_shared_o = ~cmoh_flush_req_inval_q & dir_check_entry_shared_i;;
+                    dir_updt_shared_o = ~cmoh_flush_req_inval_q & dir_check_entry_shared_i;
                     dir_updt_fetch_o  = 1'b0;
                     dir_updt_tag_o    = dir_check_entry_tag_i;
 
