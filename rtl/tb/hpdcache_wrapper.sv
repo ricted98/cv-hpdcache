@@ -146,6 +146,8 @@ import hpdcache_pkg::*;
     input  wire hpdcache_mem_id_t              mem_resp_read_id_i,
     input  wire hpdcache_mem_data_t            mem_resp_read_data_i,
     input  wire logic                          mem_resp_read_last_i,
+    input  wire logic                          mem_resp_read_dirty_i,
+    input  wire logic                          mem_resp_read_shared_i,
 
     //      Memory write interface
     input  wire logic                          mem_req_write_ready_i,
@@ -242,10 +244,12 @@ import hpdcache_pkg::*;
            mem_req_read_cacheable_o = mem_req_read.mem_req_cacheable,
            mem_req_read_coherence_o = mem_req_read.mem_req_coherence;
 
-    assign mem_resp_read.mem_resp_r_error = mem_resp_read_error_i,
-           mem_resp_read.mem_resp_r_id    = mem_resp_read_id_i,
-           mem_resp_read.mem_resp_r_data  = mem_resp_read_data_i,
-           mem_resp_read.mem_resp_r_last  = mem_resp_read_last_i;
+    assign mem_resp_read.mem_resp_r_error  = mem_resp_read_error_i,
+           mem_resp_read.mem_resp_r_id     = mem_resp_read_id_i,
+           mem_resp_read.mem_resp_r_data   = mem_resp_read_data_i,
+           mem_resp_read.mem_resp_r_last   = mem_resp_read_last_i,
+           mem_resp_read.mem_resp_r_dirty  = mem_resp_read_dirty_i,
+           mem_resp_read.mem_resp_r_shared = mem_resp_read_shared_i;
 
     assign mem_req_write_addr_o      = mem_req_write.mem_req_addr,
            mem_req_write_len_o       = mem_req_write.mem_req_len,

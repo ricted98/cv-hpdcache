@@ -109,6 +109,8 @@ public:
         top->mem_resp_read_id_i (mem_resp_read_id);
         top->mem_resp_read_data_i (mem_resp_read_data);
         top->mem_resp_read_last_i (mem_resp_read_last);
+        top->mem_resp_read_dirty_i (mem_resp_read_dirty);
+        top->mem_resp_read_shared_i (mem_resp_read_shared);
         top->mem_req_write_ready_i (mem_req_write_ready);
         top->mem_req_write_valid_o (mem_req_write_valid);
         top->mem_req_write_addr_o (mem_req_write_addr);
@@ -183,6 +185,8 @@ public:
         hpdcache_test_mem_resp_model_i->mem_resp_read_id_o (mem_resp_read_id);
         hpdcache_test_mem_resp_model_i->mem_resp_read_data_o (mem_resp_read_data);
         hpdcache_test_mem_resp_model_i->mem_resp_read_last_o (mem_resp_read_last);
+        hpdcache_test_mem_resp_model_i->mem_resp_read_dirty_o (mem_resp_read_dirty);
+        hpdcache_test_mem_resp_model_i->mem_resp_read_shared_o (mem_resp_read_shared);
         hpdcache_test_mem_resp_model_i->mem_req_write_ready_o (mem_req_write_ready);
         hpdcache_test_mem_resp_model_i->mem_req_write_valid_i (mem_req_write_valid);
         hpdcache_test_mem_resp_model_i->mem_req_write_addr_i (mem_req_write_addr);
@@ -385,6 +389,8 @@ private:
     sc_core::sc_signal <sc_bv<HPDCACHE_MEM_ID_WIDTH> > mem_resp_read_id;
     sc_core::sc_signal <sc_bv<HPDCACHE_MEM_DATA_WIDTH> > mem_resp_read_data;
     sc_core::sc_signal <bool> mem_resp_read_last;
+    sc_core::sc_signal <bool> mem_resp_read_dirty;
+    sc_core::sc_signal <bool> mem_resp_read_shared;
     sc_core::sc_signal <bool> mem_req_write_ready;
     sc_core::sc_signal <bool> mem_req_write_valid;
     sc_core::sc_signal <sc_bv<HPDCACHE_MEM_ADDR_WIDTH> > mem_req_write_addr;

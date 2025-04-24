@@ -172,6 +172,8 @@ import hpdcache_pkg::*;
         hpdcache_mem_id_t    r_id;
         logic                is_inval;
         hpdcache_nline_t     inval_nline;
+        logic                is_shared;
+        logic                is_dirty;
     } mem_resp_metadata_t;
 
     typedef logic [HPDcacheCfg.mshrWayWidth-1:0] mshr_way_t;
@@ -617,8 +619,8 @@ import hpdcache_pkg::*;
     assign refill_dir_entry_o = '{
         valid   : ~refill_is_error_o,
         wback   : ~refill_is_error_o & refill_wback_q,
-        dirty   : ~refill_is_error_o & refill_dirty_q,
-        shared  : 1'b0, // FIXME: it should be set based on the R response
+        dirty   : ~refill_is_error_o & (refill_dirty_q | refill_fifo_resp_meta_rdata.is_dirty),
+        shared  : ~refill_is_error_o & refill_fifo_resp_meta_rdata.is_shared,
         fetch   : 1'b0,
         tag     : refill_tag_q,
         default :'0
@@ -668,7 +670,9 @@ import hpdcache_pkg::*;
         r_error    : mem_resp_i.mem_resp_r_error,
         r_id       : mem_resp_i.mem_resp_r_id,
         is_inval   : mem_resp_inval_i,
-        inval_nline: mem_resp_inval_nline_i
+        inval_nline: mem_resp_inval_nline_i,
+        is_shared  : mem_resp_i.mem_resp_r_shared,
+        is_dirty   : mem_resp_i.mem_resp_r_dirty
     };
 
     hpdcache_fifo_reg #(

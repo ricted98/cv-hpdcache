@@ -44,6 +44,8 @@
         __id_t                                mem_resp_r_id; \
         __data_t                              mem_resp_r_data; \
         logic                                 mem_resp_r_last; \
+        logic                                 mem_resp_r_dirty; \
+        logic                                 mem_resp_r_shared; \
     }
 
 `define HPDCACHE_DECL_MEM_REQ_W_T(__data_t, __be_t) \
