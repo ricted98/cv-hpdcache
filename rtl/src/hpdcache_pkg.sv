@@ -88,6 +88,16 @@ package hpdcache_pkg;
     } hpdcache_req_op_t;
     //      }}}
 
+    //      Definition of coherence response flags
+    //      {{{
+    typedef struct packed {
+        logic was_unique;
+        logic is_shared;
+        logic pass_dirty;
+        logic data_transfer;
+    } hpdcache_coherence_t;
+    //      }}}
+
     //      Definition of Write Policy Hint
     //      {{{
     typedef enum logic[2:0] {
