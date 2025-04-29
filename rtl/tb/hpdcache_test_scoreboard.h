@@ -71,6 +71,7 @@ public:
     sc_in<bool>                                          evt_cache_inval_shared_i;
     sc_in<bool>                                          evt_uncached_req_i;
     sc_in<bool>                                          evt_cmo_req_i;
+    sc_in<bool>                                          evt_snoop_req_i;
     sc_in<bool>                                          evt_write_req_i;
     sc_in<bool>                                          evt_read_req_i;
     sc_in<bool>                                          evt_prefetch_req_i;
@@ -103,6 +104,7 @@ public:
             evt_cache_inval_shared(0),
             evt_uncached_req(0),
             evt_cmo_req(0),
+            evt_snoop_req(0),
             evt_write_req(0),
             evt_read_req(0),
             evt_prefetch_req(0),
@@ -186,6 +188,7 @@ public:
                << "CACHE.INVAL_SHARED      : " << evt_cache_inval_shared << std::endl
                << "CACHE.UNCACHED_REQUESTS : " << evt_uncached_req       << std::endl
                << "CACHE.CMO_REQUESTS      : " << evt_cmo_req            << std::endl
+               << "CACHE.SNOOP_REQUESTS    : " << evt_snoop_req          << std::endl
                << "CACHE.WRITE_REQUESTS    : " << evt_write_req          << std::endl
                << "CACHE.READ_REQUESTS     : " << evt_read_req           << std::endl
                << "CACHE.PREFETCH_REQUESTS : " << evt_prefetch_req       << std::endl
@@ -243,6 +246,7 @@ private:
     uint64_t evt_cache_inval_shared;
     uint64_t evt_uncached_req;
     uint64_t evt_cmo_req;
+    uint64_t evt_snoop_req;
     uint64_t evt_write_req;
     uint64_t evt_read_req;
     uint64_t evt_prefetch_req;
@@ -363,6 +367,7 @@ private:
         if (evt_cache_inval_shared_i.read()) evt_cache_inval_shared++;
         if (evt_uncached_req_i.read())       evt_uncached_req++;
         if (evt_cmo_req_i.read())            evt_cmo_req++;
+        if (evt_snoop_req_i.read())          evt_snoop_req++;
         if (evt_write_req_i.read())          evt_write_req++;
         if (evt_read_req_i.read())           evt_read_req++;
         if (evt_prefetch_req_i.read())       evt_prefetch_req++;

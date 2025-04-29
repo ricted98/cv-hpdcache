@@ -72,6 +72,7 @@ import hpdcache_pkg::*;
     output logic                  flush_alloc_ready_o,
     input  hpdcache_nline_t       flush_alloc_nline_i,
     input  hpdcache_way_vector_t  flush_alloc_way_i,
+    input  logic                  flush_alloc_snoop_i,
     //      }}}
 
     //      CACHE DATA interface

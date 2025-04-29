@@ -136,6 +136,7 @@ public:
         top->evt_cache_inval_shared_o (evt_cache_inval_shared);
         top->evt_uncached_req_o (evt_uncached_req);
         top->evt_cmo_req_o (evt_cmo_req);
+        top->evt_snoop_req_o (evt_snoop_req);
         top->evt_write_req_o (evt_write_req);
         top->evt_read_req_o (evt_read_req);
         top->evt_prefetch_req_o (evt_prefetch_req);
@@ -224,6 +225,7 @@ public:
         hpdcache_test_scoreboard_i->evt_cache_inval_shared_i (evt_cache_inval_shared);
         hpdcache_test_scoreboard_i->evt_uncached_req_i (evt_uncached_req);
         hpdcache_test_scoreboard_i->evt_cmo_req_i (evt_cmo_req);
+        hpdcache_test_scoreboard_i->evt_snoop_req_i (evt_snoop_req);
         hpdcache_test_scoreboard_i->evt_write_req_i (evt_write_req);
         hpdcache_test_scoreboard_i->evt_read_req_i (evt_read_req);
         hpdcache_test_scoreboard_i->evt_prefetch_req_i (evt_prefetch_req);
@@ -424,6 +426,7 @@ private:
     sc_core::sc_signal <bool> evt_cache_inval_shared;
     sc_core::sc_signal <bool> evt_uncached_req;
     sc_core::sc_signal <bool> evt_cmo_req;
+    sc_core::sc_signal <bool> evt_snoop_req;
     sc_core::sc_signal <bool> evt_write_req;
     sc_core::sc_signal <bool> evt_read_req;
     sc_core::sc_signal <bool> evt_prefetch_req;

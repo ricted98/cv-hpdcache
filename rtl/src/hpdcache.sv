@@ -118,6 +118,7 @@ import hpdcache_pkg::*;
     output logic                          evt_cache_inval_shared_o,
     output logic                          evt_uncached_req_o,
     output logic                          evt_cmo_req_o,
+    output logic                          evt_snoop_req_o,
     output logic                          evt_write_req_o,
     output logic                          evt_read_req_o,
     output logic                          evt_prefetch_req_o,
@@ -287,6 +288,7 @@ import hpdcache_pkg::*;
     logic                  cmo_req_valid;
     logic                  cmo_ready;
     hpdcache_cmoh_op_t     cmo_req_op;
+    logic                  cmo_req_snoop;
     hpdcache_req_addr_t    cmo_req_addr;
     hpdcache_req_sid_t     cmo_req_sid;
     hpdcache_req_tid_t     cmo_req_tid;
@@ -329,9 +331,11 @@ import hpdcache_pkg::*;
     logic                  cmo_flush_alloc;
     hpdcache_nline_t       cmo_flush_alloc_nline;
     hpdcache_way_vector_t  cmo_flush_alloc_way;
+    logic                  cmo_flush_alloc_snoop;
     logic                  cmo_core_rsp_ready;
     logic                  cmo_core_rsp_valid;
     hpdcache_rsp_t         cmo_core_rsp;
+    hpdcache_coherence_t   cmo_core_rsp_coherence;
 
     logic                  flush_empty;
     logic                  flush_busy;
@@ -341,6 +345,7 @@ import hpdcache_pkg::*;
     logic                  flush_alloc_ready;
     hpdcache_nline_t       flush_alloc_nline;
     hpdcache_way_vector_t  flush_alloc_way;
+    logic                  flush_alloc_snoop;
     logic                  flush_data_read;
     hpdcache_set_t         flush_data_read_set;
     hpdcache_word_t        flush_data_read_word;
@@ -352,12 +357,15 @@ import hpdcache_pkg::*;
     logic                  ctrl_flush_alloc;
     hpdcache_nline_t       ctrl_flush_alloc_nline;
     hpdcache_way_vector_t  ctrl_flush_alloc_way;
+    logic                  ctrl_flush_alloc_snoop;
 
     logic                  rtab_empty;
     logic                  ctrl_empty;
 
     logic                  core_rsp_valid;
     hpdcache_rsp_t         core_rsp;
+
+    hpdcache_coherence_t   core_rsp_coherence;
 
     logic                  arb_req_valid;
     logic                  arb_req_ready;
@@ -508,6 +516,8 @@ import hpdcache_pkg::*;
         .core_rsp_valid_o                   (core_rsp_valid),
         .core_rsp_o                         (core_rsp),
 
+        .core_rsp_coherence_o               (core_rsp_coherence),
+
         .wbuf_flush_i,
 
         .cachedir_hit_o                     (/* unused */),
@@ -559,6 +569,7 @@ import hpdcache_pkg::*;
         .flush_alloc_ready_i                (flush_alloc_ready),
         .flush_alloc_nline_o                (ctrl_flush_alloc_nline),
         .flush_alloc_way_o                  (ctrl_flush_alloc_way),
+        .flush_alloc_snoop_o                (ctrl_flush_alloc_snoop),
         .flush_data_read_i                  (flush_data_read),
         .flush_data_read_set_i              (flush_data_read_set),
         .flush_data_read_word_i             (flush_data_read_word),
@@ -624,6 +635,7 @@ import hpdcache_pkg::*;
         .cmo_wait_i                         (cmo_wait),
         .cmo_req_valid_o                    (cmo_req_valid),
         .cmo_req_op_o                       (cmo_req_op),
+        .cmo_req_snoop_o                    (cmo_req_snoop),
         .cmo_req_addr_o                     (cmo_req_addr),
         .cmo_req_wdata_o                    (cmo_req_wdata),
         .cmo_req_sid_o                      (cmo_req_sid),
@@ -665,6 +677,7 @@ import hpdcache_pkg::*;
         .cmo_core_rsp_ready_o               (cmo_core_rsp_ready),
         .cmo_core_rsp_valid_i               (cmo_core_rsp_valid),
         .cmo_core_rsp_i                     (cmo_core_rsp),
+        .cmo_core_rsp_coherence_i           (cmo_core_rsp_coherence),
 
         .rtab_empty_o                       (rtab_empty),
         .ctrl_empty_o                       (ctrl_empty),
@@ -679,6 +692,7 @@ import hpdcache_pkg::*;
         .evt_cache_read_miss_o,
         .evt_uncached_req_o,
         .evt_cmo_req_o,
+        .evt_snoop_req_o,
         .evt_write_req_o,
         .evt_read_req_o,
         .evt_prefetch_req_o,
@@ -977,6 +991,7 @@ import hpdcache_pkg::*;
         .req_valid_i                   (cmo_req_valid),
         .req_ready_o                   (cmo_ready),
         .req_op_i                      (cmo_req_op),
+        .req_snoop_i                   (cmo_req_snoop),
         .req_addr_i                    (cmo_req_addr),
         .req_wdata_i                   (cmo_req_wdata),
         .req_sid_i                     (cmo_req_sid),
@@ -996,6 +1011,7 @@ import hpdcache_pkg::*;
         .core_rsp_ready_i              (cmo_core_rsp_ready),
         .core_rsp_valid_o              (cmo_core_rsp_valid),
         .core_rsp_o                    (cmo_core_rsp),
+        .core_rsp_coherence_o          (cmo_core_rsp_coherence),
 
         .wbuf_flush_all_o              (cmo_wbuf_flush_all),
 
@@ -1030,7 +1046,8 @@ import hpdcache_pkg::*;
         .flush_alloc_o                 (cmo_flush_alloc),
         .flush_alloc_ready_i           (flush_alloc_ready),
         .flush_alloc_nline_o           (cmo_flush_alloc_nline),
-        .flush_alloc_way_o             (cmo_flush_alloc_way)
+        .flush_alloc_way_o             (cmo_flush_alloc_way),
+        .flush_alloc_snoop_o           (cmo_flush_alloc_snoop)
     );
     //  }}}
 
@@ -1042,6 +1059,8 @@ import hpdcache_pkg::*;
             ctrl_flush_alloc ? ctrl_flush_alloc_nline : cmo_flush_alloc_nline;
         assign flush_alloc_way =
             ctrl_flush_alloc ? ctrl_flush_alloc_way : cmo_flush_alloc_way;
+        assign flush_alloc_snoop =
+            ctrl_flush_alloc ? ctrl_flush_alloc_snoop : cmo_flush_alloc_snoop;
 
         hpdcache_flush #(
             .HPDcacheCfg                   (HPDcacheCfg),
@@ -1072,6 +1091,7 @@ import hpdcache_pkg::*;
             .flush_alloc_ready_o           (flush_alloc_ready),
             .flush_alloc_nline_i           (flush_alloc_nline),
             .flush_alloc_way_i             (flush_alloc_way),
+            .flush_alloc_snoop_i           (flush_alloc_snoop),
 
             .flush_data_read_o             (flush_data_read),
             .flush_data_read_set_o         (flush_data_read_set),

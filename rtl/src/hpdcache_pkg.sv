@@ -334,6 +334,55 @@ package hpdcache_pkg;
         return (op == HPDCACHE_REQ_SNOOP_READ_CLEAN);
     endfunction
 
+    // Snoop transactions to internal operations mapping
+
+    function automatic logic is_snoop_inval_by_nline(input hpdcache_req_op_t op);
+        return (op inside {
+            HPDCACHE_REQ_SNOOP_MAKE_INVALID
+        });
+    endfunction
+
+    function automatic logic is_snoop_flush_inval_by_nline(input hpdcache_req_op_t op);
+        return (op inside {
+            HPDCACHE_REQ_SNOOP_CLEAN_INVALID,
+            HPDCACHE_REQ_SNOOP_READ_UNIQUE
+        });
+    endfunction
+
+    function automatic logic is_snoop_flush_by_nline(input hpdcache_req_op_t op);
+        return (op inside {
+            HPDCACHE_REQ_SNOOP_CLEAN_SHARED,
+            HPDCACHE_REQ_SNOOP_READ_CLEAN,
+            HPDCACHE_REQ_SNOOP_READ_NOT_SHARED_DIRTY,
+            HPDCACHE_REQ_SNOOP_READ_ONCE,
+            HPDCACHE_REQ_SNOOP_READ_SHARED
+        });
+    endfunction
+
+    function automatic logic is_snoop_flush_force_inval_by_nline(input hpdcache_req_op_t op);
+        return (op inside {
+            HPDCACHE_REQ_SNOOP_READ_UNIQUE
+        });
+    endfunction
+
+    function automatic logic is_snoop_cmo(input hpdcache_req_op_t op);
+        return (op inside {
+            HPDCACHE_REQ_SNOOP_CLEAN_INVALID,
+            HPDCACHE_REQ_SNOOP_CLEAN_SHARED,
+            HPDCACHE_REQ_SNOOP_MAKE_INVALID,
+            HPDCACHE_REQ_SNOOP_READ_UNIQUE
+        });
+    endfunction
+
+    function automatic logic is_snoop_read(input hpdcache_req_op_t op);
+        return (op inside {
+            HPDCACHE_REQ_SNOOP_READ_CLEAN,
+            HPDCACHE_REQ_SNOOP_READ_NOT_SHARED_DIRTY,
+            HPDCACHE_REQ_SNOOP_READ_ONCE,
+            HPDCACHE_REQ_SNOOP_READ_SHARED
+        });
+    endfunction
+
     //      }}}
     //  }}}
 
@@ -427,6 +476,7 @@ package hpdcache_pkg;
     //  Definition of constants and types for the CMO request handler (CMOH)
     //  {{{
     typedef struct packed {
+        logic is_flush_force_inval_by_nline;
         logic is_flush_inval_by_nline;
         logic is_flush_inval_all;
         logic is_flush_by_nline;
