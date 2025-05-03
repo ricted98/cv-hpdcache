@@ -566,6 +566,7 @@ import hpdcache_pkg::*;
                         //  Flush required but the controller is not ready
                         if (cachedir_hit_i && !st1_flush_alloc_ready_i)
                         begin
+                            // FIXME: snoop reordering can happen here. Is it fine?
                             st1_rtab_alloc = 1'b1;
                             st1_rtab_flush_not_ready_o = 1'b1;
                             st1_nop = 1'b1;
@@ -574,6 +575,7 @@ import hpdcache_pkg::*;
                         //  Pending miss on the same line
                         else if (st1_mshr_hit_i) begin
                             //  Put the request in the replay table
+                            // FIXME: snoop reordering can happen here. Is it fine?
                             st1_rtab_alloc = 1'b1;
                             st1_rtab_mshr_hit_o = 1'b1;
                             st1_nop = 1'b1;

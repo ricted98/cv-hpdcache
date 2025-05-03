@@ -332,6 +332,11 @@ import hpdcache_pkg::*;
         .core_rsp_valid_o                  (core_rsp_valid),
         .core_rsp_o                        (core_rsp),
 
+        .snoop_rsp_coherence_o             (),
+        .snoop_rsp_data_ready_i            ('1),
+        .snoop_rsp_data_valid_o            (),
+        .snoop_rsp_data_o                  (),
+
         .mem_req_read_ready_i              (mem_req_read_ready_i),
         .mem_req_read_valid_o              (mem_req_read_valid_o),
         .mem_req_read_o                    (mem_req_read),
