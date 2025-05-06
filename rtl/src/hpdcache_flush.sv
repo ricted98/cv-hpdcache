@@ -107,9 +107,9 @@ import hpdcache_pkg::*;
 
     //      SNOOP interface
     //      {{{
-    input  logic                  snoop_rsp_data_data_ready_i,
-    output logic                  snoop_rsp_data_data_valid_o,
-    output hpdcache_mem_req_w_t   snoop_rsp_data_o
+    input  logic                  core_rsp_coherence_data_ready_i,
+    output logic                  core_rsp_coherence_data_valid_o,
+    output hpdcache_mem_req_w_t   core_rsp_coherence_data_o
     //      }}}
 );
 
@@ -404,9 +404,9 @@ import hpdcache_pkg::*;
 
         v_valids = '0;
         v_valids[flush_dest_sel_rdata] = flush_resizer_rok;
-        {snoop_rsp_data_data_valid_o, mem_req_write_data_valid_o} = v_valids;
+        {core_rsp_coherence_data_valid_o, mem_req_write_data_valid_o} = v_valids;
 
-        v_readies = {snoop_rsp_data_data_ready_i, mem_req_write_data_ready_i};
+        v_readies = {core_rsp_coherence_data_ready_i, mem_req_write_data_ready_i};
         flush_resizer_r = v_readies[flush_dest_sel_rdata];
     end
 
@@ -442,7 +442,7 @@ import hpdcache_pkg::*;
 
     //  Forward data flit to the snoop interface
     //
-    assign snoop_rsp_data_o = '{
+    assign core_rsp_coherence_data_o = '{
         mem_req_w_data: flush_mem_req_rdata,
         mem_req_w_be: '1,
         mem_req_w_last: flush_mem_req_rlast

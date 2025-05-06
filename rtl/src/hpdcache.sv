@@ -86,12 +86,13 @@ import hpdcache_pkg::*;
     output logic                          core_rsp_valid_o [HPDcacheCfg.u.nRequesters],
     output hpdcache_rsp_t                 core_rsp_o       [HPDcacheCfg.u.nRequesters],
 
-    //      Snoop core response complementary data
-    output hpdcache_coherence_t           snoop_rsp_coherence_o,
-    //      Snoop response data interface
-    input  logic                          snoop_rsp_data_ready_i,
-    output logic                          snoop_rsp_data_valid_o,
-    output hpdcache_mem_req_w_t           snoop_rsp_data_o,
+    //      A single requester can be extended to act as a snoop interface
+    //      Core coherence response complementary flags
+    output hpdcache_coherence_t           core_rsp_coherence_o,
+    //      Core coherence data response interface
+    input  logic                          core_rsp_coherence_data_ready_i,
+    output logic                          core_rsp_coherence_data_valid_o,
+    output hpdcache_mem_req_w_t           core_rsp_coherence_data_o,
 
     //      Read / Invalidation memory interface
     input  logic                          mem_req_read_ready_i,
@@ -475,7 +476,7 @@ import hpdcache_pkg::*;
     );
 
     //  Direct assignment as only one requester should issue snoop operations
-    assign snoop_rsp_coherence_o = core_rsp_coherence;
+    assign core_rsp_coherence_o = core_rsp_coherence;
     //  }}}
 
     //  HPDcache controller
@@ -1124,9 +1125,9 @@ import hpdcache_pkg::*;
             .mem_resp_write_valid_i        (mem_resp_write_flush_valid),
             .mem_resp_write_i              (mem_resp_write_flush),
 
-            .snoop_rsp_data_data_ready_i   (snoop_rsp_data_ready_i),
-            .snoop_rsp_data_data_valid_o   (snoop_rsp_data_valid_o),
-            .snoop_rsp_data_o              (snoop_rsp_data_o)
+            .core_rsp_coherence_data_ready_i (core_rsp_coherence_data_ready_i),
+            .core_rsp_coherence_data_valid_o (core_rsp_coherence_data_valid_o),
+            .core_rsp_coherence_data_o       (core_rsp_coherence_data_o)
         );
     end else begin : gen_no_flush
         //  The flush controller behaves as a black-hole: consumes but do not produce data
