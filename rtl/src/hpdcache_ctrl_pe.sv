@@ -547,7 +547,7 @@ import hpdcache_pkg::*;
                                 st2_dir_updt_valid_o  = 1'b1;
                                 st2_dir_updt_wback_o  = st1_dir_hit_wback_i;
                                 st2_dir_updt_dirty_o  = 1'b0;
-                                st2_dir_updt_shared_o = 1'b0;
+                                st2_dir_updt_shared_o = st1_dir_hit_shared_i;
 
                                 //  If the cacheline has been pre-allocated for a pending miss, keep
                                 //  the fetch bit set
