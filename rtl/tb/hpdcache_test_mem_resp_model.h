@@ -131,12 +131,12 @@ private:
         hpdcache_test_transaction_mem_read_resp resp;
 
         //  consume the request from the request ports
-        req.addr      = mem_req_read_addr_i.read().to_uint();
-        req.len       = mem_req_read_len_i.read().to_uint();
-        req.size      = mem_req_read_size_i.read().to_uint();
-        req.id        = mem_req_read_id_i.read().to_uint();
-        req.command   = mem_req_read_command_i.read().to_uint();
-        req.atomic    = mem_req_read_atomic_i.read().to_uint();
+        req.addr = mem_req_read_addr_i.read().to_uint();
+        req.len = mem_req_read_len_i.read().to_uint();
+        req.size = mem_req_read_size_i.read().to_uint();
+        req.id = mem_req_read_id_i.read().to_uint();
+        req.command = mem_req_read_command_i.read().to_uint();
+        req.atomic = mem_req_read_atomic_i.read().to_uint();
         req.cacheable = mem_req_read_cacheable_i.read();
         sb_mem_read_req_o.write(req); // send request to scoreboard
 
@@ -149,14 +149,14 @@ private:
 
         //  check if the address is in an error segment. If it is, send a
         //  response with the error flag asserted
-        uint64_t addr     = req.addr;
+        uint64_t addr = req.addr;
         uint64_t end_addr = addr + (1ULL << req.size);
         if (within_error_region(addr, end_addr)) {
             for (int i = 0; i < (req.len + 1); i++) {
                 resp.error = 1;
                 resp.id = req.id;
                 resp.last = (i == req.len);
-                read_resp_fifo.write(resp);
+                while (!read_resp_fifo.nb_write(resp)) wait();
             }
             return;
         }
@@ -167,9 +167,9 @@ private:
 
         if (req.is_ldex()) {
             const uint64_t n  = 1 << req.size;
-            excl_buf_m[req.id].valid     = true;
+            excl_buf_m[req.id].valid = true;
             excl_buf_m[req.id].base_addr = addr;
-            excl_buf_m[req.id].end_addr  = addr + n;
+            excl_buf_m[req.id].end_addr = addr + n;
         }
 
         for (int i = 0; i < (req.len + 1); i++) {
@@ -194,7 +194,7 @@ private:
             resp.error = 0;
             resp.id = req.id;
             resp.last = (i == req.len);
-            read_resp_fifo.write(resp);
+            while (!read_resp_fifo.nb_write(resp)) wait();
 
             addr = ((addr >> 3) + words) << 3;
         }
@@ -224,13 +224,13 @@ private:
                 read_resp.error = 0;
                 read_resp.id = req.id;
                 read_resp.last = true;
-                read_resp_fifo.write(read_resp);
+                while (!read_resp_fifo.nb_write(read_resp)) wait();
             }
 
             resp.is_atomic = 0;
             resp.error = 1;
             resp.id = req.id;
-            write_resp_fifo.write(resp);
+            while (!write_resp_fifo.nb_write(resp)) wait();
             return;
         }
 
@@ -312,7 +312,7 @@ private:
                 read_resp.error = 0;
                 read_resp.id = req.id;
                 read_resp.last = true;
-                read_resp_fifo.write(read_resp);
+                while (!read_resp_fifo.nb_write(read_resp)) wait();
             }
         }
 
@@ -320,7 +320,7 @@ private:
         resp.is_atomic = req.is_stex() && excl_ok;
         resp.error = 0;
         resp.id = req.id;
-        write_resp_fifo.write(resp);
+        while (!write_resp_fifo.nb_write(resp)) wait();
     }
 
     void read_response_process()
@@ -329,7 +329,7 @@ private:
 
         mem_resp_read_valid_o.write(false);
         for (;;) {
-            read_resp_fifo.read(read_resp);
+            while (!read_resp_fifo.nb_read(read_resp)) wait();
             rd_valid_delay->next();
             for (int i = 0; i < rd_valid_delay->read(); i++) wait();
             sb_mem_read_resp_o.write(read_resp); // send response to scoreboard
@@ -351,7 +351,7 @@ private:
 
         mem_resp_write_valid_o.write(false);
         for (;;) {
-            write_resp_fifo.read(resp);
+            while (!write_resp_fifo.nb_read(resp)) wait();
             wb_valid_delay->next();
             for (int i = 0; i < wb_valid_delay->read(); i++) wait();
             sb_mem_write_resp_o.write(resp); // send response to scoreboard
@@ -403,7 +403,7 @@ private:
             r.command = mem_req_write_command_i.read().to_uint();
             r.atomic = mem_req_write_atomic_i.read().to_uint();
             r.cacheable = mem_req_write_cacheable_i.read();
-            write_req_fifo.write(r);
+            while (!write_req_fifo.nb_write(r)) wait();
 
             wait();
         }
@@ -431,7 +431,7 @@ private:
             r.data = mem_req_write_data_i.read();
             r.be = mem_req_write_be_i.read();
             r.last = mem_req_write_last_i.read();
-            write_req_data_fifo.write(r);
+            while (!write_req_data_fifo.nb_write(r)) wait();
 
             wait();
         }
@@ -444,8 +444,8 @@ private:
         hpdcache_test_transaction_mem_write_req req;
 
         for (;;) {
-            write_req_fifo.read(req_meta);
-            write_req_data_fifo.read(req_data);
+            while (!write_req_fifo.nb_read(req_meta)) wait();
+            while (!write_req_data_fifo.nb_read(req_data)) wait();
             wait();
 
             if (req_meta.len != 0) {
