@@ -73,6 +73,7 @@ import hpdcache_pkg::*;
     input  logic                  alloc_is_prefetch_i,
     input  logic                  alloc_wback_i,
     input  logic                  alloc_dirty_i,
+    input  logic                  alloc_inval_only_i,
     input  cbuf_id_t              alloc_cbuf_id_i,
     output logic                  alloc_full_o,
     output mshr_way_t             alloc_way_o,
@@ -92,6 +93,7 @@ import hpdcache_pkg::*;
     output logic                  ack_is_prefetch_o,
     output logic                  ack_wback_o,
     output logic                  ack_dirty_o,
+    output logic                  ack_inval_only_o,
     output cbuf_id_t              ack_cbuf_id_o
 );
     //  }}}
@@ -108,6 +110,7 @@ import hpdcache_pkg::*;
         logic              dirty;
         logic              need_rsp;
         logic              is_prefetch;
+        logic              inval_only;
         cbuf_id_t          cbuf_id;
     } mshr_entry_t;
 
@@ -206,6 +209,7 @@ import hpdcache_pkg::*;
             mshr_wentry[i].victim_way_idx = alloc_victim_way_i;
             mshr_wentry[i].need_rsp = alloc_need_rsp_i;
             mshr_wentry[i].is_prefetch = alloc_is_prefetch_i;
+            mshr_wentry[i].inval_only = alloc_inval_only_i;
             mshr_wentry[i].wback = alloc_wback_i;
             mshr_wentry[i].dirty = alloc_dirty_i;
             mshr_wentry[i].cbuf_id = alloc_cbuf_id_i;
@@ -255,6 +259,7 @@ import hpdcache_pkg::*;
     assign ack_word_o        = mshr_rentry[ack_way_q].word_idx;
     assign ack_need_rsp_o    = mshr_rentry[ack_way_q].need_rsp;
     assign ack_is_prefetch_o = mshr_rentry[ack_way_q].is_prefetch;
+    assign ack_inval_only_o  = mshr_rentry[ack_way_q].inval_only;
     assign ack_wback_o       = mshr_rentry[ack_way_q].wback;
     assign ack_dirty_o       = mshr_rentry[ack_way_q].dirty;
     assign ack_cbuf_id_o     = mshr_rentry[ack_way_q].cbuf_id;

@@ -64,6 +64,7 @@ import hpdcache_pkg::*;
     input  logic                  req_valid_i,
     output logic                  req_ready_o,
     input  hpdcache_cmoh_op_t     req_op_i,
+    input  logic                  req_snoop_i,
     input  hpdcache_req_addr_t    req_addr_i,
     input  hpdcache_req_data_t    req_wdata_i/*unused*/,
     input  hpdcache_req_sid_t     req_sid_i,
@@ -89,6 +90,7 @@ import hpdcache_pkg::*;
     input  logic                  core_rsp_ready_i,
     output logic                  core_rsp_valid_o,
     output hpdcache_rsp_t         core_rsp_o,
+    output hpdcache_coherence_t   core_rsp_coherence_o,
     //  }}}
 
     //  Write Buffer Interface
@@ -104,6 +106,7 @@ import hpdcache_pkg::*;
     input  hpdcache_way_vector_t  dir_check_nline_hit_way_i,
     input  logic                  dir_check_nline_wback_i,
     input  logic                  dir_check_nline_dirty_i,
+    input  logic                  dir_check_nline_shared_i,
 
     output logic                  dir_check_entry_o,
     output hpdcache_set_t         dir_check_entry_set_o,
@@ -111,6 +114,7 @@ import hpdcache_pkg::*;
     input  logic                  dir_check_entry_valid_i,
     input  logic                  dir_check_entry_wback_i,
     input  logic                  dir_check_entry_dirty_i,
+    input  logic                  dir_check_entry_shared_i,
     input  hpdcache_tag_t         dir_check_entry_tag_i,
 
     output logic                  dir_updt_o,
@@ -119,6 +123,7 @@ import hpdcache_pkg::*;
     output logic                  dir_updt_valid_o,
     output logic                  dir_updt_wback_o,
     output logic                  dir_updt_dirty_o,
+    output logic                  dir_updt_shared_o,
     output logic                  dir_updt_fetch_o,
     output hpdcache_tag_t         dir_updt_tag_o,
     // }}}
@@ -129,7 +134,8 @@ import hpdcache_pkg::*;
     output logic                  flush_alloc_o,
     input  logic                  flush_alloc_ready_i,
     output hpdcache_nline_t       flush_alloc_nline_o,
-    output hpdcache_way_vector_t  flush_alloc_way_o
+    output hpdcache_way_vector_t  flush_alloc_way_o,
+    output logic                  flush_alloc_snoop_o
     // }}}
 );
 //  }}}
@@ -154,6 +160,7 @@ import hpdcache_pkg::*;
 //  {{{
     hpdcache_cmoh_fsm_t   cmoh_fsm_q, cmoh_fsm_d;
     hpdcache_cmoh_op_t    cmoh_op_q, cmoh_op_d;
+    logic                 cmoh_snoop_q, cmoh_snoop_d;
     hpdcache_req_addr_t   cmoh_addr_q, cmoh_addr_d;
     hpdcache_way_vector_t cmoh_way_q, cmoh_way_d;
     hpdcache_set_t        cmoh_set_q, cmoh_set_d;
@@ -172,9 +179,17 @@ import hpdcache_pkg::*;
     hpdcache_set_t        cmoh_flush_req_set;
     hpdcache_tag_t        cmoh_flush_req_tag;
     hpdcache_way_vector_t cmoh_flush_req_way;
+    logic                 cmoh_flush_req_snoop;
 
     logic                 core_rsp_w, core_rsp_r, core_rsp_rok;
     hpdcache_rsp_t        core_rsp;
+    logic                 core_rsp_coherence_w;
+    logic                 core_rsp_coherence_was_unique;
+    logic                 core_rsp_coherence_is_shared;
+    logic                 core_rsp_coherence_pass_dirty;
+    logic                 core_rsp_coherence_left_dirty;
+    logic                 core_rsp_coherence_data_transfer;
+    hpdcache_coherence_t  core_rsp_coherence;
     logic                 core_rsp_send_q, core_rsp_send_d;
 
     logic cmoh_set_incr, cmoh_inval_set_reset, cmoh_flush_set_reset, cmoh_set_last;
@@ -195,6 +210,20 @@ import hpdcache_pkg::*;
         .r_i         (core_rsp_r),
         .rok_o       (core_rsp_rok),
         .rdata_o     (core_rsp_o)
+    );
+
+    hpdcache_sync_buffer #(
+        .FEEDTHROUGH (1'b0),
+        .data_t      (hpdcache_coherence_t)
+    ) cmoh_core_rsp_coherence_buffer_i(
+        .clk_i,
+        .rst_ni,
+        .w_i         (core_rsp_coherence_w),
+        .wok_o       (/*unused*/),
+        .wdata_i     (core_rsp_coherence),
+        .r_i         (core_rsp_r),
+        .rok_o       (/*unused*/),
+        .rdata_o     (core_rsp_coherence_o)
     );
 
     assign core_rsp_r       = core_rsp_send_q & core_rsp_ready_i;
@@ -220,12 +249,21 @@ import hpdcache_pkg::*;
         aborted: 1'b0
     };
 
+    assign core_rsp_coherence = '{
+        was_unique: core_rsp_coherence_was_unique,
+        is_shared: core_rsp_coherence_is_shared,
+        pass_dirty: core_rsp_coherence_pass_dirty,
+        left_dirty: core_rsp_coherence_left_dirty,
+        data_transfer: core_rsp_coherence_data_transfer
+    };
+
     always_comb
     begin : cmoh_fsm_comb
         cmoh_fsm_d = cmoh_fsm_q;
 
-        cmoh_op_d   = cmoh_op_q;
-        cmoh_addr_d = cmoh_addr_q;
+        cmoh_op_d    = cmoh_op_q;
+        cmoh_addr_d  = cmoh_addr_q;
+        cmoh_snoop_d = cmoh_snoop_q;
 
         cmoh_flush_req_valid_d = cmoh_flush_req_valid_q;
         cmoh_flush_req_set_d   = cmoh_flush_req_set_q;
@@ -249,23 +287,32 @@ import hpdcache_pkg::*;
         dir_check_entry_set_o = cmoh_set_q;
         dir_check_entry_way_o = cmoh_way_q;
 
-        dir_updt_o       = 1'b0;
-        dir_updt_set_o   = '0;
-        dir_updt_way_o   = '0;
-        dir_updt_valid_o = 1'b0;
-        dir_updt_wback_o = 1'b0;
-        dir_updt_dirty_o = 1'b0;
-        dir_updt_fetch_o = 1'b0;
-        dir_updt_tag_o   = '0;
+        dir_updt_o        = 1'b0;
+        dir_updt_set_o    = '0;
+        dir_updt_way_o    = '0;
+        dir_updt_valid_o  = 1'b0;
+        dir_updt_wback_o  = 1'b0;
+        dir_updt_dirty_o  = 1'b0;
+        dir_updt_shared_o = 1'b0;
+        dir_updt_fetch_o  = 1'b0;
+        dir_updt_tag_o    = '0;
 
         wbuf_flush_all_o = 1'b0;
 
-        cmoh_flush_req_set = '0;
-        cmoh_flush_req_way = '0;
-        cmoh_flush_req_tag = '0;
+        cmoh_flush_req_set   = '0;
+        cmoh_flush_req_way   = '0;
+        cmoh_flush_req_tag   = '0;
+        cmoh_flush_req_snoop = '0;
 
         core_rsp_w      = 1'b0;
         core_rsp_send_d = core_rsp_send_q;
+
+        core_rsp_coherence_w             = 1'b0;
+        core_rsp_coherence_was_unique    = 1'b0;
+        core_rsp_coherence_is_shared     = 1'b0;
+        core_rsp_coherence_pass_dirty    = 1'b0;
+        core_rsp_coherence_left_dirty    = 1'b0;
+        core_rsp_coherence_data_transfer = 1'b0;
 
         req_ready_o = 1'b0;
 
@@ -300,8 +347,10 @@ import hpdcache_pkg::*;
                         req_op_i.is_flush_by_nline,
                         req_op_i.is_flush_all,
                         req_op_i.is_flush_inval_by_nline,
-                        req_op_i.is_flush_inval_all: begin
+                        req_op_i.is_flush_inval_all,
+                        req_op_i.is_flush_force_inval_by_nline: begin
                             cmoh_op_d = req_op_i;
+                            cmoh_snoop_d = req_snoop_i;
                             cmoh_addr_d = req_addr_i;
                             cmoh_way_reset = 1'b1;
                             cmoh_fsm_d = CMOH_WAIT_MSHR_RTAB_EMPTY;
@@ -333,7 +382,8 @@ import hpdcache_pkg::*;
                             core_rsp_send_d = core_rsp_rok;
                             cmoh_fsm_d = CMOH_IDLE;
                         end
-                    end else if (cmoh_op_q.is_flush_by_nline) begin
+                    end else if (cmoh_op_q.is_flush_by_nline |
+                                 cmoh_op_q.is_flush_force_inval_by_nline) begin
                         if (dirty_set_en_i) begin
                             cmoh_flush_req_inval_d = 1'b0;
                             cmoh_fsm_d = CMOH_FLUSH_NLINE_FIRST;
@@ -369,6 +419,15 @@ import hpdcache_pkg::*;
                         end
                     end
                 end
+
+                if (!valid_set_en_i) begin
+                    core_rsp_coherence_w             = cmoh_snoop_q;
+                    core_rsp_coherence_was_unique    = 1'b0;
+                    core_rsp_coherence_is_shared     = 1'b0;
+                    core_rsp_coherence_pass_dirty    = 1'b0;
+                    core_rsp_coherence_left_dirty    = 1'b0;
+                    core_rsp_coherence_data_transfer = 1'b0;
+                end
             end
             CMOH_INVAL_CHECK_NLINE: begin
                 dir_check_nline_o = 1'b1;
@@ -379,20 +438,30 @@ import hpdcache_pkg::*;
                     //  The CMO requests the invalidation of a given cacheline (or flush with
                     //  invalidation when the cache does not support WB policy)
                     cmoh_op_q.is_inval_by_nline,
-                    cmoh_op_q.is_flush_inval_by_nline: begin
+                    cmoh_op_q.is_flush_inval_by_nline,
+                    cmoh_op_q.is_flush_force_inval_by_nline: begin
                         /* FIXME this adds a DIR to DIR timing path. We should probably delay the
                          *       invalidation of one cycle to ease the timing closure */
-                        dir_updt_o       = cmoh_dir_check_nline_hit;
-                        dir_updt_set_o   = cmoh_set;
-                        dir_updt_way_o   = dir_check_nline_hit_way_i;
-                        dir_updt_valid_o = 1'b0;
-                        dir_updt_wback_o = 1'b0;
-                        dir_updt_dirty_o = 1'b0;
-                        dir_updt_fetch_o = 1'b0;
-                        dir_updt_tag_o   = '0;
+                        dir_updt_o        = cmoh_dir_check_nline_hit;
+                        dir_updt_set_o    = cmoh_set;
+                        dir_updt_way_o    = dir_check_nline_hit_way_i;
+                        dir_updt_valid_o  = 1'b0;
+                        dir_updt_wback_o  = 1'b0;
+                        dir_updt_dirty_o  = 1'b0;
+                        dir_updt_shared_o = 1'b0;
+                        dir_updt_fetch_o  = 1'b0;
+                        dir_updt_tag_o    = '0;
 
                         core_rsp_send_d = core_rsp_rok;
                         cmoh_fsm_d      = CMOH_IDLE;
+
+                        core_rsp_coherence_w             = cmoh_snoop_q;
+                        core_rsp_coherence_was_unique    = !dir_check_nline_shared_i;
+                        core_rsp_coherence_is_shared     = 1'b0;
+                        core_rsp_coherence_pass_dirty    = dir_check_nline_dirty_i;
+                        core_rsp_coherence_left_dirty    = 1'b0;
+                        core_rsp_coherence_data_transfer = (dir_check_nline_dirty_i ||
+                                                            cmoh_op_q.is_flush_force_inval_by_nline);
                     end
 
                     //  The CMO requests a full invalidation (or flush with invalidation when the
@@ -400,15 +469,16 @@ import hpdcache_pkg::*;
                     cmoh_op_q.is_inval_all,
                     cmoh_op_q.is_flush_inval_all:
                     begin
-                        dir_updt_o       = 1'b1;
-                        dir_updt_set_o   = cmoh_set_q;
-                        dir_updt_way_o   = {HPDcacheCfg.u.ways{1'b1}};
-                        dir_updt_valid_o = 1'b0;
-                        dir_updt_wback_o = 1'b0;
-                        dir_updt_dirty_o = 1'b0;
-                        dir_updt_fetch_o = 1'b0;
-                        dir_updt_tag_o   = '0;
-                        cmoh_set_incr    = 1'b1;
+                        dir_updt_o        = 1'b1;
+                        dir_updt_set_o    = cmoh_set_q;
+                        dir_updt_way_o    = {HPDcacheCfg.u.ways{1'b1}};
+                        dir_updt_valid_o  = 1'b0;
+                        dir_updt_wback_o  = 1'b0;
+                        dir_updt_dirty_o  = 1'b0;
+                        dir_updt_shared_o = 1'b0;
+                        dir_updt_fetch_o  = 1'b0;
+                        dir_updt_tag_o    = '0;
+                        cmoh_set_incr     = 1'b1;
                         if (cmoh_set_last) begin
                             inval_all_o = 1'b1;
                             core_rsp_send_d = core_rsp_rok;
@@ -440,13 +510,14 @@ import hpdcache_pkg::*;
                     dir_updt_o = dir_check_entry_valid_i &
                         (dir_check_entry_dirty_i | cmoh_flush_req_inval_q);
 
-                    dir_updt_set_o   = cmoh_flush_req_set_q;
-                    dir_updt_way_o   = cmoh_flush_req_way_q;
-                    dir_updt_valid_o = ~cmoh_flush_req_inval_q;
-                    dir_updt_wback_o = ~cmoh_flush_req_inval_q & dir_check_entry_wback_i;
-                    dir_updt_dirty_o = 1'b0;
-                    dir_updt_fetch_o = 1'b0;
-                    dir_updt_tag_o   = dir_check_entry_tag_i;
+                    dir_updt_set_o    = cmoh_flush_req_set_q;
+                    dir_updt_way_o    = cmoh_flush_req_way_q;
+                    dir_updt_valid_o  = ~cmoh_flush_req_inval_q;
+                    dir_updt_wback_o  = ~cmoh_flush_req_inval_q & dir_check_entry_wback_i;
+                    dir_updt_dirty_o  = 1'b0;
+                    dir_updt_shared_o = ~cmoh_flush_req_inval_q & dir_check_entry_shared_i;
+                    dir_updt_fetch_o  = 1'b0;
+                    dir_updt_tag_o    = dir_check_entry_tag_i;
 
                     cmoh_flush_req_set = cmoh_flush_req_set_q;
                     cmoh_flush_req_way = cmoh_flush_req_way_q;
@@ -476,13 +547,14 @@ import hpdcache_pkg::*;
                     dir_updt_o = dir_check_entry_valid_i &
                         (dir_check_entry_dirty_i | cmoh_flush_req_inval_q);
 
-                    dir_updt_set_o   = cmoh_flush_req_set_q;
-                    dir_updt_way_o   = cmoh_flush_req_way_q;
-                    dir_updt_valid_o = ~cmoh_flush_req_inval_q;
-                    dir_updt_wback_o = ~cmoh_flush_req_inval_q & dir_check_entry_wback_i;
-                    dir_updt_dirty_o = 1'b0;
-                    dir_updt_fetch_o = 1'b0;
-                    dir_updt_tag_o   = dir_check_entry_tag_i;
+                    dir_updt_set_o    = cmoh_flush_req_set_q;
+                    dir_updt_way_o    = cmoh_flush_req_way_q;
+                    dir_updt_valid_o  = ~cmoh_flush_req_inval_q;
+                    dir_updt_wback_o  = ~cmoh_flush_req_inval_q & dir_check_entry_wback_i;
+                    dir_updt_dirty_o  = 1'b0;
+                    dir_updt_shared_o = ~cmoh_flush_req_inval_q & dir_check_entry_shared_i;
+                    dir_updt_fetch_o  = 1'b0;
+                    dir_updt_tag_o    = dir_check_entry_tag_i;
                     cmoh_flush_req_set = cmoh_flush_req_set_q;
                     cmoh_flush_req_way = cmoh_flush_req_way_q;
                     cmoh_flush_req_tag = dir_check_entry_tag_i;
@@ -515,17 +587,26 @@ import hpdcache_pkg::*;
                 if (cmoh_flush_req_valid_q) begin
                     /* FIXME this adds a DIR to DIR timing path. We should probably delay the
                      *       invalidation of one cycle to ease the timing closure */
-                    dir_updt_o       = cmoh_dir_check_nline_hit;
-                    dir_updt_set_o   = cmoh_set;
-                    dir_updt_way_o   = dir_check_nline_hit_way_i;
-                    dir_updt_valid_o = ~cmoh_flush_req_inval_q;
-                    dir_updt_wback_o = ~cmoh_flush_req_inval_q & dir_check_nline_wback_i;
-                    dir_updt_dirty_o = 1'b0;
-                    dir_updt_fetch_o = 1'b0;
-                    dir_updt_tag_o   = cmoh_tag;
-                    cmoh_flush_req_set = cmoh_set;
-                    cmoh_flush_req_tag = cmoh_tag;
-                    cmoh_flush_req_way = dir_check_nline_hit_way_i;
+                    dir_updt_o        = cmoh_dir_check_nline_hit;
+                    dir_updt_set_o    = cmoh_set;
+                    dir_updt_way_o    = dir_check_nline_hit_way_i;
+                    dir_updt_valid_o  = ~cmoh_flush_req_inval_q;
+                    dir_updt_wback_o  = ~cmoh_flush_req_inval_q & dir_check_nline_wback_i;
+                    dir_updt_dirty_o  = 1'b0;
+                    dir_updt_shared_o = ~cmoh_flush_req_inval_q & dir_check_nline_shared_i;
+                    dir_updt_fetch_o  = 1'b0;
+                    dir_updt_tag_o    = cmoh_tag;
+                    cmoh_flush_req_set   = cmoh_set;
+                    cmoh_flush_req_tag   = cmoh_tag;
+                    cmoh_flush_req_way   = dir_check_nline_hit_way_i;
+                    cmoh_flush_req_snoop = cmoh_snoop_q;
+
+                    core_rsp_coherence_w             = cmoh_snoop_q;
+                    core_rsp_coherence_was_unique    = !dir_check_nline_shared_i;
+                    core_rsp_coherence_is_shared     = !cmoh_flush_req_inval_q;
+                    core_rsp_coherence_pass_dirty    = cmoh_flush_req_inval_q && dir_check_nline_dirty_i;
+                    core_rsp_coherence_left_dirty    = !cmoh_flush_req_inval_q && dir_check_nline_dirty_i;
+                    core_rsp_coherence_data_transfer = dir_check_nline_dirty_i;
                 end
 
                 //  Make sure that all requests have been processed
@@ -585,6 +666,7 @@ import hpdcache_pkg::*;
     always_ff @(posedge clk_i)
     begin
         cmoh_op_q              <= cmoh_op_d;
+        cmoh_snoop_q           <= cmoh_snoop_d;
         cmoh_addr_q            <= cmoh_addr_d;
         cmoh_way_q             <= cmoh_way_d;
         cmoh_set_q             <= cmoh_set_d;
@@ -599,6 +681,7 @@ import hpdcache_pkg::*;
     typedef struct packed {
         hpdcache_nline_t      nline;
         hpdcache_way_vector_t way;
+        logic                 snoop;
     } cmoh_flush_req_t;
 
     if (HPDcacheCfg.u.wbEn) begin : gen_cmo_flush_fifo
@@ -612,14 +695,16 @@ import hpdcache_pkg::*;
                     CMOH_FLUSH_ALL_NEXT, CMOH_FLUSH_ALL_LAST:
                         cmoh_flush_req_w = dir_check_entry_valid_i & dir_check_entry_dirty_i;
                     CMOH_FLUSH_NLINE_NEXT:
-                        cmoh_flush_req_w = cmoh_dir_check_nline_hit & dir_check_nline_dirty_i;
+                        cmoh_flush_req_w = cmoh_dir_check_nline_hit & (dir_check_nline_dirty_i |
+                                           cmoh_op_q.is_flush_force_inval_by_nline);
                 endcase
             end
         end
 
         assign cmoh_flush_req_wdata = '{
             nline: {cmoh_flush_req_tag, cmoh_flush_req_set},
-            way  :  cmoh_flush_req_way
+            way  :  cmoh_flush_req_way,
+            snoop:  cmoh_flush_req_snoop
         };
 
         hpdcache_fifo_reg #(
@@ -639,12 +724,14 @@ import hpdcache_pkg::*;
 
         assign flush_alloc_nline_o = cmoh_flush_req_rdata.nline;
         assign flush_alloc_way_o   = cmoh_flush_req_rdata.way;
+        assign flush_alloc_snoop_o = cmoh_flush_req_rdata.snoop;
     end else begin : gen_cmo_no_flush_fifo
         assign cmoh_flush_req_w    = 1'b0;
         assign cmoh_flush_req_wok  = 1'b1;
         assign flush_alloc_o       = 1'b0;
         assign flush_alloc_nline_o = '0;
         assign flush_alloc_way_o   = '0;
+        assign flush_alloc_snoop_o = '0;
     end
 //  }}}
 
@@ -658,7 +745,8 @@ import hpdcache_pkg::*;
                                     req_op_i.is_flush_by_nline,
                                     req_op_i.is_flush_all,
                                     req_op_i.is_flush_inval_by_nline,
-                                    req_op_i.is_flush_inval_all})) else
+                                    req_op_i.is_flush_inval_all,
+                                    req_op_i.is_flush_force_inval_by_nline})) else
                     $error("cmo_handler: invalid request");
 
     assert property (@(posedge clk_i) disable iff (rst_ni !== 1'b1)

@@ -73,6 +73,7 @@ import hpdcache_pkg::*;
     output hpdcache_tag_t                       dir_hit_tag_o,
     output logic                                dir_hit_wback_o,
     output logic                                dir_hit_dirty_o,
+    output logic                                dir_hit_shared_o,
     output logic                                dir_hit_fetch_o,
 
     input  logic                                dir_updt_i,
@@ -82,6 +83,7 @@ import hpdcache_pkg::*;
     input  logic                                dir_updt_valid_i,
     input  logic                                dir_updt_wback_i,
     input  logic                                dir_updt_dirty_i,
+    input  logic                                dir_updt_shared_i,
     input  logic                                dir_updt_fetch_i,
 
     input  logic                                dir_amo_match_i,
@@ -101,6 +103,7 @@ import hpdcache_pkg::*;
     output logic                                dir_victim_valid_o,
     output logic                                dir_victim_wback_o,
     output logic                                dir_victim_dirty_o,
+    output logic                                dir_victim_shared_o,
     output hpdcache_tag_t                       dir_victim_tag_o,
     output hpdcache_way_vector_t                dir_victim_way_o,
 
@@ -115,6 +118,7 @@ import hpdcache_pkg::*;
     output hpdcache_way_vector_t                dir_cmo_check_nline_hit_way_o,
     output logic                                dir_cmo_check_nline_wback_o,
     output logic                                dir_cmo_check_nline_dirty_o,
+    output logic                                dir_cmo_check_nline_shared_o,
 
     input  logic                                dir_cmo_check_entry_i,
     input  hpdcache_set_t                       dir_cmo_check_entry_set_i,
@@ -122,6 +126,7 @@ import hpdcache_pkg::*;
     output logic                                dir_cmo_check_entry_valid_o,
     output logic                                dir_cmo_check_entry_wback_o,
     output logic                                dir_cmo_check_entry_dirty_o,
+    output logic                                dir_cmo_check_entry_shared_o,
     output hpdcache_tag_t                       dir_cmo_check_entry_tag_o,
 
     input  logic                                dir_cmo_updt_i,
@@ -131,6 +136,7 @@ import hpdcache_pkg::*;
     input  logic                                dir_cmo_updt_valid_i,
     input  logic                                dir_cmo_updt_wback_i,
     input  logic                                dir_cmo_updt_dirty_i,
+    input  logic                                dir_cmo_updt_shared_i,
     input  logic                                dir_cmo_updt_fetch_i,
     //      }}}
 
@@ -300,6 +306,7 @@ import hpdcache_pkg::*;
     logic                [HPDcacheCfg.u.ways-1:0] dir_valid;
     logic                [HPDcacheCfg.u.ways-1:0] dir_wback;
     logic                [HPDcacheCfg.u.ways-1:0] dir_dirty;
+    logic                [HPDcacheCfg.u.ways-1:0] dir_shared;
     logic                [HPDcacheCfg.u.ways-1:0] dir_fetch;
 
     hpdcache_data_addr_t                       data_addr;
@@ -521,11 +528,12 @@ import hpdcache_pkg::*;
 
                 for (hpdcache_uint i = 0; i < HPDcacheCfg.u.ways; i++) begin
                     dir_wentry[i] = '{
-                        valid: dir_cmo_updt_valid_i,
-                        wback: dir_cmo_updt_wback_i,
-                        dirty: dir_cmo_updt_dirty_i,
-                        fetch: dir_cmo_updt_fetch_i,
-                        tag  : dir_cmo_updt_tag_i
+                        valid:  dir_cmo_updt_valid_i,
+                        wback:  dir_cmo_updt_wback_i,
+                        dirty:  dir_cmo_updt_dirty_i,
+                        shared: dir_cmo_updt_dirty_i,
+                        fetch:  dir_cmo_updt_fetch_i,
+                        tag  :  dir_cmo_updt_tag_i
                     };
                 end
             end
@@ -538,11 +546,12 @@ import hpdcache_pkg::*;
 
                 for (hpdcache_uint i = 0; i < HPDcacheCfg.u.ways; i++) begin
                     dir_wentry[i] = '{
-                        valid: dir_updt_valid_i,
-                        wback: dir_updt_wback_i,
-                        dirty: dir_updt_dirty_i,
-                        fetch: dir_updt_fetch_i,
-                        tag  : dir_updt_tag_i
+                        valid:  dir_updt_valid_i,
+                        wback:  dir_updt_wback_i,
+                        dirty:  dir_updt_dirty_i,
+                        shared: dir_updt_shared_i,
+                        fetch:  dir_updt_fetch_i,
+                        tag  :  dir_updt_tag_i
                     };
                 end
             end
@@ -592,15 +601,18 @@ import hpdcache_pkg::*;
         .data_o      (dir_hit_tag_o)
     );
 
-    assign dir_hit_wback_o = |(dir_hit_way_o & dir_wback);
-    assign dir_hit_dirty_o = |(dir_hit_way_o & dir_dirty);
-    assign dir_hit_fetch_o = |(dir_hit_way_o & dir_fetch);
+    assign dir_hit_wback_o  = |(dir_hit_way_o & dir_wback);
+    assign dir_hit_dirty_o  = |(dir_hit_way_o & dir_dirty);
+    assign dir_hit_shared_o = |(dir_hit_way_o & dir_shared);
+    assign dir_hit_fetch_o  = |(dir_hit_way_o & dir_fetch);
 
-    assign dir_cmo_check_nline_wback_o = |(dir_cmo_check_nline_hit_way_o & dir_wback);
-    assign dir_cmo_check_nline_dirty_o = |(dir_cmo_check_nline_hit_way_o & dir_dirty);
-    assign dir_cmo_check_entry_valid_o = |(dir_req_way_q & dir_valid);
-    assign dir_cmo_check_entry_wback_o = |(dir_req_way_q & dir_wback);
-    assign dir_cmo_check_entry_dirty_o = |(dir_req_way_q & dir_dirty);
+    assign dir_cmo_check_nline_wback_o  = |(dir_cmo_check_nline_hit_way_o & dir_wback);
+    assign dir_cmo_check_nline_dirty_o  = |(dir_cmo_check_nline_hit_way_o & dir_dirty);
+    assign dir_cmo_check_nline_shared_o = |(dir_cmo_check_nline_hit_way_o & dir_shared);
+    assign dir_cmo_check_entry_valid_o  = |(dir_req_way_q & dir_valid);
+    assign dir_cmo_check_entry_wback_o  = |(dir_req_way_q & dir_wback);
+    assign dir_cmo_check_entry_dirty_o  = |(dir_req_way_q & dir_dirty);
+    assign dir_cmo_check_entry_shared_o = |(dir_req_way_q & dir_shared);
     hpdcache_mux #(
         .NINPUT      (HPDcacheCfg.u.ways),
         .DATA_WIDTH  (HPDcacheCfg.tagWidth),
@@ -611,9 +623,10 @@ import hpdcache_pkg::*;
         .data_o      (dir_cmo_check_entry_tag_o)
     );
 
-    assign dir_victim_valid_o = |(dir_victim_way_o & dir_valid);
-    assign dir_victim_wback_o = |(dir_victim_way_o & dir_wback);
-    assign dir_victim_dirty_o = |(dir_victim_way_o & dir_dirty);
+    assign dir_victim_valid_o  = |(dir_victim_way_o & dir_valid);
+    assign dir_victim_wback_o  = |(dir_victim_way_o & dir_wback);
+    assign dir_victim_dirty_o  = |(dir_victim_way_o & dir_dirty);
+    assign dir_victim_shared_o = |(dir_victim_way_o & dir_shared);
     hpdcache_mux #(
         .NINPUT      (HPDcacheCfg.u.ways),
         .DATA_WIDTH  (HPDcacheCfg.tagWidth),
@@ -645,10 +658,11 @@ import hpdcache_pkg::*;
                                  dir_req_set_q;
 
     for (gen_i = 0; gen_i < HPDcacheCfg.u.ways; gen_i++) begin : gen_dir_valid_bv
-        assign dir_valid[gen_i] = dir_rentry[gen_i].valid;
-        assign dir_wback[gen_i] = dir_rentry[gen_i].wback;
-        assign dir_dirty[gen_i] = dir_rentry[gen_i].dirty;
-        assign dir_fetch[gen_i] = dir_rentry[gen_i].fetch;
+        assign dir_valid[gen_i]  = dir_rentry[gen_i].valid;
+        assign dir_wback[gen_i]  = dir_rentry[gen_i].wback;
+        assign dir_dirty[gen_i]  = dir_rentry[gen_i].dirty;
+        assign dir_shared[gen_i] = dir_rentry[gen_i].shared;
+        assign dir_fetch[gen_i]  = dir_rentry[gen_i].fetch;
     end
 
 
@@ -668,6 +682,7 @@ import hpdcache_pkg::*;
         .sel_dir_valid_i          (dir_valid),
         .sel_dir_wback_i          (dir_wback),
         .sel_dir_dirty_i          (dir_dirty),
+        .sel_dir_shared_i         (dir_shared),
         .sel_dir_fetch_i          (dir_fetch),
         .sel_victim_set_i         (dir_victim_set_i),
         .sel_victim_way_o         (dir_victim_way_o)

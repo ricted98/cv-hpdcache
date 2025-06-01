@@ -238,10 +238,13 @@ import hpdcache_pkg::*;
            mem_req_read_atomic_o    = mem_req_read.mem_req_atomic,
            mem_req_read_cacheable_o = mem_req_read.mem_req_cacheable;
 
-    assign mem_resp_read.mem_resp_r_error = mem_resp_read_error_i,
-           mem_resp_read.mem_resp_r_id    = mem_resp_read_id_i,
-           mem_resp_read.mem_resp_r_data  = mem_resp_read_data_i,
-           mem_resp_read.mem_resp_r_last  = mem_resp_read_last_i;
+    assign mem_resp_read.mem_resp_r_error  = mem_resp_read_error_i,
+           mem_resp_read.mem_resp_r_id     = mem_resp_read_id_i,
+           mem_resp_read.mem_resp_r_data   = mem_resp_read_data_i,
+           mem_resp_read.mem_resp_r_last   = mem_resp_read_last_i,
+           mem_resp_read.mem_resp_r_dirty  = 1'b0, // TODO: add actual signal
+           mem_resp_read.mem_resp_r_shared = 1'b0; // TODO: add actual signal
+
 
     assign mem_req_write_addr_o      = mem_req_write.mem_req_addr,
            mem_req_write_len_o       = mem_req_write.mem_req_len,
@@ -321,6 +324,11 @@ import hpdcache_pkg::*;
 
         .core_rsp_valid_o                  (core_rsp_valid),
         .core_rsp_o                        (core_rsp),
+
+        .core_rsp_coherence_o              (),
+        .core_rsp_coherence_data_ready_i   ('1),
+        .core_rsp_coherence_data_valid_o   (),
+        .core_rsp_coherence_data_o         (),
 
         .mem_req_read_ready_i              (mem_req_read_ready_i),
         .mem_req_read_valid_o              (mem_req_read_valid_o),

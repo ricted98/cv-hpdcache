@@ -61,6 +61,7 @@ import hpdcache_pkg::*;
     input  logic                   st0_req_is_cmo_fence_i,
     input  logic                   st0_req_is_cmo_inval_i,
     input  logic                   st0_req_is_cmo_prefetch_i,
+    input  logic                   st0_req_is_snoop_read_i,
     output logic                   st0_req_mshr_check_o,
     output logic                   st0_req_cachedir_read_o,
     //   }}}
@@ -80,21 +81,31 @@ import hpdcache_pkg::*;
     input  logic                   st1_req_is_cmo_flush_i,
     input  logic                   st1_req_is_cmo_fence_i,
     input  logic                   st1_req_is_cmo_prefetch_i,
+    input  logic                   st1_req_is_snoop_read_i,
+    input  logic                   st1_req_is_snoop_cmo_i,
+    input  logic                   st1_req_is_snoop_read_once_i,
     input  logic                   st1_req_wr_wt_i,
     input  logic                   st1_req_wr_wb_i,
     input  logic                   st1_req_wr_auto_i,
     input  logic                   st1_dir_hit_wback_i,
     input  logic                   st1_dir_hit_dirty_i,
+    input  logic                   st1_dir_hit_shared_i,
     input  logic                   st1_dir_hit_fetch_i,
     input  logic                   st1_dir_victim_unavailable_i,
     input  logic                   st1_dir_victim_valid_i,
     input  logic                   st1_dir_victim_wback_i,
     input  logic                   st1_dir_victim_dirty_i,
+    input  logic                   st1_dir_victim_shared_i,
     output logic                   st1_req_valid_o,
     output logic                   st1_req_is_error_o,
     output logic                   st1_rsp_valid_o,
     output logic                   st1_rsp_error_o,
     output logic                   st1_rsp_aborted_o,
+    output logic                   st1_rsp_coherence_was_unique_o,
+    output logic                   st1_rsp_coherence_is_shared_o,
+    output logic                   st1_rsp_coherence_pass_dirty_o,
+    output logic                   st1_rsp_coherence_left_dirty_o,
+    output logic                   st1_rsp_coherence_data_transfer_o,
     output logic                   st1_req_cachedir_sel_victim_o,
     output logic                   st1_req_cachedir_updt_sel_victim_o,
     output logic                   st1_req_cachedata_write_o,
@@ -111,21 +122,27 @@ import hpdcache_pkg::*;
     input  logic                   st2_mshr_alloc_is_prefetch_i,
     input  logic                   st2_mshr_alloc_wback_i,
     input  logic                   st2_mshr_alloc_dirty_i,
+    input  logic                   st2_mshr_alloc_inval_only_i,
+    input  logic                   st2_mshr_alloc_load_inval_i,
     output logic                   st2_mshr_alloc_o,
     output logic                   st2_mshr_alloc_cs_o,
     output logic                   st2_mshr_alloc_need_rsp_o,
     output logic                   st2_mshr_alloc_wback_o,
     output logic                   st2_mshr_alloc_dirty_o,
+    output logic                   st2_mshr_alloc_inval_only_o,
+    output logic                   st2_mshr_alloc_load_inval_o,
 
     input  logic                   st2_dir_updt_i,
     input  logic                   st2_dir_updt_valid_i,
     input  logic                   st2_dir_updt_wback_i,
     input  logic                   st2_dir_updt_dirty_i,
+    input  logic                   st2_dir_updt_shared_i,
     input  logic                   st2_dir_updt_fetch_i,
     output logic                   st2_dir_updt_o,
     output logic                   st2_dir_updt_valid_o,
     output logic                   st2_dir_updt_wback_o,
     output logic                   st2_dir_updt_dirty_o,
+    output logic                   st2_dir_updt_shared_o,
     output logic                   st2_dir_updt_fetch_o,
     //   }}}
 
@@ -310,11 +327,19 @@ import hpdcache_pkg::*;
         st1_rsp_error_o                     = 1'b0;
         st1_rsp_aborted_o                   = 1'b0;
 
+        st1_rsp_coherence_was_unique_o      = 1'b0;
+        st1_rsp_coherence_is_shared_o       = 1'b0;
+        st1_rsp_coherence_pass_dirty_o      = 1'b0;
+        st1_rsp_coherence_left_dirty_o      = 1'b0;
+        st1_rsp_coherence_data_transfer_o   = 1'b0;
+
         st2_mshr_alloc_o                    = st2_mshr_alloc_i;
         st2_mshr_alloc_cs_o                 = 1'b0;
         st2_mshr_alloc_need_rsp_o           = 1'b0;
         st2_mshr_alloc_wback_o              = st2_mshr_alloc_wback_i;
         st2_mshr_alloc_dirty_o              = st2_mshr_alloc_dirty_i;
+        st2_mshr_alloc_inval_only_o         = st2_mshr_alloc_inval_only_i;
+        st2_mshr_alloc_load_inval_o         = st2_mshr_alloc_load_inval_i;
 
         st2_flush_alloc_o                   = st2_flush_alloc_i;
 
@@ -322,6 +347,7 @@ import hpdcache_pkg::*;
         st2_dir_updt_valid_o                = st2_dir_updt_valid_i;
         st2_dir_updt_wback_o                = st2_dir_updt_wback_i;
         st2_dir_updt_dirty_o                = st2_dir_updt_dirty_i;
+        st2_dir_updt_shared_o               = st2_dir_updt_shared_i;
         st2_dir_updt_fetch_o                = st2_dir_updt_fetch_i;
 
         st2_nop                             = 1'b0;
@@ -450,7 +476,8 @@ import hpdcache_pkg::*;
                 //  {{{
                 else if (st1_req_is_cmo_inval_i ||
                          st1_req_is_cmo_flush_i ||
-                         st1_req_is_cmo_fence_i)
+                         st1_req_is_cmo_fence_i ||
+                         st1_req_is_snoop_cmo_i)
                 begin
                     cmo_req_valid_o = 1'b1;
                     st1_nop         = 1'b1;
@@ -513,9 +540,10 @@ import hpdcache_pkg::*;
                                 //  to the memory. Then the local copy is updated with respect
                                 //  to the old data from the memory.
                                 st2_dir_updt_o = 1'b1;
-                                st2_dir_updt_valid_o = 1'b1;
-                                st2_dir_updt_wback_o = st1_dir_hit_wback_i;
-                                st2_dir_updt_dirty_o = 1'b0;
+                                st2_dir_updt_valid_o  = 1'b1;
+                                st2_dir_updt_wback_o  = st1_dir_hit_wback_i;
+                                st2_dir_updt_dirty_o  = 1'b0;
+                                st2_dir_updt_shared_o = st1_dir_hit_shared_i;
 
                                 //  If the cacheline has been pre-allocated for a pending miss, keep
                                 //  the fetch bit set
@@ -524,6 +552,74 @@ import hpdcache_pkg::*;
 
                             //  Performance event
                             evt_uncached_req_o = 1'b1;
+                        end
+                    end
+                    //  }}}
+
+                    //  Snoop read operation
+                    //  {{{
+                    if (st1_req_is_snoop_read_i) begin
+                        //  Flush required but the controller is not ready
+                        if (cachedir_hit_i && !st1_flush_alloc_ready_i)
+                        begin
+                            // FIXME: snoop reordering can happen here. Is it fine?
+                            st1_rtab_alloc = 1'b1;
+                            st1_rtab_flush_not_ready_o = 1'b1;
+                            st1_nop = 1'b1;
+                        end
+
+                         //  Process the snoop request
+                        else begin
+
+                            //  If the request comes from the replay table, free the
+                            //  corresponding RTAB entry
+                            st1_rtab_commit_o = st1_req_rtab_i;
+
+                            //  Respond to the core (if needed)
+                            st1_rsp_valid_o = st1_req_need_rsp_i;
+
+                            //  Pending miss on the same line
+                            if (st1_mshr_hit_i) begin
+                                // A normal transaction would be put in the RTAB
+                                // A snoop transaction completion should not depend on
+                                // the completion of a previous read transaction
+                                // TODO: squash MSHR entry and mark it for retry
+                            end
+
+                            if (cachedir_hit_i) begin
+                                // Flush the cacheline to the snoop interface
+                                st2_flush_alloc_o = 1'b1;
+
+                                if (!st1_req_is_snoop_read_once_i) begin
+                                    //  Update the directory
+                                    //  The cache line transitions to shared
+                                    st2_dir_updt_o = 1'b1;
+                                    st2_dir_updt_valid_o  = 1'b1;
+                                    st2_dir_updt_wback_o  = st1_dir_hit_wback_i;
+                                    st2_dir_updt_dirty_o  = st1_dir_hit_dirty_i;
+                                    st2_dir_updt_shared_o = 1'b1;
+                                end
+
+                                //  If the cacheline has been pre-allocated for a pending miss, keep
+                                //  the fetch bit set
+                                st2_dir_updt_fetch_o = st1_dir_hit_fetch_i;
+
+                                // Set coherence flags
+                                // Passing cleaning data and keeping a copy
+                                st1_rsp_coherence_was_unique_o    = !st1_dir_hit_shared_i;
+                                st1_rsp_coherence_is_shared_o     = 1'b1;
+                                st1_rsp_coherence_pass_dirty_o    = 1'b0;
+                                st1_rsp_coherence_left_dirty_o    = st1_dir_hit_dirty_i;
+                                st1_rsp_coherence_data_transfer_o = 1'b1;
+                            end else begin
+                                // Set coherence flags
+                                // Line was invalid or has been invalidated
+                                st1_rsp_coherence_was_unique_o    = 1'b0;
+                                st1_rsp_coherence_is_shared_o     = 1'b0;
+                                st1_rsp_coherence_pass_dirty_o    = 1'b0;
+                                st1_rsp_coherence_left_dirty_o    = 1'b0;
+                                st1_rsp_coherence_data_transfer_o = 1'b0;
+                            end
                         end
                     end
                     //  }}}
@@ -616,13 +712,16 @@ import hpdcache_pkg::*;
                                 st2_mshr_alloc_wback_o = (st1_req_wr_auto_i & cfg_default_wb_i) |
                                                           st1_req_wr_wb_i;
                                 st2_mshr_alloc_dirty_o = 1'b0;
+                                st2_mshr_alloc_inval_only_o = 1'b0;
+                                st2_mshr_alloc_load_inval_o = 1'b0;
 
                                 //  Update the cache directory state to FETCHING
                                 st2_dir_updt_o = 1'b1;
-                                st2_dir_updt_valid_o = st1_dir_victim_valid_i;
-                                st2_dir_updt_wback_o = st1_dir_victim_wback_i;
-                                st2_dir_updt_dirty_o = 1'b0;
-                                st2_dir_updt_fetch_o = 1'b1;
+                                st2_dir_updt_valid_o  = st1_dir_victim_valid_i;
+                                st2_dir_updt_wback_o  = st1_dir_victim_wback_i;
+                                st2_dir_updt_dirty_o  = 1'b0;
+                                st2_dir_updt_shared_o = st1_dir_hit_shared_i;
+                                st2_dir_updt_fetch_o  = 1'b1;
                             end
                         end
                         //  }}}
@@ -675,10 +774,11 @@ import hpdcache_pkg::*;
                                     if (st1_req_wr_wt_i && st1_dir_hit_wback_i) begin
                                         //  Update the directory state of the cacheline to WT
                                         st2_dir_updt_o = 1'b1;
-                                        st2_dir_updt_valid_o = 1'b1;
-                                        st2_dir_updt_wback_o = 1'b0;
-                                        st2_dir_updt_dirty_o = 1'b0;
-                                        st2_dir_updt_fetch_o = 1'b0;
+                                        st2_dir_updt_valid_o  = 1'b1;
+                                        st2_dir_updt_wback_o  = 1'b0;
+                                        st2_dir_updt_dirty_o  = 1'b0;
+                                        st2_dir_updt_shared_o = st1_dir_hit_shared_i;
+                                        st2_dir_updt_fetch_o  = 1'b0;
 
                                         //  Cacheline is dirty, flush its data to the memory
                                         st2_flush_alloc_o = st1_dir_hit_dirty_i;
@@ -692,10 +792,11 @@ import hpdcache_pkg::*;
                                     if (st1_req_wr_wb_i && !st1_dir_hit_wback_i) begin
                                         //  Update the directory state of the cacheline to WB
                                         st2_dir_updt_o = 1'b1;
-                                        st2_dir_updt_valid_o = 1'b1;
-                                        st2_dir_updt_wback_o = 1'b1;
-                                        st2_dir_updt_dirty_o = 1'b0;
-                                        st2_dir_updt_fetch_o = 1'b0;
+                                        st2_dir_updt_valid_o  = 1'b1;
+                                        st2_dir_updt_wback_o  = 1'b1;
+                                        st2_dir_updt_dirty_o  = 1'b0;
+                                        st2_dir_updt_shared_o = st1_dir_hit_shared_i;
+                                        st2_dir_updt_fetch_o  = 1'b0;
 
                                         st1_nop = 1'b1;
                                     end
@@ -809,14 +910,17 @@ import hpdcache_pkg::*;
 
                                     //  Update the directory state of the cacheline to FETCHING
                                     st2_dir_updt_o = 1'b1;
-                                    st2_dir_updt_valid_o = st1_dir_victim_valid_i;
-                                    st2_dir_updt_wback_o = st1_dir_victim_wback_i;
-                                    st2_dir_updt_dirty_o = 1'b0;
-                                    st2_dir_updt_fetch_o = 1'b1;
+                                    st2_dir_updt_valid_o  = st1_dir_victim_valid_i;
+                                    st2_dir_updt_wback_o  = st1_dir_victim_wback_i;
+                                    st2_dir_updt_dirty_o  = 1'b0;
+                                    st2_dir_updt_shared_o = st1_dir_victim_shared_i;
+                                    st2_dir_updt_fetch_o  = 1'b1;
 
                                     //  Send a miss request to the memory (write-allocate)
                                     st2_mshr_alloc_o = 1'b1;
                                     st2_mshr_alloc_wback_o = 1'b1;
+                                    st2_mshr_alloc_inval_only_o = 1'b0;
+                                    st2_mshr_alloc_load_inval_o = 1'b1;
 
                                     //  No available slot in the Coalesce Buffer:
                                     //  - Put the write operation into the replay table (but the
@@ -910,15 +1014,35 @@ import hpdcache_pkg::*;
                                     st1_rtab_alloc = 1'b1;
                                     st1_rtab_wbuf_hit_o = 1'b1;
                                     st1_nop = 1'b1;
+                                end
 
-                                end else begin
+                                else if (st1_dir_hit_shared_i) begin
+                                    // The required cacheline is valid but shared
+                                    // Any store operation must be broadcasted
+                                    // Allocate an invalidation request to the MSHR
+                                    // to make the cache line unique
+                                    st2_mshr_alloc_o = 1'b1;
+                                    st2_mshr_alloc_need_rsp_o = 1'b0;
+                                    st2_mshr_alloc_wback_o = 1'b1;
+                                    st2_mshr_alloc_inval_only_o = 1'b1;
+                                    // Put the request in the replay table
+                                    st1_rtab_alloc = 1'b1;
+                                    // Technically, this is not a miss
+                                    // However we want to put the transaction
+                                    // in the RTAB and wake it up when the invalidation
+                                    // operation issued by the miss handler comes back
+                                    st1_rtab_write_miss_o = 1'b1;
+                                end
+
+                                else begin
                                     // Update the directory state of the cacheline to dirty
                                     if (!st1_dir_hit_wback_i || !st1_dir_hit_dirty_i) begin
-                                        st2_dir_updt_o       = 1'b1;
-                                        st2_dir_updt_valid_o = 1'b1;
-                                        st2_dir_updt_wback_o = 1'b1;
-                                        st2_dir_updt_dirty_o = 1'b1;
-                                        st2_dir_updt_fetch_o = 1'b0;
+                                        st2_dir_updt_o        = 1'b1;
+                                        st2_dir_updt_valid_o  = 1'b1;
+                                        st2_dir_updt_wback_o  = 1'b1;
+                                        st2_dir_updt_dirty_o  = 1'b1;
+                                        st2_dir_updt_shared_o = 1'b0;
+                                        st2_dir_updt_fetch_o  = 1'b0;
 
                                         st1_nop = 1'b1;
                                     end
@@ -965,10 +1089,11 @@ import hpdcache_pkg::*;
 
                                     //  Update the state to WT in the directory
                                     st2_dir_updt_o = 1'b1;
-                                    st2_dir_updt_valid_o = 1'b1;
-                                    st2_dir_updt_wback_o = 1'b0;
-                                    st2_dir_updt_dirty_o = 1'b0;
-                                    st2_dir_updt_fetch_o = 1'b0;
+                                    st2_dir_updt_valid_o  = 1'b1;
+                                    st2_dir_updt_wback_o  = 1'b0;
+                                    st2_dir_updt_dirty_o  = 1'b0;
+                                    st2_dir_updt_shared_o = 1'b0;
+                                    st2_dir_updt_fetch_o  = 1'b0;
 
                                     //  Put the request in the replay table while waiting for the
                                     //  memory flushing
@@ -1077,7 +1202,8 @@ import hpdcache_pkg::*;
                 if (st0_req_is_load_i         |
                     st0_req_is_cmo_prefetch_i |
                     st0_req_is_store_i        |
-                    st0_req_is_amo_i          )
+                    st0_req_is_amo_i          |
+                    st0_req_is_snoop_read_i   )
                 begin
                     st0_req_mshr_check_o    = 1'b1;
                     st0_req_cachedir_read_o = 1'b1;

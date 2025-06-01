@@ -72,6 +72,7 @@ import hpdcache_pkg::*;
     output logic                  flush_alloc_ready_o,
     input  hpdcache_nline_t       flush_alloc_nline_i,
     input  hpdcache_way_vector_t  flush_alloc_way_i,
+    input  logic                  flush_alloc_snoop_i,
     //      }}}
 
     //      CACHE DATA interface
@@ -101,7 +102,14 @@ import hpdcache_pkg::*;
 
     output logic                  mem_resp_write_ready_o,
     input  logic                  mem_resp_write_valid_i,
-    input  hpdcache_mem_resp_w_t  mem_resp_write_i
+    input  hpdcache_mem_resp_w_t  mem_resp_write_i,
+    //      }}}
+
+    //      SNOOP interface
+    //      {{{
+    input  logic                  core_rsp_coherence_data_ready_i,
+    output logic                  core_rsp_coherence_data_valid_o,
+    output hpdcache_mem_req_w_t   core_rsp_coherence_data_o
     //      }}}
 );
 
@@ -144,8 +152,14 @@ import hpdcache_pkg::*;
     logic                       flush_alloc;
     hpdcache_set_t              flush_alloc_set;
     logic                       flush_ack;
+    logic                       flush_resizer_r, flush_resizer_rok;
     logic                       flush_resizer_w, flush_resizer_wok;
     logic                       flush_resizer_wlast;
+
+    logic                       flush_dest_sel_w;
+    logic                       flush_dest_sel_wok;
+    logic                       flush_dest_sel_wdata;
+    logic                       flush_dest_sel_rdata;
 
     logic                       flush_mem_req_w, flush_mem_req_wok;
     hpdcache_mem_req_t          flush_mem_req_wmeta;
@@ -172,6 +186,7 @@ import hpdcache_pkg::*;
 
     assign flush_alloc_ready_o = (flush_fsm_q == FLUSH_IDLE)
                                & flush_resizer_wok
+                               & flush_dest_sel_wok
                                & flush_mem_req_wok
                                & ~flush_full_o;
 
@@ -189,6 +204,9 @@ import hpdcache_pkg::*;
 
         flush_mem_req_w = 1'b0;
 
+        flush_dest_sel_w = 1'b0;
+        flush_dest_sel_wdata = 1'b0;
+
         flush_resizer_w = 1'b0;
         flush_resizer_wlast = 1'b0;
 
@@ -204,6 +222,18 @@ import hpdcache_pkg::*;
                     flush_alloc = 1'b1;
                     flush_word_d = flush_word_q + hpdcache_word_t'(HPDcacheCfg.u.accessWords);
                     flush_fsm_d = FLUSH_SEND;
+
+                    flush_dest_sel_w     = 1'b1;
+                    flush_dest_sel_wdata = 1'b0;
+                end
+
+                if (flush_alloc_snoop_i) begin
+                    // This flush request is redirected on the snoop interface
+                    // Read the data cache and prepare the data transfer
+                    // but avoid allocating a flush entry
+                    flush_mem_req_w      = 1'b0;
+                    flush_alloc          = 1'b0;
+                    flush_dest_sel_wdata = 1'b1;
                 end
             end
             FLUSH_SEND: begin
@@ -316,7 +346,8 @@ import hpdcache_pkg::*;
         mem_req_id: hpdcache_mem_id_t'(flush_dir_free_ptr),
         mem_req_command: HPDCACHE_MEM_WRITE,
         mem_req_atomic: HPDCACHE_MEM_ATOMIC_ADD, /* NOP */
-        mem_req_cacheable: 1'b1
+        mem_req_cacheable: 1'b1,
+        mem_req_coherence: HPDCACHE_MEM_COHERENCE_WRITE_BACK // TODO: Support EVICT if a snoop filter is present
     };
     hpdcache_fifo_reg #(
         .FIFO_DEPTH     (2),
@@ -348,10 +379,37 @@ import hpdcache_pkg::*;
         .wdata_i        (flush_data_read_data_i),
         .wlast_i        (flush_resizer_wlast),
 
-        .r_i            (mem_req_write_data_ready_i),
-        .rok_o          (mem_req_write_data_valid_o),
+        .r_i            (flush_resizer_r),
+        .rok_o          (flush_resizer_rok),
         .rdata_o        (flush_mem_req_rdata),
         .rlast_o        (/* open */)
+    );
+
+    //  Demux the resizer stream between the snoop interface and the memory
+    //
+    hpdcache_fifo_reg #(
+        .FIFO_DEPTH     (HPDcacheCfg.u.flushFifoDepth),
+        .FEEDTHROUGH    (1'b0),
+        .fifo_data_t    (logic)
+    ) flush_dest_sel_i(
+        .clk_i,
+        .rst_ni,
+        .w_i            (flush_dest_sel_w),
+        .wok_o          (flush_dest_sel_wok),
+        .wdata_i        (flush_dest_sel_wdata),
+        .r_i            (flush_resizer_r),
+        .rok_o          (/* open */),
+        .rdata_o        (flush_dest_sel_rdata)
+    );
+
+    hpdcache_vld_rdy_demux #(
+        .NOUTPUT (2)
+    ) data_demux_i (
+        .vld_i (flush_resizer_rok),
+        .rdy_o (flush_resizer_r),
+        .sel_i (flush_dest_sel_rdata),
+        .vld_o ({core_rsp_coherence_data_valid_o, mem_req_write_data_valid_o}),
+        .rdy_i ({core_rsp_coherence_data_ready_i, mem_req_write_data_ready_i})
     );
 
 
@@ -379,6 +437,15 @@ import hpdcache_pkg::*;
     //  Forward data flit to the NoC
     //
     assign mem_req_write_data_o = '{
+        mem_req_w_data: flush_mem_req_rdata,
+        mem_req_w_be: '1,
+        mem_req_w_last: flush_mem_req_rlast
+    };
+    //  }}}
+
+    //  Forward data flit to the snoop interface
+    //
+    assign core_rsp_coherence_data_o = '{
         mem_req_w_data: flush_mem_req_rdata,
         mem_req_w_be: '1,
         mem_req_w_last: flush_mem_req_rlast
