@@ -340,8 +340,8 @@ import hpdcache_pkg::*;
         st2_mshr_alloc_need_rsp_o           = 1'b0;
         st2_mshr_alloc_wback_o              = st2_mshr_alloc_wback_i;
         st2_mshr_alloc_dirty_o              = st2_mshr_alloc_dirty_i;
-        st2_mshr_alloc_inval_only_o         = st2_mshr_alloc_inval_only_i;
-        st2_mshr_alloc_load_inval_o         = st2_mshr_alloc_load_inval_i;
+        st2_mshr_alloc_inval_only_o         = 1'b0;
+        st2_mshr_alloc_load_inval_o         = 1'b0;
 
         st2_flush_alloc_o                   = st2_flush_alloc_i;
 
