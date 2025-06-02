@@ -150,6 +150,7 @@ import hpdcache_pkg::*;
 
     logic                       flush_eol;
     logic                       flush_alloc;
+    logic                       flush_snoop;
     hpdcache_set_t              flush_alloc_set;
     logic                       flush_ack;
     logic                       flush_resizer_r, flush_resizer_rok;
@@ -196,6 +197,7 @@ import hpdcache_pkg::*;
         flush_word_d = flush_word_q;
 
         flush_alloc = 1'b0;
+        flush_snoop = 1'b0;
 
         flush_data_read_o = 1'b0;
         flush_data_read_set_o = flush_set_q;
@@ -212,28 +214,28 @@ import hpdcache_pkg::*;
 
         unique case (flush_fsm_q)
             FLUSH_IDLE: begin
-                flush_mem_req_w = flush_resizer_wok & ~flush_full_o & flush_alloc_i;
+                // This flush request is redirected on the snoop interface
+                // Read the data cache and prepare the data transfer
+                // but avoid allocating a flush entry
+                // Flush requests can be of two types:
+                // - Memory flushes (flush_alloc_snoop_i == 1'b0): a regular flush towards memory is issued
+                //   and a flush directory entry is allocated to track the memory response
+                // - Snoop flushes (flush_alloc_snoop_i == 1'b1): a snoop flush dumps a cache line on the snoop
+                //   interface without allocating any entry in the flush directory, as no ack is expected
+                flush_mem_req_w = ~flush_alloc_snoop_i & flush_resizer_wok & ~flush_full_o & flush_alloc_i;
                 if (flush_alloc_i && flush_alloc_ready_o) begin
                     flush_data_read_o = 1'b1;
                     flush_data_read_set_o = flush_alloc_set;
                     flush_data_read_way_o = flush_alloc_way_i;
                     flush_data_read_word_o = 0;
 
-                    flush_alloc = 1'b1;
+                    flush_alloc = !flush_alloc_snoop_i;
                     flush_word_d = flush_word_q + hpdcache_word_t'(HPDcacheCfg.u.accessWords);
                     flush_fsm_d = FLUSH_SEND;
 
+                    flush_snoop = flush_alloc_snoop_i;
                     flush_dest_sel_w     = 1'b1;
-                    flush_dest_sel_wdata = 1'b0;
-                end
-
-                if (flush_alloc_snoop_i) begin
-                    // This flush request is redirected on the snoop interface
-                    // Read the data cache and prepare the data transfer
-                    // but avoid allocating a flush entry
-                    flush_mem_req_w      = 1'b0;
-                    flush_alloc          = 1'b0;
-                    flush_dest_sel_wdata = 1'b1;
+                    flush_dest_sel_wdata = flush_alloc_snoop_i;
                 end
             end
             FLUSH_SEND: begin
@@ -304,6 +306,8 @@ import hpdcache_pkg::*;
             flush_dir_q[flush_dir_free_ptr] <= '{
                 nline: flush_alloc_nline_i
             };
+        end
+        if (flush_alloc || flush_snoop) begin
             flush_set_q <= flush_alloc_set;
             flush_way_q <= flush_alloc_way_i;
         end
