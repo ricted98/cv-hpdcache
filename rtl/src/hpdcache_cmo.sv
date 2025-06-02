@@ -382,8 +382,7 @@ import hpdcache_pkg::*;
                             core_rsp_send_d = core_rsp_rok;
                             cmoh_fsm_d = CMOH_IDLE;
                         end
-                    end else if (cmoh_op_q.is_flush_by_nline |
-                                 cmoh_op_q.is_flush_force_inval_by_nline) begin
+                    end else if (cmoh_op_q.is_flush_by_nline) begin
                         if (dirty_set_en_i) begin
                             cmoh_flush_req_inval_d = 1'b0;
                             cmoh_fsm_d = CMOH_FLUSH_NLINE_FIRST;
@@ -400,7 +399,8 @@ import hpdcache_pkg::*;
                             core_rsp_send_d = core_rsp_rok;
                             cmoh_fsm_d = CMOH_IDLE;
                         end
-                    end else if (cmoh_op_q.is_flush_inval_by_nline) begin
+                    end else if (cmoh_op_q.is_flush_inval_by_nline |
+                                 cmoh_op_q.is_flush_force_inval_by_nline) begin
                         if (valid_set_en_i) begin
                             cmoh_flush_req_inval_d = 1'b1;
                             cmoh_fsm_d = CMOH_FLUSH_NLINE_FIRST;
