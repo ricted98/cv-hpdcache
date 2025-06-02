@@ -83,6 +83,7 @@ import hpdcache_pkg::*;
     input  hpdcache_req_sid_t     req_sid_i,
     input  hpdcache_req_tid_t     req_tid_i,
     input  logic                  req_need_rsp_i,
+    input  logic                  req_dir_hit_i,
     //  }}}
 
     //  Write buffer interface
@@ -170,7 +171,6 @@ import hpdcache_pkg::*;
         UC_MEM_WDATA_REQ,
         UC_MEM_WAIT_RSP,
         UC_CORE_RSP,
-        UC_AMO_READ_DIR,
         UC_AMO_WRITE_DATA
     } hpdcache_uc_fsm_t;
 
@@ -243,6 +243,7 @@ import hpdcache_pkg::*;
     hpdcache_req_sid_t  req_sid_q;
     hpdcache_req_tid_t  req_tid_q;
     logic               req_need_rsp_q;
+    logic               req_dir_hit_q;
     logic               no_pend_trans;
 
     logic               uc_sc_retcode_q, uc_sc_retcode_d;
@@ -532,10 +533,10 @@ import hpdcache_pkg::*;
                                 lrsc_uc_reset = 1'b1;
                             end
 
-                            if (req_uc_q || rd_error) begin
+                            if (req_uc_q || rd_error || !req_dir_hit_q) begin
                                 uc_fsm_d = UC_CORE_RSP;
                             end else begin
-                                uc_fsm_d = UC_AMO_READ_DIR;
+                                uc_fsm_d = UC_AMO_WRITE_DATA;
                             end
                         end
                     end
@@ -546,10 +547,10 @@ import hpdcache_pkg::*;
                             is_atomic = mem_resp_write_i.mem_resp_w_is_atomic && !wr_error;
                             uc_sc_retcode_d = is_atomic ? AMO_SC_SUCCESS : AMO_SC_FAILURE;
 
-                            if (req_uc_q || !is_atomic) begin
+                            if (req_uc_q || !is_atomic || !req_dir_hit_q) begin
                                 uc_fsm_d = UC_CORE_RSP;
                             end else begin
-                                uc_fsm_d = UC_AMO_READ_DIR;
+                                uc_fsm_d = UC_AMO_WRITE_DATA;
                             end
                         end
                     end
@@ -567,10 +568,10 @@ import hpdcache_pkg::*;
                             (mem_resp_read_valid_i && mem_resp_write_valid_q) ||
                             (mem_resp_read_valid_q && mem_resp_write_valid_i))
                         begin
-                            if (req_uc_q || rsp_error_q || rd_error || wr_error) begin
+                            if (req_uc_q || rsp_error_q || rd_error || wr_error || !req_dir_hit_q) begin
                                 uc_fsm_d = UC_CORE_RSP;
                             end else begin
-                                uc_fsm_d = UC_AMO_READ_DIR;
+                                uc_fsm_d = UC_AMO_WRITE_DATA;
                             end
                         end
                     end
@@ -587,13 +588,6 @@ import hpdcache_pkg::*;
                 end else begin
                     uc_fsm_d = UC_CORE_RSP;
                 end
-            end
-            //  }}}
-
-            //  Check for a cache hit on the AMO target address
-            //  {{{
-            UC_AMO_READ_DIR: begin
-                uc_fsm_d = UC_AMO_WRITE_DATA;
             end
             //  }}}
 
@@ -650,11 +644,11 @@ import hpdcache_pkg::*;
         .result_o            (amo_result)
     );
 
-    assign dir_amo_match_o = (uc_fsm_q == UC_AMO_READ_DIR);
+    assign dir_amo_match_o = 1'b0;
     assign dir_amo_match_set_o = req_addr_q[HPDcacheCfg.clOffsetWidth +: HPDcacheCfg.setWidth];
     assign dir_amo_match_tag_o = req_addr_q[(HPDcacheCfg.clOffsetWidth + HPDcacheCfg.setWidth) +:
                                             HPDcacheCfg.tagWidth];
-    assign dir_amo_updt_sel_victim_o = (uc_fsm_q == UC_AMO_WRITE_DATA);
+    assign dir_amo_updt_sel_victim_o = 1'b0;
 
     assign data_amo_write_o = (uc_fsm_q == UC_AMO_WRITE_DATA);
     assign data_amo_write_enable_o = |dir_amo_hit_way_i;
@@ -902,6 +896,7 @@ import hpdcache_pkg::*;
             req_size_q <= req_size_i;
             req_uc_q <= req_uc_i;
             req_need_rsp_q <= req_need_rsp_i;
+            req_dir_hit_q <= req_dir_hit_i;
         end
     end
 //  }}}

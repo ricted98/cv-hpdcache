@@ -257,6 +257,7 @@ import hpdcache_pkg::*;
     hpdcache_req_sid_t     uc_req_sid;
     hpdcache_req_tid_t     uc_req_tid;
     logic                  uc_req_need_rsp;
+    logic                  uc_req_dir_hit;
     logic                  uc_wbuf_flush_all;
     logic                  uc_dir_amo_match;
     hpdcache_set_t         uc_dir_amo_match_set;
@@ -591,6 +592,7 @@ import hpdcache_pkg::*;
         .uc_req_sid_o                       (uc_req_sid),
         .uc_req_tid_o                       (uc_req_tid),
         .uc_req_need_rsp_o                  (uc_req_need_rsp),
+        .uc_req_dir_hit_o                   (uc_req_dir_hit),
         .uc_wbuf_flush_all_i                (uc_wbuf_flush_all),
         .uc_dir_amo_match_i                 (uc_dir_amo_match),
         .uc_dir_amo_match_set_i             (uc_dir_amo_match_set),
@@ -882,6 +884,7 @@ import hpdcache_pkg::*;
         .req_sid_i                     (uc_req_sid),
         .req_tid_i                     (uc_req_tid),
         .req_need_rsp_i                (uc_req_need_rsp),
+        .req_dir_hit_i                 (uc_req_dir_hit),
 
         .wbuf_flush_all_o              (uc_wbuf_flush_all),
 

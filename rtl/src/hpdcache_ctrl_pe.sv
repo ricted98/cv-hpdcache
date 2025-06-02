@@ -531,6 +531,9 @@ import hpdcache_pkg::*;
                                 //  If the cacheline has been pre-allocated for a pending miss, keep
                                 //  the fetch bit set
                                 st2_dir_updt_fetch_o = st1_dir_hit_fetch_i;
+
+                                //  Update victim selection for the accessed set
+                                st1_req_cachedir_updt_sel_victim_o = 1'b1;
                             end
 
                             //  Performance event
