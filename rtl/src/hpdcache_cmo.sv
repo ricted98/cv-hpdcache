@@ -418,15 +418,15 @@ import hpdcache_pkg::*;
                             cmoh_fsm_d = CMOH_IDLE;
                         end
                     end
-                end
 
-                if (!valid_set_en_i) begin
-                    core_rsp_coherence_w             = cmoh_snoop_q;
-                    core_rsp_coherence_was_unique    = 1'b0;
-                    core_rsp_coherence_is_shared     = 1'b0;
-                    core_rsp_coherence_pass_dirty    = 1'b0;
-                    core_rsp_coherence_left_dirty    = 1'b0;
-                    core_rsp_coherence_data_transfer = 1'b0;
+                    if (!valid_set_en_i) begin
+                        core_rsp_coherence_w             = cmoh_snoop_q;
+                        core_rsp_coherence_was_unique    = 1'b0;
+                        core_rsp_coherence_is_shared     = 1'b0;
+                        core_rsp_coherence_pass_dirty    = 1'b0;
+                        core_rsp_coherence_left_dirty    = 1'b0;
+                        core_rsp_coherence_data_transfer = 1'b0;
+                    end
                 end
             end
             CMOH_INVAL_CHECK_NLINE: begin
