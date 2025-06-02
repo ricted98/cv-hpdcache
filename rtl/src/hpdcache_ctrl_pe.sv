@@ -226,8 +226,10 @@ import hpdcache_pkg::*;
     //   {{{
     output logic                   evt_cache_write_miss_o,
     output logic                   evt_cache_read_miss_o,
+    output logic                   evt_cache_inval_shared_o,
     output logic                   evt_uncached_req_o,
     output logic                   evt_cmo_req_o,
+    output logic                   evt_snoop_req_o,
     output logic                   evt_write_req_o,
     output logic                   evt_read_req_o,
     output logic                   evt_prefetch_req_o,
@@ -371,8 +373,10 @@ import hpdcache_pkg::*;
 
         evt_cache_write_miss_o              = 1'b0;
         evt_cache_read_miss_o               = 1'b0;
+        evt_cache_inval_shared_o            = 1'b0;
         evt_uncached_req_o                  = 1'b0;
         evt_cmo_req_o                       = 1'b0;
+        evt_snoop_req_o                     = 1'b0;
         evt_write_req_o                     = 1'b0;
         evt_read_req_o                      = 1'b0;
         evt_prefetch_req_o                  = 1'b0;
@@ -483,7 +487,8 @@ import hpdcache_pkg::*;
                     st1_nop         = 1'b1;
 
                     //  Performance event
-                    evt_cmo_req_o = 1'b1;
+                    evt_cmo_req_o = !st1_req_is_snoop_cmo_i;
+                    evt_snoop_req_o = st1_req_is_snoop_cmo_i;
                 end
                 //  }}}
 
@@ -620,6 +625,8 @@ import hpdcache_pkg::*;
                                 st1_rsp_coherence_left_dirty_o    = 1'b0;
                                 st1_rsp_coherence_data_transfer_o = 1'b0;
                             end
+
+                            evt_snoop_req_o = 1'b1;
                         end
                     end
                     //  }}}
@@ -1032,6 +1039,8 @@ import hpdcache_pkg::*;
                                     // in the RTAB and wake it up when the invalidation
                                     // operation issued by the miss handler comes back
                                     st1_rtab_write_miss_o = 1'b1;
+
+                                    evt_cache_inval_shared_o = 1'b1;
                                 end
 
                                 else begin
