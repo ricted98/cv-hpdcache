@@ -82,6 +82,8 @@ import hpdcache_pkg::*;
     input  hpdcache_req_offset_t  mshr_check_offset_i,
     input  hpdcache_nline_t       mshr_check_nline_i,
     output logic                  mshr_check_hit_o,
+    input  logic                  mshr_make_shared_i,
+    input  logic                  mshr_make_inval_i,
     //      }}}
 
     //      MISS interface
@@ -101,8 +103,8 @@ import hpdcache_pkg::*;
     input  logic                  mshr_alloc_is_prefetch_i,
     input  logic                  mshr_alloc_wback_i,
     input  logic                  mshr_alloc_dirty_i,
-    input  logic                  mshr_alloc_inval_only_i,
-    input  logic                  mshr_alloc_load_inval_i,
+    input  logic                  mshr_alloc_inval_i,
+    input  logic                  mshr_alloc_refill_i,
     input  hpdcache_req_data_t    mshr_alloc_wdata_i,
     input  hpdcache_req_be_t      mshr_alloc_be_i,
 
@@ -168,6 +170,11 @@ import hpdcache_pkg::*;
     } refill_fsm_e;
 
     typedef struct packed {
+        logic inval;    // Gain ownership of the cache line
+        logic refill;   // Read cache line from memory
+    } mshr_op_t;
+
+    typedef struct packed {
         hpdcache_mem_error_e r_error;
         hpdcache_mem_id_t    r_id;
         logic                is_inval;
@@ -230,6 +237,7 @@ import hpdcache_pkg::*;
     logic                    mshr_alloc_cs;
     hpdcache_way_t           mshr_alloc_victim_way;
     cbuf_id_t                mshr_alloc_cbuf_id;
+    mshr_op_t                mshr_alloc_op;
     logic                    mshr_ack;
     logic                    mshr_ack_cs;
     mshr_set_t               mshr_ack_set;
@@ -244,7 +252,7 @@ import hpdcache_pkg::*;
     logic                    mshr_ack_is_prefetch;
     logic                    mshr_ack_wback;
     logic                    mshr_ack_dirty;
-    logic                    mshr_ack_inval_only;
+    mshr_op_t                mshr_ack_op;
     cbuf_id_t                mshr_ack_cbuf_id;
     hpdcache_req_data_t      mshr_ack_wdata;
     hpdcache_req_be_t        mshr_ack_be;
@@ -310,15 +318,13 @@ import hpdcache_pkg::*;
     end
 
     always_comb begin : mem_req_coherence_comb
-        priority case (1'b1)
-            mshr_alloc_inval_only_i:
-                mem_req_coherence_d = HPDCACHE_MEM_COHERENCE_CLEAN_UNIQUE;
-            mshr_alloc_load_inval_i:
-                mem_req_coherence_d = HPDCACHE_MEM_COHERENCE_READ_UNIQUE;
-            mshr_alloc_wback_i:
-                mem_req_coherence_d = HPDCACHE_MEM_COHERENCE_READ_SHARED;
-            default:
-                mem_req_coherence_d = HPDCACHE_MEM_COHERENCE_READ_CLEAN;
+
+        unique case ({mshr_alloc_refill_i, mshr_alloc_inval_i})
+            2'b01:   mem_req_coherence_d = HPDCACHE_MEM_COHERENCE_CLEAN_UNIQUE;
+            2'b11:   mem_req_coherence_d = HPDCACHE_MEM_COHERENCE_READ_UNIQUE;
+            default: mem_req_coherence_d = mshr_alloc_wback_i ?
+                                           HPDCACHE_MEM_COHERENCE_READ_SHARED :
+                                           HPDCACHE_MEM_COHERENCE_READ_CLEAN;
         endcase
     end
 
@@ -419,7 +425,7 @@ import hpdcache_pkg::*;
                 automatic logic is_prefetch;
                 automatic hpdcache_uint core_rsp_word;
 
-                if (mshr_ack_inval_only) begin
+                if (mshr_ack_op.inval && !mshr_ack_op.refill) begin
                     //  The outstanding transaction was an invalidation broadcast operation
                     //  Wait an additional cycle to write the directory. This allows to prevent
                     //  a RAM-to-RAM timing path between the MSHR and the DIR.
@@ -834,6 +840,8 @@ import hpdcache_pkg::*;
         .check_set_i              (mshr_check_set),
         .check_tag_i              (mshr_check_tag),
         .hit_o                    (mshr_check_hit_o),
+        .make_shared_i            (mshr_make_shared_i),
+        .make_inval_i             (mshr_make_inval_i),
         .alloc_i                  (mshr_alloc),
         .alloc_cs_i               (mshr_alloc_cs),
         .alloc_nline_i            (mshr_alloc_nline_i),
@@ -844,7 +852,7 @@ import hpdcache_pkg::*;
         .alloc_need_rsp_i         (mshr_alloc_need_rsp_i),
         .alloc_is_prefetch_i      (mshr_alloc_is_prefetch_i),
         .alloc_wback_i            (mshr_alloc_wback_i),
-        .alloc_inval_only_i       (mshr_alloc_inval_only_i),
+        .alloc_op_i               (mshr_alloc_op),
         .alloc_dirty_i            (mshr_alloc_dirty_i),
         .alloc_cbuf_id_i          (mshr_alloc_cbuf_id),
         .alloc_full_o             (mshr_alloc_full_o),
@@ -864,7 +872,7 @@ import hpdcache_pkg::*;
         .ack_is_prefetch_o        (mshr_ack_is_prefetch),
         .ack_wback_o              (mshr_ack_wback),
         .ack_dirty_o              (mshr_ack_dirty),
-        .ack_inval_only_o         (mshr_ack_inval_only),
+        .ack_op_o                 (mshr_ack_op),
         .ack_cbuf_id_o            (mshr_ack_cbuf_id)
     );
 
@@ -883,6 +891,15 @@ import hpdcache_pkg::*;
     //    is, when the MSHR is empty, and the MISS handler has finished of
     //    processing the last miss response.
     assign mshr_empty_o = mshr_empty & ~refill_busy_o;
+
+    //    Encode the type of operation carried out by a given MSHR
+    //    These bits are needed to decide if the snoop operations
+    //    carried out on a given MSHR should affect the way the
+    //    memory response is handled
+    assign mshr_alloc_op = '{
+        refill: mshr_alloc_refill_i,
+        inval: mshr_alloc_inval_i
+    };
     //  }}}
 
     //  Coalesce Buffer

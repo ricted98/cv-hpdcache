@@ -112,6 +112,8 @@ import hpdcache_pkg::*;
     output logic                   st1_req_cachedata_write_enable_o,
     input  logic                   st1_mshr_alloc_ready_i,
     input  logic                   st1_mshr_hit_i,
+    output logic                   st1_mshr_make_shared_o,
+    output logic                   st1_mshr_make_inval_o,
     input  logic                   st1_mshr_full_i,
     input  logic                   st1_mshr_cbuf_full_i,
     //   }}}
@@ -122,15 +124,13 @@ import hpdcache_pkg::*;
     input  logic                   st2_mshr_alloc_is_prefetch_i,
     input  logic                   st2_mshr_alloc_wback_i,
     input  logic                   st2_mshr_alloc_dirty_i,
-    input  logic                   st2_mshr_alloc_inval_only_i,
-    input  logic                   st2_mshr_alloc_load_inval_i,
     output logic                   st2_mshr_alloc_o,
     output logic                   st2_mshr_alloc_cs_o,
     output logic                   st2_mshr_alloc_need_rsp_o,
     output logic                   st2_mshr_alloc_wback_o,
     output logic                   st2_mshr_alloc_dirty_o,
-    output logic                   st2_mshr_alloc_inval_only_o,
-    output logic                   st2_mshr_alloc_load_inval_o,
+    output logic                   st2_mshr_alloc_inval_o,
+    output logic                   st2_mshr_alloc_refill_o,
 
     input  logic                   st2_dir_updt_i,
     input  logic                   st2_dir_updt_valid_i,
@@ -340,8 +340,11 @@ import hpdcache_pkg::*;
         st2_mshr_alloc_need_rsp_o           = 1'b0;
         st2_mshr_alloc_wback_o              = st2_mshr_alloc_wback_i;
         st2_mshr_alloc_dirty_o              = st2_mshr_alloc_dirty_i;
-        st2_mshr_alloc_inval_only_o         = 1'b0;
-        st2_mshr_alloc_load_inval_o         = 1'b0;
+        st2_mshr_alloc_inval_o              = 1'b0;
+        st2_mshr_alloc_refill_o             = 1'b1; // In the common case a refill is carried out
+
+        st1_mshr_make_shared_o              = 1'b0;
+        st1_mshr_make_inval_o               = 1'b0;
 
         st2_flush_alloc_o                   = st2_flush_alloc_i;
 
@@ -486,9 +489,16 @@ import hpdcache_pkg::*;
                     cmo_req_valid_o = 1'b1;
                     st1_nop         = 1'b1;
 
-                    //  Performance event
-                    evt_cmo_req_o = !st1_req_is_snoop_cmo_i;
-                    evt_snoop_req_o = st1_req_is_snoop_cmo_i;
+                    if (st1_req_is_snoop_cmo_i) begin
+                        // Mark any matching MSHR as 'make_inval',
+                        // discarding the memory response once it arrives
+                        st1_mshr_make_inval_o = st1_mshr_hit_i;
+                        //  Performance event
+                        evt_snoop_req_o = 1'b1;
+                    end else begin
+                        //  Performance event
+                        evt_cmo_req_o = 1'b1;
+                    end
                 end
                 //  }}}
 
@@ -583,13 +593,11 @@ import hpdcache_pkg::*;
                             //  Respond to the core (if needed)
                             st1_rsp_valid_o = st1_req_need_rsp_i;
 
-                            //  Pending miss on the same line
-                            if (st1_mshr_hit_i) begin
-                                // A normal transaction would be put in the RTAB
-                                // A snoop transaction completion should not depend on
-                                // the completion of a previous read transaction
-                                // TODO: squash MSHR entry and mark it for retry
-                            end
+                            // Regular transactions are added to the RTAB.
+                            // Snoop transaction completions must not wait for prior read transactions to complete
+                            // If any MSHR contains a matching entry and a snoop read happens,
+                            // it is flagged as 'make_shared'
+                            st1_mshr_make_shared_o = st1_mshr_hit_i;
 
                             if (cachedir_hit_i) begin
                                 // Flush the cacheline to the snoop interface
@@ -719,8 +727,8 @@ import hpdcache_pkg::*;
                                 st2_mshr_alloc_wback_o = (st1_req_wr_auto_i & cfg_default_wb_i) |
                                                           st1_req_wr_wb_i;
                                 st2_mshr_alloc_dirty_o = 1'b0;
-                                st2_mshr_alloc_inval_only_o = 1'b0;
-                                st2_mshr_alloc_load_inval_o = 1'b0;
+                                st2_mshr_alloc_refill_o = 1'b1;
+                                st2_mshr_alloc_inval_o = 1'b0;
 
                                 //  Update the cache directory state to FETCHING
                                 st2_dir_updt_o = 1'b1;
@@ -926,8 +934,8 @@ import hpdcache_pkg::*;
                                     //  Send a miss request to the memory (write-allocate)
                                     st2_mshr_alloc_o = 1'b1;
                                     st2_mshr_alloc_wback_o = 1'b1;
-                                    st2_mshr_alloc_inval_only_o = 1'b0;
-                                    st2_mshr_alloc_load_inval_o = 1'b1;
+                                    st2_mshr_alloc_refill_o = 1'b1;
+                                    st2_mshr_alloc_inval_o = 1'b1;
 
                                     //  No available slot in the Coalesce Buffer:
                                     //  - Put the write operation into the replay table (but the
@@ -1031,7 +1039,8 @@ import hpdcache_pkg::*;
                                     st2_mshr_alloc_o = 1'b1;
                                     st2_mshr_alloc_need_rsp_o = 1'b0;
                                     st2_mshr_alloc_wback_o = 1'b1;
-                                    st2_mshr_alloc_inval_only_o = 1'b1;
+                                    st2_mshr_alloc_refill_o = 1'b0;
+                                    st2_mshr_alloc_inval_o = 1'b1;
                                     // Put the request in the replay table
                                     st1_rtab_alloc = 1'b1;
                                     // Technically, this is not a miss
@@ -1212,7 +1221,8 @@ import hpdcache_pkg::*;
                     st0_req_is_cmo_prefetch_i |
                     st0_req_is_store_i        |
                     st0_req_is_amo_i          |
-                    st0_req_is_snoop_read_i   )
+                    st0_req_is_snoop_read_i   |
+                    st1_req_is_snoop_cmo_i    )
                 begin
                     st0_req_mshr_check_o    = 1'b1;
                     st0_req_cachedir_read_o = 1'b1;

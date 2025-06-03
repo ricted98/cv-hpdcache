@@ -95,6 +95,8 @@ import hpdcache_pkg::*;
     output hpdcache_req_offset_t  st0_mshr_check_offset_o,
     output hpdcache_nline_t       st1_mshr_check_nline_o,
     input  logic                  st1_mshr_hit_i,
+    output logic                  st1_mshr_make_shared_o,
+    output logic                  st1_mshr_make_inval_o,
     input  logic                  st1_mshr_alloc_ready_i,
     input  logic                  st1_mshr_alloc_full_i,
     input  logic                  st1_mshr_alloc_cbuf_full_i,
@@ -111,8 +113,8 @@ import hpdcache_pkg::*;
     output logic                  st2_mshr_alloc_is_prefetch_o,
     output logic                  st2_mshr_alloc_wback_o,
     output logic                  st2_mshr_alloc_dirty_o,
-    output logic                  st2_mshr_alloc_inval_only_o,
-    output logic                  st2_mshr_alloc_load_inval_o,
+    output logic                  st2_mshr_alloc_inval_o,
+    output logic                  st2_mshr_alloc_refill_o,
 
     //      Refill interface
     input  logic                  refill_req_valid_i,
@@ -303,8 +305,8 @@ import hpdcache_pkg::*;
     logic                    st2_mshr_alloc_wback_q, st2_mshr_alloc_wback_d;
     logic                    st2_mshr_alloc_dirty_q, st2_mshr_alloc_dirty_d;
     logic                    st2_mshr_alloc_need_rsp_q, st2_mshr_alloc_need_rsp_d;
-    logic                    st2_mshr_alloc_inval_only_q, st2_mshr_alloc_inval_only_d;
-    logic                    st2_mshr_alloc_load_inval_q, st2_mshr_alloc_load_inval_d;
+    logic                    st2_mshr_alloc_inval_q, st2_mshr_alloc_inval_d;
+    logic                    st2_mshr_alloc_refill_q, st2_mshr_alloc_refill_d;
     hpdcache_req_addr_t      st2_mshr_alloc_addr_q;
     hpdcache_req_sid_t       st2_mshr_alloc_sid_q;
     hpdcache_req_tid_t       st2_mshr_alloc_tid_q;
@@ -644,15 +646,13 @@ import hpdcache_pkg::*;
         .st2_mshr_alloc_is_prefetch_i       (st2_mshr_alloc_is_prefetch_q),
         .st2_mshr_alloc_wback_i             (st2_mshr_alloc_wback_q),
         .st2_mshr_alloc_dirty_i             (st2_mshr_alloc_dirty_q),
-        .st2_mshr_alloc_inval_only_i        (st2_mshr_alloc_inval_only_q),
-        .st2_mshr_alloc_load_inval_i        (st2_mshr_alloc_load_inval_q),
         .st2_mshr_alloc_o                   (st2_mshr_alloc_d),
         .st2_mshr_alloc_cs_o                (st2_mshr_alloc_cs_o),
         .st2_mshr_alloc_need_rsp_o          (st2_mshr_alloc_need_rsp_d),
         .st2_mshr_alloc_wback_o             (st2_mshr_alloc_wback_d),
         .st2_mshr_alloc_dirty_o             (st2_mshr_alloc_dirty_d),
-        .st2_mshr_alloc_inval_only_o        (st2_mshr_alloc_inval_only_d),
-        .st2_mshr_alloc_load_inval_o        (st2_mshr_alloc_load_inval_d),
+        .st2_mshr_alloc_inval_o             (st2_mshr_alloc_inval_d),
+        .st2_mshr_alloc_refill_o            (st2_mshr_alloc_refill_d),
 
         .st2_dir_updt_i                     (st2_dir_updt_q),
         .st2_dir_updt_valid_i               (st2_dir_updt_valid_q),
@@ -699,6 +699,8 @@ import hpdcache_pkg::*;
 
         .st1_mshr_alloc_ready_i             (st1_mshr_alloc_ready_i),
         .st1_mshr_hit_i                     (st1_mshr_hit_i),
+        .st1_mshr_make_shared_o             (st1_mshr_make_shared_o),
+        .st1_mshr_make_inval_o              (st1_mshr_make_inval_o),
         .st1_mshr_full_i                    (st1_mshr_alloc_full_i),
         .st1_mshr_cbuf_full_i               (st1_mshr_alloc_cbuf_full_i),
 
@@ -871,8 +873,8 @@ import hpdcache_pkg::*;
             st2_mshr_alloc_wback_q       <= st2_mshr_alloc_wback_d;
             st2_mshr_alloc_dirty_q       <= st2_mshr_alloc_dirty_d;
             st2_mshr_alloc_victim_way_q  <= st1_dir_victim_way;
-            st2_mshr_alloc_inval_only_q  <= st2_mshr_alloc_inval_only_d;
-            st2_mshr_alloc_load_inval_q  <= st2_mshr_alloc_load_inval_d;
+            st2_mshr_alloc_inval_q       <= st2_mshr_alloc_inval_d;
+            st2_mshr_alloc_refill_q      <= st2_mshr_alloc_refill_d;
         end
 
         if (st2_flush_alloc_d) begin
@@ -1101,8 +1103,8 @@ import hpdcache_pkg::*;
     assign st2_mshr_alloc_is_prefetch_o = st2_mshr_alloc_is_prefetch_q;
     assign st2_mshr_alloc_wback_o       = st2_mshr_alloc_wback_q;
     assign st2_mshr_alloc_dirty_o       = st2_mshr_alloc_dirty_q;
-    assign st2_mshr_alloc_inval_only_o  = st2_mshr_alloc_inval_only_q;
-    assign st2_mshr_alloc_load_inval_o  = st2_mshr_alloc_load_inval_q;
+    assign st2_mshr_alloc_inval_o       = st2_mshr_alloc_inval_q;
+    assign st2_mshr_alloc_refill_o      = st2_mshr_alloc_refill_q;
     //  }}}
 
     //  Uncacheable request handler outputs

@@ -228,6 +228,8 @@ import hpdcache_pkg::*;
     hpdcache_req_offset_t  miss_mshr_check_offset;
     hpdcache_nline_t       miss_mshr_check_nline;
     logic                  miss_mshr_hit;
+    logic                  miss_mshr_make_shared;
+    logic                  miss_mshr_make_inval;
     logic                  miss_mshr_alloc_cs;
     logic                  miss_mshr_alloc;
     logic                  miss_mshr_alloc_ready;
@@ -244,8 +246,8 @@ import hpdcache_pkg::*;
     logic                  miss_mshr_alloc_is_prefetch;
     logic                  miss_mshr_alloc_wback;
     logic                  miss_mshr_alloc_dirty;
-    logic                  miss_mshr_alloc_inval_only;
-    logic                  miss_mshr_alloc_load_inval;
+    logic                  miss_mshr_alloc_inval;
+    logic                  miss_mshr_alloc_refill;
 
     logic                  wbuf_flush_all;
     logic                  wbuf_write;
@@ -539,6 +541,8 @@ import hpdcache_pkg::*;
         .st0_mshr_check_offset_o            (miss_mshr_check_offset),
         .st1_mshr_check_nline_o             (miss_mshr_check_nline),
         .st1_mshr_hit_i                     (miss_mshr_hit),
+        .st1_mshr_make_inval_o              (miss_mshr_make_inval),
+        .st1_mshr_make_shared_o             (miss_mshr_make_shared),
         .st1_mshr_alloc_ready_i             (miss_mshr_alloc_ready),
         .st1_mshr_alloc_full_i              (miss_mshr_alloc_full),
         .st1_mshr_alloc_cbuf_full_i         (miss_mshr_alloc_cbuf_full),
@@ -555,8 +559,8 @@ import hpdcache_pkg::*;
         .st2_mshr_alloc_is_prefetch_o       (miss_mshr_alloc_is_prefetch),
         .st2_mshr_alloc_wback_o             (miss_mshr_alloc_wback),
         .st2_mshr_alloc_dirty_o             (miss_mshr_alloc_dirty),
-        .st2_mshr_alloc_inval_only_o        (miss_mshr_alloc_inval_only),
-        .st2_mshr_alloc_load_inval_o        (miss_mshr_alloc_load_inval),
+        .st2_mshr_alloc_inval_o             (miss_mshr_alloc_inval),
+        .st2_mshr_alloc_refill_o            (miss_mshr_alloc_refill),
 
         .refill_req_valid_i                 (refill_req_valid),
         .refill_req_ready_o                 (refill_req_ready),
@@ -826,6 +830,8 @@ import hpdcache_pkg::*;
         .mshr_check_offset_i                (miss_mshr_check_offset),
         .mshr_check_nline_i                 (miss_mshr_check_nline),
         .mshr_check_hit_o                   (miss_mshr_hit),
+        .mshr_make_shared_i                 (miss_mshr_make_shared),
+        .mshr_make_inval_i                  (miss_mshr_make_inval),
 
         .mshr_alloc_ready_o                 (miss_mshr_alloc_ready),
         .mshr_alloc_i                       (miss_mshr_alloc),
@@ -840,8 +846,8 @@ import hpdcache_pkg::*;
         .mshr_alloc_need_rsp_i              (miss_mshr_alloc_need_rsp),
         .mshr_alloc_is_prefetch_i           (miss_mshr_alloc_is_prefetch),
         .mshr_alloc_wback_i                 (miss_mshr_alloc_wback),
-        .mshr_alloc_inval_only_i            (miss_mshr_alloc_inval_only),
-        .mshr_alloc_load_inval_i            (miss_mshr_alloc_load_inval),
+        .mshr_alloc_inval_i                 (miss_mshr_alloc_inval),
+        .mshr_alloc_refill_i                (miss_mshr_alloc_refill),
         .mshr_alloc_dirty_i                 (miss_mshr_alloc_dirty),
         .mshr_alloc_wdata_i                 (miss_mshr_alloc_wdata),
         .mshr_alloc_be_i                    (miss_mshr_alloc_be),
