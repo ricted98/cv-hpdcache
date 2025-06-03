@@ -100,7 +100,9 @@ import hpdcache_pkg::*;
     output logic                  ack_wback_o,
     output logic                  ack_dirty_o,
     output mshr_op_t              ack_op_o,
-    output cbuf_id_t              ack_cbuf_id_o
+    output cbuf_id_t              ack_cbuf_id_o,
+    output logic                  ack_make_inval_o,
+    output logic                  ack_make_shared_o
 );
     //  }}}
 
@@ -290,6 +292,8 @@ import hpdcache_pkg::*;
     assign ack_wback_o       = mshr_rentry[ack_way_q].wback;
     assign ack_dirty_o       = mshr_rentry[ack_way_q].dirty;
     assign ack_cbuf_id_o     = mshr_rentry[ack_way_q].cbuf_id;
+    assign ack_make_inval_o  = mshr_make_inval_q[mshr_ack_slot];
+    assign ack_make_shared_o = mshr_make_shared_q[mshr_ack_slot];
     //  }}}
 
     //  Global control signals
