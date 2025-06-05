@@ -163,6 +163,12 @@ import hpdcache_pkg::*;
         resp_wdata.sid = req_sid_i;
         resp_wdata.tid = req_tid_i;
 
+        dir_updt_valid_o  = 1'b0;
+        dir_updt_wback_o  = 1'b0;
+        dir_updt_dirty_o  = 1'b0;
+        dir_updt_shared_o = 1'b0;
+        dir_updt_fetch_o  = 1'b0;
+
         case (snoop_fsm_q)
             SNOOP_IDLE: begin
                 if (req_valid_i && req_ready_o) begin
