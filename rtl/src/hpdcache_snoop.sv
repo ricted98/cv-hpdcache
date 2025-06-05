@@ -30,7 +30,8 @@ import hpdcache_pkg::*;
     parameter type hpdcache_way_vector_t = logic,
     parameter type hpdcache_word_t = logic,
     parameter type hpdcache_access_data_t = logic,
-    parameter type hpdcache_mem_req_w_t = logic
+    parameter type hpdcache_mem_req_w_t = logic,
+    parameter type hpdcache_mem_data_t = logic
 
 )
 //  }}}
@@ -120,7 +121,7 @@ import hpdcache_pkg::*;
     logic                  resp_data_wlast;
     logic                  resp_data_r;
     logic                  resp_data_rok;
-    hpdcache_access_data_t resp_data_rdata;
+    hpdcache_mem_data_t    resp_data_rdata;
     logic                  resp_data_rlast;
 
     hpdcache_word_t req_word_q, req_word_d;

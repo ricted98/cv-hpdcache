@@ -1224,7 +1224,8 @@ import hpdcache_pkg::*;
         .hpdcache_way_vector_t  (hpdcache_way_vector_t),
         .hpdcache_word_t        (hpdcache_word_t),
         .hpdcache_access_data_t (hpdcache_access_data_t),
-        .hpdcache_mem_req_w_t   (hpdcache_mem_req_w_t)
+        .hpdcache_mem_req_w_t   (hpdcache_mem_req_w_t),
+        .hpdcache_mem_data_t    (hpdcache_mem_data_t)
     ) snoop_i (
         .clk_i,
         .rst_ni,
