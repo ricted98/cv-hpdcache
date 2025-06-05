@@ -85,11 +85,11 @@ import hpdcache_pkg::*;
     //  {{{
     input  logic                  snoop_rsp_ready_i,
     output logic                  snoop_rsp_valid_o,
-    output hpdcache_coherence_t   snoop_meta_o,
+    output hpdcache_coherence_t   snoop_rsp_meta_o,
     output hpdcache_rsp_t         snoop_rsp_o,
-    input  logic                  snoop_data_ready_i,
-    output logic                  snoop_data_valid_o,
-    output hpdcache_mem_req_w_t   snoop_data_o
+    input  logic                  snoop_rsp_data_ready_i,
+    output logic                  snoop_rsp_data_valid_o,
+    output hpdcache_mem_req_w_t   snoop_rsp_data_o
     //  }}}
 );
 
@@ -400,15 +400,15 @@ import hpdcache_pkg::*;
     //  Outputs
     assign resp_r             = snoop_rsp_ready_i;
     assign snoop_rsp_valid_o  = resp_rok;
-    assign snoop_meta_o       = resp_rdata.meta;
+    assign snoop_rsp_meta_o   = resp_rdata.meta;
     assign snoop_rsp_o        = '{
         tid: resp_rdata.tid,
         sid: resp_rdata.sid,
         default: '0
     };
-    assign resp_data_r        = snoop_data_ready_i;
-    assign snoop_data_valid_o = resp_data_rok;
-    assign snoop_data_o       = '{
+    assign resp_data_r            = snoop_rsp_data_ready_i;
+    assign snoop_rsp_data_valid_o = resp_data_rok;
+    assign snoop_rsp_data_o       = '{
         mem_req_w_data: resp_data_rdata,
         mem_req_w_be: '1,
         mem_req_w_last: resp_data_rlast

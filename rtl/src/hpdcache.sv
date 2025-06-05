@@ -99,11 +99,11 @@ import hpdcache_pkg::*;
     //      Snoop response interface
     output logic                          snoop_rsp_valid_o,
     output hpdcache_rsp_t                 snoop_rsp_o,
-    output hpdcache_coherence_t           snoop_meta_o,
+    output hpdcache_coherence_t           snoop_rsp_meta_o,
 
-    input  logic                          snoop_data_ready_i,
-    output logic                          snoop_data_valid_o,
-    output hpdcache_mem_req_w_t           snoop_data_o,
+    input  logic                          snoop_rsp_data_ready_i,
+    output logic                          snoop_rsp_data_valid_o,
+    output hpdcache_mem_req_w_t           snoop_rsp_data_o,
 
     //      Read / Invalidation memory interface
     input  logic                          mem_req_read_ready_i,
@@ -403,10 +403,6 @@ import hpdcache_pkg::*;
     logic                  snoop_meta_ready;
     logic                  snoop_meta_valid;
     hpdcache_coherence_t   snoop_meta;
-    logic                  snoop_data_ready;
-    logic                  snoop_data_valid;
-    hpdcache_mem_req_w_t   snoop_data;
-    logic                  snoop_data_last;
 
     logic                  rtab_empty;
     logic                  ctrl_empty;
@@ -1229,40 +1225,40 @@ import hpdcache_pkg::*;
     ) snoop_i (
         .clk_i,
         .rst_ni,
-        .req_valid_i        (snoop_req_valid),
-        .req_ready_o        (snoop_req_ready),
-        .req_tid_i          (snoop_req_tid),
-        .req_sid_i          (snoop_req_sid),
-        .req_op_i           (snoop_req_op),
-        .req_set_i          (snoop_req_set),
-        .req_tag_i          (snoop_req_tag),
-        .req_way_i          (snoop_req_way),
-        .req_dir_valid_i    (snoop_req_dir_valid),
-        .req_dir_wback_i    (snoop_req_dir_wback),
-        .req_dir_dirty_i    (snoop_req_dir_dirty),
-        .req_dir_shared_i   (snoop_req_dir_shared),
-        .req_dir_fetch_i    (snoop_req_dir_fetch),
-        .dir_updt_o         (snoop_dir_updt),
-        .dir_updt_set_o     (snoop_dir_updt_set),
-        .dir_updt_way_o     (snoop_dir_updt_way),
-        .dir_updt_valid_o   (snoop_dir_updt_valid),
-        .dir_updt_wback_o   (snoop_dir_updt_wback),
-        .dir_updt_dirty_o   (snoop_dir_updt_dirty),
-        .dir_updt_shared_o  (snoop_dir_updt_shared),
-        .dir_updt_fetch_o   (snoop_dir_updt_fetch),
-        .dir_updt_tag_o     (snoop_dir_updt_tag),
-        .data_read_o        (snoop_data_read),
-        .data_read_set_o    (snoop_data_read_set),
-        .data_read_word_o   (snoop_data_read_word),
-        .data_read_way_o    (snoop_data_read_way),
-        .data_read_data_i   (snoop_data_read_data),
-        .snoop_rsp_ready_i  (1'b1), // core response does not feature a ready signal
-        .snoop_rsp_valid_o  (snoop_rsp_valid_o),
-        .snoop_rsp_o        (snoop_rsp_o),
-        .snoop_meta_o       (snoop_meta_o),
-        .snoop_data_ready_i (snoop_data_ready_i),
-        .snoop_data_valid_o (snoop_data_valid_o),
-        .snoop_data_o       (snoop_data_o)
+        .req_valid_i            (snoop_req_valid),
+        .req_ready_o            (snoop_req_ready),
+        .req_tid_i              (snoop_req_tid),
+        .req_sid_i              (snoop_req_sid),
+        .req_op_i               (snoop_req_op),
+        .req_set_i              (snoop_req_set),
+        .req_tag_i              (snoop_req_tag),
+        .req_way_i              (snoop_req_way),
+        .req_dir_valid_i        (snoop_req_dir_valid),
+        .req_dir_wback_i        (snoop_req_dir_wback),
+        .req_dir_dirty_i        (snoop_req_dir_dirty),
+        .req_dir_shared_i       (snoop_req_dir_shared),
+        .req_dir_fetch_i        (snoop_req_dir_fetch),
+        .dir_updt_o             (snoop_dir_updt),
+        .dir_updt_set_o         (snoop_dir_updt_set),
+        .dir_updt_way_o         (snoop_dir_updt_way),
+        .dir_updt_valid_o       (snoop_dir_updt_valid),
+        .dir_updt_wback_o       (snoop_dir_updt_wback),
+        .dir_updt_dirty_o       (snoop_dir_updt_dirty),
+        .dir_updt_shared_o      (snoop_dir_updt_shared),
+        .dir_updt_fetch_o       (snoop_dir_updt_fetch),
+        .dir_updt_tag_o         (snoop_dir_updt_tag),
+        .data_read_o            (snoop_data_read),
+        .data_read_set_o        (snoop_data_read_set),
+        .data_read_word_o       (snoop_data_read_word),
+        .data_read_way_o        (snoop_data_read_way),
+        .data_read_data_i       (snoop_data_read_data),
+        .snoop_rsp_ready_i      (1'b1), // core response does not feature a ready signal
+        .snoop_rsp_valid_o      (snoop_rsp_valid_o),
+        .snoop_rsp_o            (snoop_rsp_o),
+        .snoop_rsp_meta_o       (snoop_rsp_meta_o),
+        .snoop_rsp_data_ready_i (snoop_rsp_data_ready_i),
+        .snoop_rsp_data_valid_o (snoop_rsp_data_valid_o),
+        .snoop_rsp_data_o       (snoop_rsp_data_o)
     );
 
     //  }}}

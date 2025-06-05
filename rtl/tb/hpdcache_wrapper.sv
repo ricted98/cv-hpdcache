@@ -335,10 +335,10 @@ import hpdcache_pkg::*;
         .snoop_req_pma_i                   ('0),
         .snoop_rsp_valid_o                 (),
         .snoop_rsp_o                       (),
-        .snoop_meta_o                      (),
-        .snoop_data_ready_i                (1'b1),
-        .snoop_data_valid_o                (),
-        .snoop_data_o                      (),
+        .snoop_rsp_meta_o                  (),
+        .snoop_rsp_data_ready_i            (1'b1),
+        .snoop_rsp_data_valid_o            (),
+        .snoop_rsp_data_o                  (),
         /***********************************/
 
         .mem_req_read_ready_i              (mem_req_read_ready_i),
