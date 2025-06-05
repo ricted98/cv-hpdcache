@@ -343,6 +343,7 @@ import hpdcache_pkg::*;
             req_way_q <= '0;
             req_tag_q <= '0;
         end else if (req_valid_i && req_ready_o) begin
+            req_op_q <= req_op_i;
             req_dir_wback_q <= req_dir_wback_i;
             req_dir_dirty_q <= req_dir_dirty_i;
             req_dir_shared_q <= req_dir_shared_i;
