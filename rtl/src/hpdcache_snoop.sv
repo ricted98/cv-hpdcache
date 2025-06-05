@@ -130,7 +130,6 @@ import hpdcache_pkg::*;
     hpdcache_set_t         req_set_q;
     hpdcache_tag_t         req_tag_q;
     hpdcache_way_vector_t  req_way_q;
-    logic                  req_dir_valid_q;
     logic                  req_dir_wback_q;
     logic                  req_dir_dirty_q;
     logic                  req_dir_shared_q;
