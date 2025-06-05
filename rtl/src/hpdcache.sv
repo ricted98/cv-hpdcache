@@ -153,20 +153,24 @@ import hpdcache_pkg::*;
 
     //  Cache Directory entry definition
     //  {{{
-    typedef struct packed {
-        //  Cacheline state
-        //  Encoding: {valid, wb, dirty, fetch}
-        //            {0,X,X,0}: Invalid
-        //            {0,X,X,1}: Invalid and Fetching
-        //            {1,X,X,1}: Valid and Fetching (cacheline being replaced is accessible)
-        //            {1,0,0,0}: Write-through
-        //            {1,1,0,0}: Write-back (clean)
-        //            {1,1,1,0}: Write-back (dirty)
+     typedef struct packed {
+        //  Cacheline state (MOESI equivalent state)
+        //  Encoding: {valid, wb, dirty, shared, fetch}
+        //            {0,X,X,X,0}: Invalid (I)
+        //            {0,X,X,X,1}: Invalid (I) and Fetching
+        //            {1,X,X,X,1}: Valid and Fetching (cacheline being replaced is accessible)
+        //            {1,0,0,0,0}: Write-through Exclusive (E)
+        //            {1,0,0,1,0}: Write-through Shared (S)
+        //            {1,1,0,0,0}: Write-back Exclusive (E)
+        //            {1,1,0,1,0}: Write-back Shared (S)
+        //            {1,1,1,0,0}: Write-back Modified (M)
+        //            {1,1,1,1,0}: Write-back Owned (O)
         //  {{{
-        logic valid; //  valid cacheline
-        logic wback; //  cacheline in write-back mode
-        logic dirty; //  cacheline is locally modified (memory is obsolete)
-        logic fetch; //  cacheline is reserved for a new cacheline being fetched
+        logic valid;  //  valid cacheline
+        logic wback;  //  cacheline in write-back mode
+        logic dirty;  //  cacheline is locally modified (memory is obsolete)
+        logic shared; //  cacheline is shared with other agents (coherence only)
+        logic fetch;  //  cacheline is reserved for a new cacheline being fetched
         //  }}}
 
         //  Cacheline address tag
@@ -213,6 +217,8 @@ import hpdcache_pkg::*;
     hpdcache_req_offset_t  miss_mshr_check_offset;
     hpdcache_nline_t       miss_mshr_check_nline;
     logic                  miss_mshr_hit;
+    logic                  miss_mshr_make_shared;
+    logic                  miss_mshr_make_inval;
     logic                  miss_mshr_alloc_cs;
     logic                  miss_mshr_alloc;
     logic                  miss_mshr_alloc_ready;
@@ -229,6 +235,8 @@ import hpdcache_pkg::*;
     logic                  miss_mshr_alloc_is_prefetch;
     logic                  miss_mshr_alloc_wback;
     logic                  miss_mshr_alloc_dirty;
+    logic                  miss_mshr_alloc_inval;
+    logic                  miss_mshr_alloc_refill;
 
     logic                  wbuf_flush_all;
     logic                  wbuf_write;
@@ -300,12 +308,14 @@ import hpdcache_pkg::*;
     hpdcache_way_vector_t  cmo_dir_check_nline_hit_way;
     logic                  cmo_dir_check_nline_wback;
     logic                  cmo_dir_check_nline_dirty;
+    logic                  cmo_dir_check_nline_shared;
     logic                  cmo_dir_check_entry;
     hpdcache_set_t         cmo_dir_check_entry_set;
     hpdcache_way_vector_t  cmo_dir_check_entry_way;
     logic                  cmo_dir_check_entry_valid;
     logic                  cmo_dir_check_entry_wback;
     logic                  cmo_dir_check_entry_dirty;
+    logic                  cmo_dir_check_entry_shared;
     hpdcache_tag_t         cmo_dir_check_entry_tag;
     logic                  cmo_dir_updt;
     hpdcache_set_t         cmo_dir_updt_set;
@@ -313,6 +323,7 @@ import hpdcache_pkg::*;
     logic                  cmo_dir_updt_valid;
     logic                  cmo_dir_updt_wback;
     logic                  cmo_dir_updt_dirty;
+    logic                  cmo_dir_updt_shared;
     logic                  cmo_dir_updt_fetch;
     hpdcache_tag_t         cmo_dir_updt_tag;
     logic                  cmo_wait;
@@ -342,6 +353,41 @@ import hpdcache_pkg::*;
     logic                  ctrl_flush_alloc;
     hpdcache_nline_t       ctrl_flush_alloc_nline;
     hpdcache_way_vector_t  ctrl_flush_alloc_way;
+
+    logic                  snoop_req_valid;
+    logic                  snoop_req_ready;
+    hpdcache_req_tid_t     snoop_req_tid;
+    hpdcache_req_sid_t     snoop_req_sid;
+    hpdcache_snoop_op_t    snoop_req_op;
+    hpdcache_set_t         snoop_req_set;
+    hpdcache_tag_t         snoop_req_tag;
+    hpdcache_way_vector_t  snoop_req_way;
+    logic                  snoop_req_dir_valid;
+    logic                  snoop_req_dir_wback;
+    logic                  snoop_req_dir_dirty;
+    logic                  snoop_req_dir_shared;
+    logic                  snoop_req_dir_fetch;
+    logic                  snoop_dir_updt;
+    hpdcache_set_t         snoop_dir_updt_set;
+    hpdcache_way_vector_t  snoop_dir_updt_way;
+    logic                  snoop_dir_updt_valid;
+    logic                  snoop_dir_updt_wback;
+    logic                  snoop_dir_updt_dirty;
+    logic                  snoop_dir_updt_shared;
+    logic                  snoop_dir_updt_fetch;
+    hpdcache_tag_t         snoop_dir_updt_tag;
+    logic                  snoop_data_read;
+    hpdcache_set_t         snoop_data_read_set;
+    hpdcache_word_t        snoop_data_read_word;
+    hpdcache_way_vector_t  snoop_data_read_way;
+    hpdcache_access_data_t snoop_data_read_data;
+    logic                  snoop_meta_ready;
+    logic                  snoop_meta_valid;
+    hpdcache_coherence_t   snoop_meta;
+    logic                  snoop_data_ready;
+    logic                  snoop_data_valid;
+    hpdcache_mem_req_w_t   snoop_data;
+    logic                  snoop_data_last;
 
     logic                  rtab_empty;
     logic                  ctrl_empty;
@@ -506,6 +552,8 @@ import hpdcache_pkg::*;
         .st0_mshr_check_offset_o            (miss_mshr_check_offset),
         .st1_mshr_check_nline_o             (miss_mshr_check_nline),
         .st1_mshr_hit_i                     (miss_mshr_hit),
+        .st1_mshr_make_inval_o              (miss_mshr_make_inval),
+        .st1_mshr_make_shared_o             (miss_mshr_make_shared),
         .st1_mshr_alloc_ready_i             (miss_mshr_alloc_ready),
         .st1_mshr_alloc_full_i              (miss_mshr_alloc_full),
         .st1_mshr_alloc_cbuf_full_i         (miss_mshr_alloc_cbuf_full),
@@ -522,6 +570,8 @@ import hpdcache_pkg::*;
         .st2_mshr_alloc_is_prefetch_o       (miss_mshr_alloc_is_prefetch),
         .st2_mshr_alloc_wback_o             (miss_mshr_alloc_wback),
         .st2_mshr_alloc_dirty_o             (miss_mshr_alloc_dirty),
+        .st2_mshr_alloc_inval_o             (miss_mshr_alloc_inval),
+        .st2_mshr_alloc_refill_o            (miss_mshr_alloc_refill),
 
         .refill_req_valid_i                 (refill_req_valid),
         .refill_req_ready_o                 (refill_req_ready),
@@ -632,12 +682,14 @@ import hpdcache_pkg::*;
         .cmo_dir_check_nline_hit_way_o      (cmo_dir_check_nline_hit_way),
         .cmo_dir_check_nline_wback_o        (cmo_dir_check_nline_wback),
         .cmo_dir_check_nline_dirty_o        (cmo_dir_check_nline_dirty),
+        .cmo_dir_check_nline_shared_o       (cmo_dir_check_nline_shared),
         .cmo_dir_check_entry_i              (cmo_dir_check_entry),
         .cmo_dir_check_entry_set_i          (cmo_dir_check_entry_set),
         .cmo_dir_check_entry_way_i          (cmo_dir_check_entry_way),
         .cmo_dir_check_entry_valid_o        (cmo_dir_check_entry_valid),
         .cmo_dir_check_entry_wback_o        (cmo_dir_check_entry_wback),
         .cmo_dir_check_entry_dirty_o        (cmo_dir_check_entry_dirty),
+        .cmo_dir_check_entry_shared_o       (cmo_dir_check_entry_shared),
         .cmo_dir_check_entry_tag_o          (cmo_dir_check_entry_tag),
         .cmo_dir_updt_i                     (cmo_dir_updt),
         .cmo_dir_updt_set_i                 (cmo_dir_updt_set),
@@ -645,6 +697,7 @@ import hpdcache_pkg::*;
         .cmo_dir_updt_valid_i               (cmo_dir_updt_valid),
         .cmo_dir_updt_wback_i               (cmo_dir_updt_wback),
         .cmo_dir_updt_dirty_i               (cmo_dir_updt_dirty),
+        .cmo_dir_updt_shared_i              (cmo_dir_updt_shared),
         .cmo_dir_updt_fetch_i               (cmo_dir_updt_fetch),
         .cmo_dir_updt_tag_i                 (cmo_dir_updt_tag),
         .cmo_core_rsp_ready_o               (cmo_core_rsp_ready),
@@ -653,6 +706,37 @@ import hpdcache_pkg::*;
 
         .rtab_empty_o                       (rtab_empty),
         .ctrl_empty_o                       (ctrl_empty),
+
+        .snoop_req_valid_i                  (1'b0),
+        .snoop_req_ready_o                  (),
+        .snoop_req_i                        ('0),
+        .snoop_req_valid_o                  (snoop_req_valid),
+        .snoop_busy_i                       (~snoop_req_ready),
+        .snoop_req_op_o                     (snoop_req_op),
+        .snoop_req_sid_o                    (snoop_req_sid),
+        .snoop_req_tid_o                    (snoop_req_tid),
+        .snoop_req_set_o                    (snoop_req_set),
+        .snoop_req_tag_o                    (snoop_req_tag),
+        .snoop_req_way_o                    (snoop_req_way),
+        .snoop_req_dir_valid_o              (snoop_req_dir_valid),
+        .snoop_req_dir_wback_o              (snoop_req_dir_wback),
+        .snoop_req_dir_dirty_o              (snoop_req_dir_dirty),
+        .snoop_req_dir_shared_o             (snoop_req_dir_shared),
+        .snoop_req_dir_fetch_o              (snoop_req_dir_fetch),
+        .snoop_dir_updt_i                   (snoop_dir_updt),
+        .snoop_dir_updt_set_i               (snoop_dir_updt_set),
+        .snoop_dir_updt_way_i               (snoop_dir_updt_way),
+        .snoop_dir_updt_valid_i             (snoop_dir_updt_valid),
+        .snoop_dir_updt_wback_i             (snoop_dir_updt_wback),
+        .snoop_dir_updt_dirty_i             (snoop_dir_updt_dirty),
+        .snoop_dir_updt_shared_i            (snoop_dir_updt_shared),
+        .snoop_dir_updt_fetch_i             (snoop_dir_updt_fetch),
+        .snoop_dir_updt_tag_i               (snoop_dir_updt_tag),
+        .snoop_data_read_i                  (snoop_data_read),
+        .snoop_data_read_set_i              (snoop_data_read_set),
+        .snoop_data_read_word_i             (snoop_data_read_word),
+        .snoop_data_read_way_i              (snoop_data_read_way),
+        .snoop_data_read_data_o             (snoop_data_read_data),
 
         .cfg_enable_i,
         .cfg_prefetch_updt_plru_i,
@@ -783,6 +867,8 @@ import hpdcache_pkg::*;
         .mshr_check_offset_i                (miss_mshr_check_offset),
         .mshr_check_nline_i                 (miss_mshr_check_nline),
         .mshr_check_hit_o                   (miss_mshr_hit),
+        .mshr_make_shared_i                 (miss_mshr_make_shared),
+        .mshr_make_inval_i                  (miss_mshr_make_inval),
 
         .mshr_alloc_ready_o                 (miss_mshr_alloc_ready),
         .mshr_alloc_i                       (miss_mshr_alloc),
@@ -797,6 +883,8 @@ import hpdcache_pkg::*;
         .mshr_alloc_need_rsp_i              (miss_mshr_alloc_need_rsp),
         .mshr_alloc_is_prefetch_i           (miss_mshr_alloc_is_prefetch),
         .mshr_alloc_wback_i                 (miss_mshr_alloc_wback),
+        .mshr_alloc_inval_i                 (miss_mshr_alloc_inval),
+        .mshr_alloc_refill_i                (miss_mshr_alloc_refill),
         .mshr_alloc_dirty_i                 (miss_mshr_alloc_dirty),
         .mshr_alloc_wdata_i                 (miss_mshr_alloc_wdata),
         .mshr_alloc_be_i                    (miss_mshr_alloc_be),
@@ -955,6 +1043,7 @@ import hpdcache_pkg::*;
         .mshr_empty_i                  (miss_mshr_empty),
         .rtab_empty_i                  (rtab_empty),
         .ctrl_empty_i                  (ctrl_empty),
+        .snoop_busy_i                  (~snoop_req_ready),
 
         .req_valid_i                   (cmo_req_valid),
         .req_ready_o                   (cmo_ready),
@@ -987,6 +1076,7 @@ import hpdcache_pkg::*;
         .dir_check_nline_hit_way_i     (cmo_dir_check_nline_hit_way),
         .dir_check_nline_wback_i       (cmo_dir_check_nline_wback),
         .dir_check_nline_dirty_i       (cmo_dir_check_nline_dirty),
+        .dir_check_nline_shared_i      (cmo_dir_check_nline_shared),
 
         .dir_check_entry_o             (cmo_dir_check_entry),
         .dir_check_entry_set_o         (cmo_dir_check_entry_set),
@@ -994,6 +1084,7 @@ import hpdcache_pkg::*;
         .dir_check_entry_valid_i       (cmo_dir_check_entry_valid),
         .dir_check_entry_wback_i       (cmo_dir_check_entry_wback),
         .dir_check_entry_dirty_i       (cmo_dir_check_entry_dirty),
+        .dir_check_entry_shared_i      (cmo_dir_check_entry_shared),
         .dir_check_entry_tag_i         (cmo_dir_check_entry_tag),
 
         .dir_updt_o                    (cmo_dir_updt),
@@ -1002,6 +1093,7 @@ import hpdcache_pkg::*;
         .dir_updt_valid_o              (cmo_dir_updt_valid),
         .dir_updt_wback_o              (cmo_dir_updt_wback),
         .dir_updt_dirty_o              (cmo_dir_updt_dirty),
+        .dir_updt_shared_o             (cmo_dir_updt_shared),
         .dir_updt_fetch_o              (cmo_dir_updt_fetch),
         .dir_updt_tag_o                (cmo_dir_updt_tag),
 
@@ -1087,14 +1179,77 @@ import hpdcache_pkg::*;
         assign flush_ack_nline                 = '0;
         assign mem_req_write_flush_valid       = 1'b0;
         assign mem_req_write_flush             = '{
-            mem_req_command: HPDCACHE_MEM_READ,
-            mem_req_atomic : HPDCACHE_MEM_ATOMIC_ADD,
-            default        : '0
+            mem_req_command  : HPDCACHE_MEM_READ,
+            mem_req_atomic   : HPDCACHE_MEM_ATOMIC_ADD,
+            mem_req_coherence: HPDCACHE_MEM_COHERENCE_WRITE_BACK,
+            default          : '0
         };
         assign mem_req_write_flush_data_valid  = 1'b0;
         assign mem_req_write_flush_data        = '0;
         assign mem_resp_write_flush_ready      = 1'b1;
     end
+    //  }}}
+
+    //  Snoop request handler
+    //  {{{
+    hpdcache_snoop #(
+        .HPDcacheCfg            (HPDcacheCfg),
+        .hpdcache_req_tid_t     (hpdcache_req_tid_t),
+        .hpdcache_req_sid_t     (hpdcache_req_sid_t),
+        .hpdcache_rsp_t         (hpdcache_rsp_t),
+        .hpdcache_tag_t         (hpdcache_tag_t),
+        .hpdcache_set_t         (hpdcache_set_t),
+        .hpdcache_way_vector_t  (hpdcache_way_vector_t),
+        .hpdcache_word_t        (hpdcache_word_t),
+        .hpdcache_access_data_t (hpdcache_access_data_t),
+        .hpdcache_mem_req_w_t   (hpdcache_mem_req_w_t)
+    ) snoop_i (
+        .clk_i,
+        .rst_ni,
+        .req_valid_i        (snoop_req_valid),
+        .req_ready_o        (snoop_req_ready),
+        .req_tid_i          (snoop_req_tid),
+        .req_sid_i          (snoop_req_sid),
+        .req_op_i           (snoop_req_op),
+        .req_set_i          (snoop_req_set),
+        .req_tag_i          (snoop_req_tag),
+        .req_way_i          (snoop_req_way),
+        .req_dir_valid_i    (snoop_req_dir_valid),
+        .req_dir_wback_i    (snoop_req_dir_wback),
+        .req_dir_dirty_i    (snoop_req_dir_dirty),
+        .req_dir_shared_i   (snoop_req_dir_shared),
+        .req_dir_fetch_i    (snoop_req_dir_fetch),
+        .dir_updt_o         (snoop_dir_updt),
+        .dir_updt_set_o     (snoop_dir_updt_set),
+        .dir_updt_way_o     (snoop_dir_updt_way),
+        .dir_updt_valid_o   (snoop_dir_updt_valid),
+        .dir_updt_wback_o   (snoop_dir_updt_wback),
+        .dir_updt_dirty_o   (snoop_dir_updt_dirty),
+        .dir_updt_shared_o  (snoop_dir_updt_shared),
+        .dir_updt_fetch_o   (snoop_dir_updt_fetch),
+        .dir_updt_tag_o     (snoop_dir_updt_tag),
+        .data_read_o        (snoop_data_read),
+        .data_read_set_o    (snoop_data_read_set),
+        .data_read_word_o   (snoop_data_read_word),
+        .data_read_way_o    (snoop_data_read_way),
+        .data_read_data_i   (snoop_data_read_data),
+        // .snoop_meta_ready_i (snoop_meta_ready_i),
+        // .snoop_meta_valid_o (snoop_meta_valid_o),
+        // .snoop_meta_o       (snoop_meta_o),
+        // .snoop_data_ready_i (snoop_data_ready_i),
+        // .snoop_data_valid_o (snoop_data_valid_o),
+        // .snoop_data_o       (snoop_data_o),
+        // .snoop_data_last_o  (snoop_data_last_o)
+        .snoop_rsp_ready_i  (1'b1),
+        .snoop_rsp_valid_o  (),
+        .snoop_rsp_o        (),
+        .snoop_meta_o       (),
+        .snoop_data_ready_i (1'b1),
+        .snoop_data_valid_o (),
+        .snoop_data_o       (),
+        .snoop_data_last_o  ()
+    );
+
     //  }}}
 
     //  Read and Write Arbiters for Memory interfaces
