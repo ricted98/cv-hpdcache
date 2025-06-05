@@ -235,6 +235,8 @@ import hpdcache_pkg::*;
                                 resp_wdata.meta.pass_dirty    = 1'b0;
                                 resp_wdata.meta.left_dirty    = 1'b0;
                                 resp_wdata.meta.data_transfer = 1'b0;
+
+                                snoop_fsm_d = SNOOP_DIR_UPDT;
                             end
 
                             default: begin
