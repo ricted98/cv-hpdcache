@@ -1160,7 +1160,7 @@ import hpdcache_pkg::*;
                                  & ~(st2_mshr_alloc_i | st2_dir_updt_i);
 
             //      Forward the core/rtab request to stage 1
-            st1_req_valid_o = core_req_ready_o | rtab_req_ready_o;
+            st1_req_valid_o = core_req_ready_o | rtab_req_ready_o | snoop_req_ready_o;
             st1_req_is_error_o = st0_req_is_error_i;
 
             //      New cacheable stage 0 request granted
@@ -1170,7 +1170,7 @@ import hpdcache_pkg::*;
             //          This increases the power consumption in that cases, but
             //          removes the timing paths RAM-to-RAM between the cache
             //          directory and the data array.
-            if ((core_req_ready_o | rtab_req_ready_o) &&
+            if ((core_req_ready_o | rtab_req_ready_o | snoop_req_ready_o) &&
                 !st0_req_is_uncacheable_i &&
                 !st0_req_is_error_i)
             begin
