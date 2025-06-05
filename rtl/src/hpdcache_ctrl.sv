@@ -257,6 +257,9 @@ import hpdcache_pkg::*;
     //      Snoop
     input  logic                  snoop_req_valid_i,
     output logic                  snoop_req_ready_o,
+    input  logic                  snoop_req_abort_i, /* unused */
+    input  hpdcache_tag_t         snoop_req_tag_i,   /* unused */
+    input  hpdcache_pma_t         snoop_req_pma_i,   /* unused */
     input  hpdcache_req_t         snoop_req_i,
     output logic                  snoop_req_valid_o,
     input  logic                  snoop_busy_i,

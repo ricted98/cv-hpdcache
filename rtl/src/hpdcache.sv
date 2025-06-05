@@ -86,6 +86,25 @@ import hpdcache_pkg::*;
     output logic                          core_rsp_valid_o [HPDcacheCfg.u.nRequesters],
     output hpdcache_rsp_t                 core_rsp_o       [HPDcacheCfg.u.nRequesters],
 
+    //      Snoop request interface
+    //         1st cycle
+    input  logic                          snoop_req_valid_i,
+    output logic                          snoop_req_ready_o,
+    input  hpdcache_req_t                 snoop_req_i,
+    //         2nd cycle
+    input  logic                          snoop_req_abort_i,
+    input  hpdcache_tag_t                 snoop_req_tag_i,
+    input  hpdcache_pma_t                 snoop_req_pma_i,
+
+    //      Snoop response interface
+    output logic                          snoop_rsp_valid_o,
+    output hpdcache_rsp_t                 snoop_rsp_o,
+    output hpdcache_coherence_t           snoop_meta_o,
+
+    input  logic                          snoop_data_ready_i,
+    output logic                          snoop_data_valid_o,
+    output hpdcache_mem_req_w_t           snoop_data_o,
+
     //      Read / Invalidation memory interface
     input  logic                          mem_req_read_ready_i,
     output logic                          mem_req_read_valid_o,
@@ -707,9 +726,12 @@ import hpdcache_pkg::*;
         .rtab_empty_o                       (rtab_empty),
         .ctrl_empty_o                       (ctrl_empty),
 
-        .snoop_req_valid_i                  (1'b0),
-        .snoop_req_ready_o                  (),
-        .snoop_req_i                        ('0),
+        .snoop_req_valid_i                  (snoop_req_valid_i),
+        .snoop_req_ready_o                  (snoop_req_ready_o),
+        .snoop_req_i                        (snoop_req_i),
+        .snoop_req_abort_i                  (snoop_req_abort_i),
+        .snoop_req_tag_i                    (snoop_req_tag_i),
+        .snoop_req_pma_i                    (snoop_req_pma_i),
         .snoop_req_valid_o                  (snoop_req_valid),
         .snoop_busy_i                       (~snoop_req_ready),
         .snoop_req_op_o                     (snoop_req_op),
@@ -1233,21 +1255,13 @@ import hpdcache_pkg::*;
         .data_read_word_o   (snoop_data_read_word),
         .data_read_way_o    (snoop_data_read_way),
         .data_read_data_i   (snoop_data_read_data),
-        // .snoop_meta_ready_i (snoop_meta_ready_i),
-        // .snoop_meta_valid_o (snoop_meta_valid_o),
-        // .snoop_meta_o       (snoop_meta_o),
-        // .snoop_data_ready_i (snoop_data_ready_i),
-        // .snoop_data_valid_o (snoop_data_valid_o),
-        // .snoop_data_o       (snoop_data_o),
-        // .snoop_data_last_o  (snoop_data_last_o)
-        .snoop_rsp_ready_i  (1'b1),
-        .snoop_rsp_valid_o  (),
-        .snoop_rsp_o        (),
-        .snoop_meta_o       (),
-        .snoop_data_ready_i (1'b1),
-        .snoop_data_valid_o (),
-        .snoop_data_o       (),
-        .snoop_data_last_o  ()
+        .snoop_rsp_ready_i  (1'b1), // core response does not feature a ready signal
+        .snoop_rsp_valid_o  (snoop_rsp_valid_o),
+        .snoop_rsp_o        (snoop_rsp_o),
+        .snoop_meta_o       (snoop_meta_o),
+        .snoop_data_ready_i (snoop_data_ready_i),
+        .snoop_data_valid_o (snoop_data_valid_o),
+        .snoop_data_o       (snoop_data_o)
     );
 
     //  }}}

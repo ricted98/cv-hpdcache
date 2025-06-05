@@ -88,8 +88,7 @@ import hpdcache_pkg::*;
     output hpdcache_rsp_t         snoop_rsp_o,
     input  logic                  snoop_data_ready_i,
     output logic                  snoop_data_valid_o,
-    output hpdcache_mem_req_w_t   snoop_data_o,
-    output logic                  snoop_data_last_o
+    output hpdcache_mem_req_w_t   snoop_data_o
     //  }}}
 );
 
@@ -408,6 +407,5 @@ import hpdcache_pkg::*;
         mem_req_w_be: '1,
         mem_req_w_last: resp_data_rlast
     };
-    assign snoop_data_last_o  = resp_data_rlast;
 
 endmodule
