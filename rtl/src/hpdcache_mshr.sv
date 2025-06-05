@@ -292,8 +292,13 @@ import hpdcache_pkg::*;
     assign ack_wback_o       = mshr_rentry[ack_way_q].wback;
     assign ack_dirty_o       = mshr_rentry[ack_way_q].dirty;
     assign ack_cbuf_id_o     = mshr_rentry[ack_way_q].cbuf_id;
-    assign ack_make_inval_o  = mshr_make_inval_q[mshr_ack_slot];
-    assign ack_make_shared_o = mshr_make_shared_q[mshr_ack_slot];
+
+    always_ff @(posedge clk_i) begin
+        if (ack_i) begin
+            ack_make_inval_o  <= mshr_make_inval_q[mshr_ack_slot];
+            ack_make_shared_o <= mshr_make_shared_q[mshr_ack_slot];
+        end
+    end
     //  }}}
 
     //  Global control signals

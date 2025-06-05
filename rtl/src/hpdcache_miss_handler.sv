@@ -390,6 +390,8 @@ import hpdcache_pkg::*;
         mshr_ack_cs             = 1'b0;
         mshr_ack                = 1'b0;
 
+        refill_discard          = 1'b0;
+
         refill_fsm_d            = refill_fsm_q;
 
         case (refill_fsm_q)
@@ -509,7 +511,7 @@ import hpdcache_pkg::*;
                             refill_fsm_d = REFILL_WRITE_DIR;
                         end else begin
                             //  Write the new entry in the cache directory
-                            refill_write_dir_o = 1'b1;
+                            refill_write_dir_o = ~refill_discard_q;
 
                             //  Update the victim selection. Only in the following cases:
                             //  - There is no error in response and no snoop transaction squashed the MSHR AND
@@ -540,7 +542,7 @@ import hpdcache_pkg::*;
                 refill_way = refill_way_q;
 
                 //  Write the new entry in the cache directory
-                refill_write_dir_o  = 1'b1;
+                refill_write_dir_o  = ~refill_discard_q;
 
                 //  Update the victim selection. Only in the following cases:
                 //  - There is no error in response and no snoop transaction squashed the MSHR AND
