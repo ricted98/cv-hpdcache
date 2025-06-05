@@ -841,6 +841,7 @@ import hpdcache_pkg::*;
 
         .mshr_way_t               (mshr_way_t),
         .mshr_set_t               (mshr_set_t),
+        .mshr_op_t                (mshr_op_t),
 
         .cbuf_id_t                (cbuf_id_t)
     ) hpdcache_mshr_i(
