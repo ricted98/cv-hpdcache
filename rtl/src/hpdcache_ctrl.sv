@@ -903,7 +903,7 @@ import hpdcache_pkg::*;
             st2_mshr_alloc_is_prefetch_q <= st1_req_is_cmo_prefetch;
             st2_mshr_alloc_wback_q       <= st2_mshr_alloc_wback_d;
             st2_mshr_alloc_dirty_q       <= st2_mshr_alloc_dirty_d;
-            st2_mshr_alloc_victim_way_q  <= st1_dir_victim_way;
+            st2_mshr_alloc_victim_way_q  <= st1_dir_hit ? st1_dir_hit_way : st1_dir_victim_way;
             st2_mshr_alloc_inval_q       <= st2_mshr_alloc_inval_d;
             st2_mshr_alloc_refill_q      <= st2_mshr_alloc_refill_d;
         end
