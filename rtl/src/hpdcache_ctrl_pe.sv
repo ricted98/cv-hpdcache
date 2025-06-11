@@ -1000,6 +1000,7 @@ import hpdcache_pkg::*;
                                         st2_mshr_alloc_wback_o = 1'b1;
                                         st2_mshr_alloc_refill_o = 1'b0;
                                         st2_mshr_alloc_inval_o = 1'b1;
+                                        st2_mshr_alloc_dirty_o = st1_dir_hit_dirty_i;
                                         // Put the request in the replay table
                                         st1_rtab_alloc = 1'b1;
                                         // Technically, this is not a miss
@@ -1007,6 +1008,16 @@ import hpdcache_pkg::*;
                                         // in the RTAB and wake it up when the invalidation
                                         // operation issued by the miss handler comes back
                                         st1_rtab_write_miss_o = 1'b1;
+
+                                        //  Update the directory state of the cacheline to FETCHING
+                                        st2_dir_updt_o = 1'b1;
+                                        st2_dir_updt_valid_o  = 1'b1;
+                                        st2_dir_updt_wback_o  = st1_dir_hit_wback_i;
+                                        st2_dir_updt_dirty_o  = st1_dir_hit_dirty_i;
+                                        st2_dir_updt_shared_o = st1_dir_hit_shared_i;
+                                        st2_dir_updt_fetch_o  = 1'b1;
+
+                                        st1_nop = 1'b1;
                                     end
                                 end
 
