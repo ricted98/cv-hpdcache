@@ -480,6 +480,7 @@ package hpdcache_pkg;
         logic dir_fetch;
         logic flush_hit;
         logic flush_not_ready;
+        logic pend_trans;
     } hpdcache_rtab_deps_t;
     //  }}}
 

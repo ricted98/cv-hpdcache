@@ -114,6 +114,7 @@ import hpdcache_pkg::*;
     input  logic                   st1_req_is_snoop_i,
     input  logic                   st1_req_is_snoop_make_shared_i,
     input  logic                   st1_req_is_snoop_make_inval_i,
+    input  logic                   st1_no_pend_trans_i,
     //   }}}
 
     //   Pipeline stage 2
@@ -169,6 +170,7 @@ import hpdcache_pkg::*;
     output logic                   st1_rtab_dir_fetch_o,
     output logic                   st1_rtab_flush_hit_o,
     output logic                   st1_rtab_flush_not_ready_o,
+    output logic                   st1_rtab_pend_trans_o,
     //   }}}
 
     //   Cache directory
@@ -260,7 +262,8 @@ import hpdcache_pkg::*;
     //  then the "fence" instruction is executed. In the same manner, all
     //  instructions following the "fence" need to wait the completion of this
     //  last before being executed.
-    assign st1_fence = st1_req_is_uncacheable_i |
+    assign st1_fence = st1_req_is_amo_i         |
+                       st1_req_is_uncacheable_i |
                        st1_req_is_cmo_fence_i   |
                        st1_req_is_cmo_inval_i   |
                        st1_req_is_cmo_flush_i;
@@ -375,6 +378,7 @@ import hpdcache_pkg::*;
         st1_rtab_dir_fetch_o                = 1'b0;
         st1_rtab_flush_hit_o                = 1'b0;
         st1_rtab_flush_not_ready_o          = 1'b0;
+        st1_rtab_pend_trans_o               = 1'b0;
 
         evt_cache_write_miss_o              = 1'b0;
         evt_cache_read_miss_o               = 1'b0;
@@ -478,11 +482,17 @@ import hpdcache_pkg::*;
                     evt_write_req_o = st1_req_is_store_i;
                 end
 
-                //  Allocate a new entry in the replay table in case of conflict with
-                //  an on-hold request
+                //  Allocate a new entry in the replay table in case of conflict with an
+                //  on-hold request. This is done for all requests except for "fence"
+                //  ones.
+                //
+                //  Fence operations are either put in the RTAB independently or forwarded
+                //  to its corresponding handler (e.g. CMO). When a fence operation is put
+                //  in the RTAB independently, that operation prevents the controller to
+                //  stall new requests, and all pending operations are played. The fence
+                //  operation is played only when it is the last pending one.
                 else if (rtab_check_o && rtab_check_hit_i) begin
                     st1_rtab_alloc_and_link = 1'b1;
-
                     st1_nop = 1'b1;
                 end
 
@@ -503,11 +513,27 @@ import hpdcache_pkg::*;
                 //  Uncacheable load, store or AMO request
                 //  {{{
                 else if (st1_req_is_uncacheable_i) begin
-                    uc_req_valid_o = 1'b1;
-                    st1_nop        = 1'b1;
+                    //  There are pending transactions which must be completed and the
+                    //  request is not being replayed.
+                    //  When an uncacheable request is replayed, it is guaranteed
+                    //  that there is no other pending transaction.
+                    if (!st1_no_pend_trans_i && !st1_req_rtab_i) begin
+                        st1_rtab_alloc = 1'b1;
+                        st1_rtab_pend_trans_o = 1'b1;
+                        st1_nop = 1'b1;
+                    end
 
-                    //  Performance event
-                    evt_uncached_req_o = 1'b1;
+                    else begin
+                        uc_req_valid_o = 1'b1;
+                        st1_nop        = 1'b1;
+
+                        //  If the request comes from the replay table, free the
+                        //  corresponding RTAB entry
+                        st1_rtab_commit_o = st1_req_rtab_i;
+
+                        //  Performance event
+                        evt_uncached_req_o = 1'b1;
+                    end
                 end
                 //  }}}
 
@@ -533,30 +559,19 @@ import hpdcache_pkg::*;
                     //  AMO cacheable request
                     //  {{{
                     if (st1_req_is_amo_i) begin
-                        //  Flush required but the controller is not ready
-                        if (cachedir_hit_i && st1_dir_hit_dirty_i && !st1_flush_alloc_ready_i)
-                        begin
+                        //  There are pending transactions which must be completed and the
+                        //  request is not being replayed.
+                        //  When an AMO request is replayed, it is guaranteed that there
+                        //  is no other pending transaction.
+                        if (!st1_no_pend_trans_i && !st1_req_rtab_i) begin
                             st1_rtab_alloc = 1'b1;
-                            st1_rtab_flush_not_ready_o = 1'b1;
-                            st1_nop = 1'b1;
-                        end
-
-                        //  Pending miss on the same line
-                        else if (st1_mshr_hit_i) begin
-                            //  Put the request in the replay table
-                            st1_rtab_alloc = 1'b1;
-                            st1_rtab_mshr_hit_o = 1'b1;
+                            st1_rtab_pend_trans_o = 1'b1;
                             st1_nop = 1'b1;
                         end
 
                         //  Process the AMO request
                         else begin
-                            uc_req_valid_o = 1'b1;
                             st1_nop = 1'b1;
-
-                            //  If the request comes from the replay table, free the
-                            //  corresponding RTAB entry
-                            st1_rtab_commit_o = st1_req_rtab_i;
 
                             if (cachedir_hit_i) begin
                                 //  When the hit cacheline is dirty, flush its data to the memory
@@ -577,10 +592,24 @@ import hpdcache_pkg::*;
                                 //  If the cacheline has been pre-allocated for a pending miss, keep
                                 //  the fetch bit set
                                 st2_dir_updt_fetch_o = st1_dir_hit_fetch_i;
+
+                                //  Update victim selection for the accessed set
+                                st1_req_cachedir_updt_sel_victim_o = 1'b1;
+
+                                //  If the cacheline is dirty, put the current request in
+                                //  replay table to wait for the flush to finish
+                                if (st1_dir_hit_dirty_i) begin
+                                    st1_rtab_alloc = 1'b1;
+                                    st1_rtab_pend_trans_o = 1'b1;
+                                end else begin
+                                    uc_req_valid_o = 1'b1;
+                                end
+                            end else begin
+                                uc_req_valid_o = 1'b1;
                             end
 
-                            //  Performance event
-                            evt_uncached_req_o = 1'b1;
+                            st1_rtab_commit_o = st1_req_rtab_i & uc_req_valid_o;
+                            evt_uncached_req_o = uc_req_valid_o;
                         end
                     end
                     //  }}}
