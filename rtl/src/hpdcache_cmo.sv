@@ -140,7 +140,7 @@ import hpdcache_pkg::*;
 
 //  Definition of constants and types
 //  {{{
-    typedef enum {
+    typedef enum logic[3:0] {
         CMOH_IDLE = 0,
         CMOH_FENCE_WAIT_WBUF_RTAB_EMPTY,
         CMOH_WAIT_MSHR_RTAB_EMPTY,
