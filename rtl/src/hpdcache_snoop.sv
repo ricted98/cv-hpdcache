@@ -93,6 +93,8 @@ import hpdcache_pkg::*;
     //  }}}
 );
 
+    //  Declaration of constants and types
+    //  {{{
     typedef enum {
         SNOOP_IDLE,
         SNOOP_DATA_READ_FIRST,
@@ -105,7 +107,10 @@ import hpdcache_pkg::*;
         hpdcache_req_tid_t tid;
         hpdcache_req_sid_t sid;
     } snoop_rsp_t;
+    //  }}}
 
+    //  Declaration of internal signals and registers
+    //  {{{
     snoop_fsm_e snoop_fsm_q, snoop_fsm_d;
 
     snoop_rsp_t resp_wdata;
@@ -136,6 +141,10 @@ import hpdcache_pkg::*;
     logic                  req_dir_fetch_q;
 
     logic data_eol;
+    //  }}}
+
+    //  Snoop FSM
+    //  {{{
 
     assign req_ready_o = &{
         snoop_fsm_q == SNOOP_IDLE,
@@ -171,44 +180,67 @@ import hpdcache_pkg::*;
         case (snoop_fsm_q)
             SNOOP_IDLE: begin
                 if (req_valid_i && req_ready_o) begin
+                    //  If there is a request, we can start processing it
+                    //  Enable the response sync buffer
                     resp_w = 1'b1;
                     if (!req_dir_valid_i) begin
+                        // The request cacheline is not available
                         resp_wdata.meta.was_unique    = 1'b0;
                         resp_wdata.meta.is_shared     = 1'b0;
                         resp_wdata.meta.pass_dirty    = 1'b0;
                         resp_wdata.meta.left_dirty    = 1'b0;
                         resp_wdata.meta.data_transfer = 1'b0;
                     end else begin
+                        // The request cacheline is available
                         unique case (1'b1)
                             req_op_i.is_read_clean,
                             req_op_i.is_read_not_shared_dirty,
                             req_op_i.is_read_once,
                             req_op_i.is_read_shared: begin
+                                // Snoop read operations
+                                // Was the cacheline unique before the request?
                                 resp_wdata.meta.was_unique    = !req_dir_shared_i;
+                                // A copy of the cacheline is always kept
                                 resp_wdata.meta.is_shared     = 1'b1;
+                                // Write-back responsibility is not passed
                                 resp_wdata.meta.pass_dirty    = 1'b0;
+                                // Is the cacheline dirty?
                                 resp_wdata.meta.left_dirty    = req_dir_dirty_i;
+                                // Data transfer is always carried out
                                 resp_wdata.meta.data_transfer = 1'b1;
 
                                 snoop_fsm_d = SNOOP_DATA_READ_FIRST;
                             end
 
                             req_op_i.is_read_unique: begin
+                                // Snoop read with invalidation
+                                // Was the cacheline unique before the request?
                                 resp_wdata.meta.was_unique    = !req_dir_shared_i;
+                                // A copy of the cacheline is not kept, as it is invalidated
                                 resp_wdata.meta.is_shared     = 1'b0;
+                                // Write-back responsibility is passed if the cacheline is dirty
                                 resp_wdata.meta.pass_dirty    = req_dir_dirty_i;
+                                // Invalidation does not leave a dirty cacheline
                                 resp_wdata.meta.left_dirty    = 1'b0;
+                                // Data transfer is always carried out
                                 resp_wdata.meta.data_transfer = 1'b1;
 
                                 snoop_fsm_d = SNOOP_DATA_READ_FIRST;
                             end
 
                             req_op_i.is_clean_invalid: begin
+                                // Snoop clean with invalidation
+                                // Was the cacheline unique before the request?
                                 resp_wdata.meta.was_unique    = !req_dir_shared_i;
+                                // A copy of the cacheline is not kept, as it is invalidated
                                 resp_wdata.meta.is_shared     = 1'b0;
+                                // Write-back responsibility is passed if the cacheline is dirty
                                 resp_wdata.meta.pass_dirty    = req_dir_dirty_i;
+                                // Cleaning does not leave a dirty cacheline
                                 resp_wdata.meta.left_dirty    = 1'b0;
+                                // Data transfer is carried out only if the cacheline is dirty
                                 resp_wdata.meta.data_transfer = req_dir_dirty_i;
+
                                 if (req_dir_dirty_i) begin
                                     snoop_fsm_d = SNOOP_DATA_READ_FIRST;
                                 end else begin
@@ -217,11 +249,18 @@ import hpdcache_pkg::*;
                             end
 
                             req_op_i.is_clean_shared: begin
+                                // Snoop clean without invalidation
+                                // Was the cacheline unique before the request?
                                 resp_wdata.meta.was_unique    = !req_dir_shared_i;
+                                // A copy of the cacheline is kept
                                 resp_wdata.meta.is_shared     = 1'b1;
+                                // Write-back responsibility is passed if the cacheline is dirty
                                 resp_wdata.meta.pass_dirty    = req_dir_dirty_i;
+                                // Cleaning does not leave a dirty cacheline
                                 resp_wdata.meta.left_dirty    = 1'b0;
+                                // Data transfer is carried out only if the cacheline is dirty
                                 resp_wdata.meta.data_transfer = req_dir_dirty_i;
+
                                 if (req_dir_dirty_i) begin
                                     snoop_fsm_d = SNOOP_DATA_READ_FIRST;
                                 end else begin
@@ -230,8 +269,12 @@ import hpdcache_pkg::*;
                             end
 
                             req_op_i.is_make_invalid: begin
+                                // Snoop plain invalidation
+                                // Was the cacheline unique before the request?
                                 resp_wdata.meta.was_unique    = !req_dir_shared_i;
+                                // A copy of the cacheline is not kept, as it is invalidated
                                 resp_wdata.meta.is_shared     = 1'b0;
+                                // No data transfer is expected, so no dirty data is passed
                                 resp_wdata.meta.pass_dirty    = 1'b0;
                                 resp_wdata.meta.left_dirty    = 1'b0;
                                 resp_wdata.meta.data_transfer = 1'b0;
@@ -252,6 +295,7 @@ import hpdcache_pkg::*;
             end
 
             SNOOP_DATA_READ_FIRST: begin
+                // First data read is always carried out
                 resp_data_w = 1'b0;
                 resp_data_wlast = 1'b0;
 
@@ -264,6 +308,7 @@ import hpdcache_pkg::*;
             end
 
             SNOOP_DATA_READ_NEXT: begin
+                // Subsequent data reads are carried out only if the cacheline requires more than one word
                 resp_data_w = 1'b1;
                 resp_data_wlast = data_eol;
 
@@ -278,6 +323,7 @@ import hpdcache_pkg::*;
             end
 
             SNOOP_DIR_UPDT: begin
+                // Update the directory based on the snoop operation
                 snoop_fsm_d = SNOOP_IDLE;
                 dir_updt_o = 1'b1;
 
@@ -285,16 +331,22 @@ import hpdcache_pkg::*;
                     req_op_q.is_read_clean,
                     req_op_q.is_read_not_shared_dirty,
                     req_op_q.is_read_shared: begin
+                        // A copy of the cacheline is kept
                         dir_updt_valid_o  = 1'b1;
+                        // Keep unchanged the write-back bit
                         dir_updt_wback_o  = req_dir_wback_q;
+                        // Keep unchanged the dirty bit
                         dir_updt_dirty_o  = req_dir_dirty_q;
+                        // Make the cacheline shared
                         dir_updt_shared_o = 1'b1;
+                        // Keep unchanged the fetch bit
                         dir_updt_fetch_o  = req_dir_fetch_q;
                     end
 
                     req_op_q.is_read_unique,
                     req_op_q.is_clean_invalid,
                     req_op_q.is_make_invalid: begin
+                        // Invalidate the directory entry
                         dir_updt_valid_o  = 1'b0;
                         dir_updt_wback_o  = 1'b0;
                         dir_updt_dirty_o  = 1'b0;
@@ -303,19 +355,24 @@ import hpdcache_pkg::*;
                     end
 
                     req_op_q.is_clean_shared: begin
+                        // A copy of the cacheline is kept
                         dir_updt_valid_o  = 1'b1;
+                        // Keep unchanged the write-back bit
                         dir_updt_wback_o  = req_dir_wback_q;
+                        // The dirty bit is cleared
                         dir_updt_dirty_o  = 1'b0;
+                        // Keep unchanged the shared bit
                         dir_updt_shared_o = req_dir_shared_q;
+                        // Keep unchanged the fetch bit
                         dir_updt_fetch_o  = req_dir_fetch_q;
                     end
 
                     default: begin
-                        resp_wdata.meta.was_unique    = 1'b0;
-                        resp_wdata.meta.is_shared     = 1'b0;
-                        resp_wdata.meta.pass_dirty    = 1'b0;
-                        resp_wdata.meta.left_dirty    = 1'b0;
-                        resp_wdata.meta.data_transfer = 1'b0;
+                        dir_updt_valid_o  = 1'b0;
+                        dir_updt_wback_o  = 1'b0;
+                        dir_updt_dirty_o  = 1'b0;
+                        dir_updt_shared_o = 1'b0;
+                        dir_updt_fetch_o  = 1'b0;
                     end
                 endcase
             end
@@ -361,6 +418,10 @@ import hpdcache_pkg::*;
     assign dir_updt_set_o = req_set_q;
     assign dir_updt_way_o = req_way_q;
     assign dir_updt_tag_o = req_tag_q;
+    //  }}}
+
+    // Sync and resizing of snoop responses
+    //  {{{
 
     //  Sync metadata response with interface signals
     //
@@ -416,5 +477,6 @@ import hpdcache_pkg::*;
         mem_req_w_be: '1,
         mem_req_w_last: resp_data_rlast
     };
+    //  }}}
 
 endmodule
