@@ -1223,7 +1223,7 @@ import hpdcache_pkg::*;
                                                   is_cmo_flush_inval_all(st1_req.op);
     //  }}}
 
-    //  Dirty/valid cachelines tracking to accelerate flushes and invalidations triggerd by CMOs
+    //  Dirty/valid cachelines tracking to accelerate flushes and invalidations triggered by CMOs
     //  {{{
     if (HPDcacheCfg.u.wbEn) begin : gen_cmo_dirty_set
         hpdcache_set_t cmo_dirty_min_set_q, cmo_dirty_min_set_d;
@@ -1399,11 +1399,19 @@ import hpdcache_pkg::*;
         //  When not lowLatency, delay all responses to the core by one cycle (stage 2)
         always_ff @(posedge clk_i or negedge rst_ni)
         begin : st2_core_rsp_ff
-            core_rsp_valid <= st1_rsp_valid;
-            core_rsp_aborted <= st1_rsp_aborted;
-            core_rsp_error <= st1_rsp_error;
-            core_rsp_sid <= st1_req.sid;
-            core_rsp_tid <= st1_req.tid;
+            if (!rst_ni) begin
+                core_rsp_valid <= 1'b0;
+                core_rsp_aborted <= 1'b0;
+                core_rsp_error <= 1'b0;
+                core_rsp_sid <= 'h0;
+                core_rsp_tid <= 'h0;
+            end else begin
+                core_rsp_valid <= st1_rsp_valid;
+                core_rsp_aborted <= st1_rsp_aborted;
+                core_rsp_error <= st1_rsp_error;
+                core_rsp_sid <= st1_req.sid;
+                core_rsp_tid <= st1_req.tid;
+            end
         end
     end
 
