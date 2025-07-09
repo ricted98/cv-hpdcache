@@ -840,6 +840,15 @@ private:
                     print_error("unexpected load-exclusive request");
                     continue;
                 }
+            } else if (core_req && (core_req->is_amo_lr || core_req->is_amo) && e.is_error) {
+                inflight_entry_t inflight_ret;
+                if (inflight_amo_req_m.num_available() > 1) {
+                    print_error("there shall be a single inflight atomic operation");
+                }
+                if (!inflight_amo_req_m.nb_read(inflight_ret)) {
+                    print_error("unexpected amo refill erroneous request");
+                    continue;
+                }
             }
         }
     }
