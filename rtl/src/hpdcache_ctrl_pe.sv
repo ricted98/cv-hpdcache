@@ -80,6 +80,8 @@ import hpdcache_pkg::*;
     input  logic                   st1_req_is_load_i,
     input  logic                   st1_req_is_store_i,
     input  logic                   st1_req_is_amo_i,
+    input  logic                   st1_req_is_amo_sc_i,
+    input  logic                   st1_req_is_amo_lr_i,
     input  logic                   st1_req_is_cmo_inval_i,
     input  logic                   st1_req_is_cmo_flush_i,
     input  logic                   st1_req_is_cmo_fence_i,
@@ -250,6 +252,7 @@ import hpdcache_pkg::*;
     logic  st1_fence;
     logic  st1_rtab_alloc, st1_rtab_alloc_and_link;
     logic  st0_req_cachedata_read, st1_req_cachedata_read;
+    logic  st1_req_is_amo_handler, st1_req_is_amo_refill;
     //  }}}
 
     //  Global control signals
@@ -267,6 +270,35 @@ import hpdcache_pkg::*;
                        st1_req_is_cmo_fence_i   |
                        st1_req_is_cmo_inval_i   |
                        st1_req_is_cmo_flush_i;
+
+    //  Coherent AMOs need to acquire the ownership of a cacheline before
+    //  playing the AMO locally in the AMO handler
+    //  Coherent LRs can be implemented as a refill with the LOCK signal asserted
+    //  These signals decided whether the atomic operation should be served by the
+    //  AMO/UC handler or via the miss handler
+    always_comb begin
+        st1_req_is_amo_handler = 1'b0;
+        st1_req_is_amo_refill  = 1'b0;
+
+        priority case (1'b1)
+            st1_req_is_amo_sc_i: begin
+                st1_req_is_amo_handler = 1'b1;
+            end
+            st1_req_is_amo_lr_i: begin
+                if (cachedir_hit_i)
+                    st1_req_is_amo_handler = 1'b1;
+                else
+                    st1_req_is_amo_refill = 1'b1;
+            end
+            st1_req_is_amo_i: begin
+                if (cachedir_hit_i && !st1_dir_hit_shared_i)
+                    st1_req_is_amo_handler = 1'b1;
+                else
+                    st1_req_is_amo_refill = 1'b1;
+            end
+            default: ;
+        endcase
+    end
 
     //      Trigger an event signal when a new request cannot consumed
     assign evt_stall_o = core_req_valid_i & ~core_req_ready_o;
@@ -558,7 +590,7 @@ import hpdcache_pkg::*;
 
                     //  AMO cacheable request
                     //  {{{
-                    if (st1_req_is_amo_i) begin
+                    if (st1_req_is_amo_handler) begin
                         //  There are pending transactions which must be completed and the
                         //  request is not being replayed.
                         //  When an AMO request is replayed, it is guaranteed that there
@@ -799,7 +831,7 @@ import hpdcache_pkg::*;
 
                     //  Store cacheable request
                     //  {{{
-                    if (st1_req_is_store_i) begin
+                    if (st1_req_is_store_i || st1_req_is_amo_refill) begin
                         //  Add a NOP in the pipeline when: Replaying a request, the cache cannot
                         //  accept a request from the core the next cycle. It can however accept
                         //  a new request from the replay table
@@ -827,6 +859,7 @@ import hpdcache_pkg::*;
                             //  Put the request in the replay table
                             st1_rtab_alloc = 1'b1;
                             st1_rtab_mshr_hit_o = 1'b1;
+                            st1_rtab_pend_trans_o = st1_req_is_amo_i;
 
                             st1_nop = 1'b1;
                         end
@@ -836,6 +869,7 @@ import hpdcache_pkg::*;
                             //  Put the request in the replay table
                             st1_rtab_alloc = 1'b1;
                             st1_rtab_flush_hit_o = 1'b1;
+                            st1_rtab_pend_trans_o = st1_req_is_amo_i;
 
                             st1_nop = 1'b1;
                         end
@@ -845,7 +879,7 @@ import hpdcache_pkg::*;
                         else if (!cachedir_hit_i) begin
                             //  Write is write-back
                             //  {{{
-                            if (st1_req_wr_wb_i || (st1_req_wr_auto_i && cfg_default_wb_i))
+                            if (st1_req_wr_wb_i || (st1_req_wr_auto_i && cfg_default_wb_i) || st1_req_is_amo_i)
                             begin
                                 //  Select a victim cacheline
                                 st1_req_cachedir_sel_victim_o = 1'b1;
@@ -862,6 +896,7 @@ import hpdcache_pkg::*;
                                 if (!st1_mshr_alloc_ready_i) begin
                                     st1_rtab_alloc = 1'b1;
                                     st1_rtab_mshr_ready_o = 1'b1;
+                                    st1_rtab_pend_trans_o = st1_req_is_amo_i;
                                 end
 
                                 //  No available slot in the MSHR
@@ -869,6 +904,7 @@ import hpdcache_pkg::*;
                                     //  Put the request in the replay table
                                     st1_rtab_alloc = 1'b1;
                                     st1_rtab_mshr_full_o = 1'b1;
+                                    st1_rtab_pend_trans_o = st1_req_is_amo_i;
                                 end
 
                                 //  Hit on an entry of the write buffer: wait for the entry to be
@@ -877,6 +913,7 @@ import hpdcache_pkg::*;
                                     //  Put the request in the replay table
                                     st1_rtab_alloc = 1'b1;
                                     st1_rtab_wbuf_hit_o = 1'b1;
+                                    st1_rtab_pend_trans_o = st1_req_is_amo_i;
                                 end
 
                                 //  no available victim cacheline (all currently pre-allocated and
@@ -885,12 +922,14 @@ import hpdcache_pkg::*;
                                     //  Put the request in the replay table
                                     st1_rtab_alloc = 1'b1;
                                     st1_rtab_dir_unavailable_o = 1'b1;
+                                    st1_rtab_pend_trans_o = st1_req_is_amo_i;
                                 end
 
                                 //  Flush needed but the controller is not ready
                                 else if (st1_dir_victim_dirty_i && !st1_flush_alloc_ready_i) begin
                                     st1_rtab_alloc = 1'b1;
                                     st1_rtab_flush_not_ready_o = 1'b1;
+                                    st1_rtab_pend_trans_o = st1_req_is_amo_i;
                                 end
 
                                 else begin
@@ -912,10 +951,19 @@ import hpdcache_pkg::*;
                                     st2_mshr_alloc_refill_o = 1'b1;
                                     st2_mshr_alloc_inval_o = 1'b1;
 
+                                    if (st1_req_is_amo_i) begin
+                                        st2_mshr_alloc_need_rsp_o = 1'b0;
+                                        st2_mshr_alloc_dirty_o = 1'b0;
+                                        st2_mshr_alloc_inval_o = !st1_req_is_amo_lr_i;
+                                        st1_rtab_alloc = 1'b1;
+                                        st1_rtab_write_miss_o = 1'b1;
+                                        st1_rtab_pend_trans_o = 1'b1;
+                                    end
+
                                     //  No available slot in the Coalesce Buffer:
                                     //  - Put the write operation into the replay table (but the
                                     //    read miss is triggered before hand to save some time)
-                                    if (st1_mshr_cbuf_full_i) begin
+                                    else if (st1_mshr_cbuf_full_i) begin
                                         st2_mshr_alloc_need_rsp_o = 1'b0;
                                         st2_mshr_alloc_dirty_o = 1'b0;
                                         st1_rtab_alloc = 1'b1;
@@ -933,7 +981,7 @@ import hpdcache_pkg::*;
                                     end
 
                                     //  Performance event
-                                    evt_cache_write_miss_o = 1'b1;
+                                    evt_cache_write_miss_o = ~st1_req_is_amo_i;
                                     evt_write_req_o = ~st1_mshr_cbuf_full_i;
                                 end
                             end
