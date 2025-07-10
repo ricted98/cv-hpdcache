@@ -99,6 +99,7 @@ import hpdcache_pkg::*;
     input  logic                  lrsc_snoop_i,
     input  hpdcache_req_addr_t    lrsc_snoop_addr_i,
     input  hpdcache_req_size_t    lrsc_snoop_size_i,
+    input  logic                  lrsc_refill_err_i,
     //  }}}
 
     //  Core response interface
@@ -261,6 +262,8 @@ import hpdcache_pkg::*;
     logic               lrsc_snoop_hit;
     logic               lrsc_snoop_reset;
 
+    logic               lrsc_refill_reset;
+
     hpdcache_nline_t    lrsc_uc_nline;
     hpdcache_offset_t   lrsc_uc_word;
     logic               lrsc_uc_hit;
@@ -292,6 +295,10 @@ import hpdcache_pkg::*;
 
     assign lrsc_uc_hit      = lrsc_rsrv_valid_q & (lrsc_rsrv_nline == lrsc_uc_nline) &
                                                   (lrsc_rsrv_word  == lrsc_uc_word);
+
+    //  Allocating AMOs experiencing memory response errors during the refill invalidate
+    //  the LR/SC reservation
+    assign lrsc_refill_reset = lrsc_refill_err_i;
 //  }}}
 
     assign req_hit = |req_hit_way_q;
@@ -867,7 +874,7 @@ import hpdcache_pkg::*;
     logic lrsc_rsrv_valid_set, lrsc_rsrv_valid_reset;
 
     assign lrsc_rsrv_valid_set   = lrsc_uc_set,
-           lrsc_rsrv_valid_reset = lrsc_uc_reset | lrsc_snoop_reset;
+           lrsc_rsrv_valid_reset = lrsc_uc_reset | lrsc_snoop_reset | lrsc_refill_reset;
 
     always_ff @(posedge clk_i or negedge rst_ni)
     begin : uc_fsm_ff
