@@ -574,10 +574,21 @@ private:
                 lrsc_entry_base = get_offset(e.addr) >> 3;
                 lrsc_entry_end = lrsc_entry_base + lrsc_entry_words;
 
-                addr_match = lrsc_buf_m.valid                      &&
-                             (lrsc_rsrv_nline == lrsc_entry_nline) &&
-                             (lrsc_rsrv_word  >= lrsc_entry_base)  &&
-                             (lrsc_rsrv_word  <  lrsc_entry_end);
+                if (req.is_store()) {
+                    //  For normal writes, the address match must be set when any of
+                    //  the modified bytes is part of the reservation
+                    //  In that case, the reservation is nullified
+                    addr_match = lrsc_buf_m.valid                      &&
+                                 (lrsc_rsrv_nline == lrsc_entry_nline) &&
+                                 (lrsc_rsrv_word  >= lrsc_entry_base)  &&
+                                 (lrsc_rsrv_word  <  lrsc_entry_end);
+                } else {
+                    //  SC and AMOs have an address match if the modified bytes
+                    //  are strictly within the reservation set
+                    addr_match = lrsc_buf_m.valid                      &&
+                                 (lrsc_rsrv_nline == lrsc_entry_nline) &&
+                                 (lrsc_rsrv_word  == lrsc_entry_base);
+                }
 
                 if (req.is_amo_sc()) {
                     //  SC can get an error response only if there is a valid
