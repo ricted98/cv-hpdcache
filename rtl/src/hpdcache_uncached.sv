@@ -97,8 +97,6 @@ import hpdcache_pkg::*;
     //  LR/SC reservation buffer
     //  {{{
     input  logic                  lrsc_snoop_i,
-    input  hpdcache_req_addr_t    lrsc_snoop_addr_i,
-    input  hpdcache_req_size_t    lrsc_snoop_size_i,
     //  }}}
 
     //  Core response interface
@@ -255,10 +253,8 @@ import hpdcache_pkg::*;
     hpdcache_nline_t    lrsc_rsrv_nline;
     hpdcache_offset_t   lrsc_rsrv_word;
 
-    hpdcache_offset_t   lrsc_snoop_words;
-    hpdcache_nline_t    lrsc_snoop_nline;
-    hpdcache_offset_t   lrsc_snoop_base, lrsc_snoop_end;
-    logic               lrsc_snoop_hit;
+    hpdcache_offset_t   lrsc_uc_words;
+    hpdcache_offset_t   lrsc_uc_base, lrsc_uc_end;
     logic               lrsc_snoop_reset;
 
     hpdcache_nline_t    lrsc_uc_nline;
@@ -273,25 +269,19 @@ import hpdcache_pkg::*;
     assign lrsc_rsrv_word   = lrsc_rsrv_addr_q[0 +: HPDcacheCfg.clOffsetWidth] >> 3;
 
     //  Check hit on LR/SC reservation for snoop port (normal write accesses)
-    assign lrsc_snoop_words = (lrsc_snoop_size_i < 3) ?
-            1 : hpdcache_offset_t'((8'h1 << lrsc_snoop_size_i) >> 3);
-    assign lrsc_snoop_nline = lrsc_snoop_addr_i[HPDcacheCfg.clOffsetWidth +:
+    //  or LR/SC reservation for AMOs and SC
+    assign lrsc_uc_words = (req_size_i < 3) ?
+            1 : hpdcache_offset_t'((8'h1 << req_size_i) >> 3);
+    assign lrsc_uc_nline = req_addr_i[HPDcacheCfg.clOffsetWidth +:
                                                 HPDcacheCfg.nlineWidth];
-    assign lrsc_snoop_base  = lrsc_snoop_addr_i[0 +: HPDcacheCfg.clOffsetWidth] >> 3;
-    assign lrsc_snoop_end   = lrsc_snoop_base + lrsc_snoop_words;
+    assign lrsc_uc_base  = req_addr_i[0 +: HPDcacheCfg.clOffsetWidth] >> 3;
+    assign lrsc_uc_end   = lrsc_uc_base + lrsc_uc_words;
 
-    assign lrsc_snoop_hit   = lrsc_rsrv_valid_q & (lrsc_rsrv_nline == lrsc_snoop_nline) &
-                                                  (lrsc_rsrv_word  >= lrsc_snoop_base) &
-                                                  (lrsc_rsrv_word  <  lrsc_snoop_end );
+    assign lrsc_uc_hit   = lrsc_rsrv_valid_q & (lrsc_rsrv_nline == lrsc_uc_nline) &
+                                               (lrsc_rsrv_word  >= lrsc_uc_base)  &
+                                               (lrsc_rsrv_word  <  lrsc_uc_end );
 
-    assign lrsc_snoop_reset = lrsc_snoop_i & lrsc_snoop_hit;
-
-    //  Check hit on LR/SC reservation for AMOs and SC
-    assign lrsc_uc_nline    = req_addr_i[HPDcacheCfg.clOffsetWidth +: HPDcacheCfg.nlineWidth];
-    assign lrsc_uc_word     = req_addr_i[0 +: HPDcacheCfg.clOffsetWidth] >> 3;
-
-    assign lrsc_uc_hit      = lrsc_rsrv_valid_q & (lrsc_rsrv_nline == lrsc_uc_nline) &
-                                                  (lrsc_rsrv_word  == lrsc_uc_word);
+    assign lrsc_snoop_reset = lrsc_snoop_i & lrsc_uc_hit;
 //  }}}
 
     assign req_hit = |req_hit_way_q;

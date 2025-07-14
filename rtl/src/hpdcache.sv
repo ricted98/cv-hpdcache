@@ -268,8 +268,6 @@ import hpdcache_pkg::*;
     hpdcache_req_data_t    uc_data_amo_write_data;
     hpdcache_req_be_t      uc_data_amo_write_be;
     logic                  uc_lrsc_snoop;
-    hpdcache_req_addr_t    uc_lrsc_snoop_addr;
-    hpdcache_req_size_t    uc_lrsc_snoop_size;
     logic                  uc_core_rsp_ready;
     logic                  uc_core_rsp_valid;
     hpdcache_rsp_t         uc_core_rsp;
@@ -576,8 +574,6 @@ import hpdcache_pkg::*;
 
         .uc_busy_i                          (~uc_ready),
         .uc_lrsc_snoop_o                    (uc_lrsc_snoop),
-        .uc_lrsc_snoop_addr_o               (uc_lrsc_snoop_addr),
-        .uc_lrsc_snoop_size_o               (uc_lrsc_snoop_size),
         .uc_req_valid_o                     (uc_req_valid),
         .uc_req_op_o                        (uc_req_op),
         .uc_req_addr_o                      (uc_req_addr),
@@ -884,8 +880,6 @@ import hpdcache_pkg::*;
         .data_amo_write_be_o           (uc_data_amo_write_be),
 
         .lrsc_snoop_i                  (uc_lrsc_snoop),
-        .lrsc_snoop_addr_i             (uc_lrsc_snoop_addr),
-        .lrsc_snoop_size_i             (uc_lrsc_snoop_size),
 
         .core_rsp_ready_i              (uc_core_rsp_ready),
         .core_rsp_valid_o              (uc_core_rsp_valid),
