@@ -549,7 +549,7 @@ import hpdcache_pkg::*;
                     //  request is not being replayed.
                     //  When an uncacheable request is replayed, it is guaranteed
                     //  that there is no other pending transaction.
-                    if (!st1_no_pend_trans_i && !st1_req_rtab_i) begin
+                    if (!st1_no_pend_trans_i) begin
                         st1_rtab_alloc = 1'b1;
                         st1_rtab_pend_trans_o = 1'b1;
                         st1_nop = 1'b1;
@@ -593,9 +593,9 @@ import hpdcache_pkg::*;
                     if (st1_req_is_amo_handler) begin
                         //  There are pending transactions which must be completed and the
                         //  request is not being replayed.
-                        //  When an AMO request is replayed, it is guaranteed that there
-                        //  is no other pending transaction.
-                        if (!st1_no_pend_trans_i && !st1_req_rtab_i) begin
+                        //  When an uncacheable request is replayed, it is guaranteed
+                        //  that there is no other pending transaction.
+                        if (!st1_no_pend_trans_i) begin
                             st1_rtab_alloc = 1'b1;
                             st1_rtab_pend_trans_o = 1'b1;
                             st1_nop = 1'b1;
@@ -858,8 +858,7 @@ import hpdcache_pkg::*;
                         if (st1_mshr_hit_i) begin
                             //  Put the request in the replay table
                             st1_rtab_alloc = 1'b1;
-                            st1_rtab_mshr_hit_o = ~st1_req_is_amo_i;
-                            st1_rtab_pend_trans_o = st1_req_is_amo_i;
+                            st1_rtab_mshr_hit_o = 1'b1;
 
                             st1_nop = 1'b1;
                         end
@@ -868,8 +867,7 @@ import hpdcache_pkg::*;
                         else if (st1_flush_check_hit_i) begin
                             //  Put the request in the replay table
                             st1_rtab_alloc = 1'b1;
-                            st1_rtab_flush_hit_o = ~st1_req_is_amo_i;
-                            st1_rtab_pend_trans_o = st1_req_is_amo_i;
+                            st1_rtab_flush_hit_o = 1'b1;
 
                             st1_nop = 1'b1;
                         end
@@ -895,16 +893,14 @@ import hpdcache_pkg::*;
                                 //  Miss Handler is not ready to send
                                 if (!st1_mshr_alloc_ready_i) begin
                                     st1_rtab_alloc = 1'b1;
-                                    st1_rtab_mshr_ready_o = ~st1_req_is_amo_i;
-                                    st1_rtab_pend_trans_o = st1_req_is_amo_i;
+                                    st1_rtab_mshr_ready_o = 1'b1;
                                 end
 
                                 //  No available slot in the MSHR
                                 else if (st1_mshr_full_i) begin
                                     //  Put the request in the replay table
                                     st1_rtab_alloc = 1'b1;
-                                    st1_rtab_mshr_full_o = ~st1_req_is_amo_i;
-                                    st1_rtab_pend_trans_o = st1_req_is_amo_i;
+                                    st1_rtab_mshr_full_o = 1'b1;
                                 end
 
                                 //  Hit on an entry of the write buffer: wait for the entry to be
@@ -912,8 +908,7 @@ import hpdcache_pkg::*;
                                 else if (wbuf_read_hit_i) begin
                                     //  Put the request in the replay table
                                     st1_rtab_alloc = 1'b1;
-                                    st1_rtab_wbuf_hit_o = ~st1_req_is_amo_i;
-                                    st1_rtab_pend_trans_o = st1_req_is_amo_i;
+                                    st1_rtab_wbuf_hit_o = 1'b1;
                                 end
 
                                 //  no available victim cacheline (all currently pre-allocated and
@@ -921,15 +916,13 @@ import hpdcache_pkg::*;
                                 else if (st1_dir_victim_unavailable_i) begin
                                     //  Put the request in the replay table
                                     st1_rtab_alloc = 1'b1;
-                                    st1_rtab_dir_unavailable_o = ~st1_req_is_amo_i;
-                                    st1_rtab_pend_trans_o = st1_req_is_amo_i;
+                                    st1_rtab_dir_unavailable_o = 1'b1;
                                 end
 
                                 //  Flush needed but the controller is not ready
                                 else if (st1_dir_victim_dirty_i && !st1_flush_alloc_ready_i) begin
                                     st1_rtab_alloc = 1'b1;
-                                    st1_rtab_flush_not_ready_o = ~st1_req_is_amo_i;
-                                    st1_rtab_pend_trans_o = st1_req_is_amo_i;
+                                    st1_rtab_flush_not_ready_o = 1'b1;
                                 end
 
                                 else begin
@@ -956,7 +949,6 @@ import hpdcache_pkg::*;
                                         st2_mshr_alloc_dirty_o = 1'b0;
                                         st2_mshr_alloc_inval_o = !st1_req_is_amo_lr_i;
                                         st1_rtab_alloc = 1'b1;
-                                        st1_rtab_write_miss_o = 1'b1;
                                         st1_rtab_pend_trans_o = 1'b1;
                                     end
 
