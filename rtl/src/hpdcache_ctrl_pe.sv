@@ -475,9 +475,7 @@ import hpdcache_pkg::*;
                 else if (st1_req_is_uncacheable_i) begin
                     //  There are pending transactions which must be completed and the
                     //  request is not being replayed.
-                    //  When an uncacheable request is replayed, it is guaranteed
-                    //  that there is no other pending transaction.
-                    if (!st1_no_pend_trans_i && !st1_req_rtab_i) begin
+                    if (!st1_no_pend_trans_i) begin
                         st1_rtab_alloc = 1'b1;
                         st1_rtab_pend_trans_o = 1'b1;
                         st1_nop = 1'b1;
@@ -505,9 +503,7 @@ import hpdcache_pkg::*;
                     if (st1_req_is_amo_i) begin
                         //  There are pending transactions which must be completed and the
                         //  request is not being replayed.
-                        //  When an AMO request is replayed, it is guaranteed that there
-                        //  is no other pending transaction.
-                        if (!st1_no_pend_trans_i && !st1_req_rtab_i) begin
+                        if (!st1_no_pend_trans_i) begin
                             st1_rtab_alloc = 1'b1;
                             st1_rtab_pend_trans_o = 1'b1;
                             st1_nop = 1'b1;
