@@ -142,6 +142,16 @@ import hpdcache_pkg::*;
     input  logic                                dir_snoop_updt_shared_i,
     input  logic                                dir_snoop_updt_fetch_i,
     input  hpdcache_tag_t                       dir_snoop_updt_tag_i,
+
+    input  logic                                dir_uc_updt_i,
+    input  hpdcache_set_t                       dir_uc_updt_set_i,
+    input  hpdcache_way_vector_t                dir_uc_updt_way_i,
+    input  logic                                dir_uc_updt_valid_i,
+    input  logic                                dir_uc_updt_wback_i,
+    input  logic                                dir_uc_updt_dirty_i,
+    input  logic                                dir_uc_updt_shared_i,
+    input  logic                                dir_uc_updt_fetch_i,
+    input  hpdcache_tag_t                       dir_uc_updt_tag_i,
     //      }}}
 
     //      DATA array access interface
@@ -537,6 +547,24 @@ import hpdcache_pkg::*;
                         shared: dir_cmo_updt_shared_i,
                         fetch : dir_cmo_updt_fetch_i,
                         tag   : dir_cmo_updt_tag_i
+                    };
+                end
+            end
+
+            //  Cacheable AMO directory update
+            dir_uc_updt_i: begin
+                dir_addr    = dir_uc_updt_set_i;
+                dir_cs      = dir_uc_updt_way_i;
+                dir_we      = dir_uc_updt_way_i;
+
+                for (hpdcache_uint i = 0; i < HPDcacheCfg.u.ways; i++) begin
+                    dir_wentry[i] = '{
+                        valid : dir_uc_updt_valid_i,
+                        wback : dir_uc_updt_wback_i,
+                        dirty : dir_uc_updt_dirty_i,
+                        shared: dir_uc_updt_shared_i,
+                        fetch : dir_uc_updt_fetch_i,
+                        tag   : dir_uc_updt_tag_i
                     };
                 end
             end

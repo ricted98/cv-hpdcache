@@ -61,6 +61,8 @@ import hpdcache_pkg::*;
     input  logic                   st0_req_is_load_i,
     input  logic                   st0_req_is_store_i,
     input  logic                   st0_req_is_amo_i,
+    input  logic                   st0_req_is_amo_lr_i,
+    input  logic                   st0_req_is_amo_sc_i,
     input  logic                   st0_req_is_cmo_fence_i,
     input  logic                   st0_req_is_cmo_inval_i,
     input  logic                   st0_req_is_cmo_prefetch_i,
@@ -132,6 +134,7 @@ import hpdcache_pkg::*;
     output logic                   st2_mshr_alloc_dirty_o,
     output logic                   st2_mshr_alloc_inval_o,
     output logic                   st2_mshr_alloc_refill_o,
+    output logic                   st2_mshr_alloc_excl_o,
 
     input  logic                   st2_dir_updt_i,
     input  logic                   st2_dir_updt_valid_i,
@@ -208,6 +211,7 @@ import hpdcache_pkg::*;
     input  logic                   uc_busy_i,
     output logic                   uc_req_valid_o,
     output logic                   uc_core_rsp_ready_o,
+    input  logic                   uc_i,
     //   }}}
 
     //   Cache Management Operation (CMO)
@@ -252,7 +256,10 @@ import hpdcache_pkg::*;
     logic  st1_fence;
     logic  st1_rtab_alloc, st1_rtab_alloc_and_link;
     logic  st0_req_cachedata_read, st1_req_cachedata_read;
-    logic  st1_req_is_amo_handler, st1_req_is_amo_refill;
+    logic  st0_req_is_cacheable_amo_nosc;
+    logic  st1_req_is_amo_nolrsc;
+    logic  st1_req_is_amo_handler;
+    logic  st1_req_is_amo_refill;
     //  }}}
 
     //  Global control signals
@@ -276,11 +283,14 @@ import hpdcache_pkg::*;
     //  Coherent LRs can be implemented as a refill with the LOCK signal asserted
     //  These signals decided whether the atomic operation should be served by the
     //  AMO/UC handler or via the miss handler
-    always_comb begin
+    assign st0_req_is_cacheable_amo_nosc = st0_req_is_amo_i & ~st0_req_is_amo_sc_i & ~st0_req_is_uncacheable_i;
+    assign st1_req_is_amo_nolrsc = st1_req_is_amo_i & ~st1_req_is_amo_lr_i & ~st1_req_is_amo_sc_i;
+
+    always_comb begin : amo_dispatch_comb
         st1_req_is_amo_handler = 1'b0;
         st1_req_is_amo_refill  = 1'b0;
 
-        priority case (1'b1)
+        unique case (1'b1)
             st1_req_is_amo_sc_i: begin
                 st1_req_is_amo_handler = 1'b1;
             end
@@ -290,7 +300,7 @@ import hpdcache_pkg::*;
                 else
                     st1_req_is_amo_refill = 1'b1;
             end
-            st1_req_is_amo_i: begin
+            st1_req_is_amo_nolrsc: begin
                 if (cachedir_hit_i && !st1_dir_hit_shared_i)
                     st1_req_is_amo_handler = 1'b1;
                 else
@@ -379,6 +389,7 @@ import hpdcache_pkg::*;
         st2_mshr_alloc_dirty_o              = st2_mshr_alloc_dirty_i;
         st2_mshr_alloc_inval_o              = 1'b0;
         st2_mshr_alloc_refill_o             = 1'b1; // In the common case a refill is carried out
+        st2_mshr_alloc_excl_o               = 1'b0;
 
         st1_mshr_make_shared_o              = 1'b0;
         st1_mshr_make_inval_o               = 1'b0;
@@ -829,7 +840,7 @@ import hpdcache_pkg::*;
                     end
                     //  }}}
 
-                    //  Store cacheable request
+                    //  Store cacheable request or AMO refill
                     //  {{{
                     if (st1_req_is_store_i || st1_req_is_amo_refill) begin
                         //  Add a NOP in the pipeline when: Replaying a request, the cache cannot
@@ -840,9 +851,10 @@ import hpdcache_pkg::*;
                         end
 
                         // Additional NOP case in lowLatency mode: Structural hazard on the cache
-                        // data if the st0 request is a load operation.
+                        // data if the st0 request is a load operation or an AMO operation.
                         else begin
-                            st1_nop = ((core_req_valid_i |  rtab_req_valid_i) & st0_req_is_load_i) |
+                            st1_nop = ((core_req_valid_i |  rtab_req_valid_i) &
+                                       (st0_req_is_load_i | st0_req_is_cacheable_amo_nosc)) |
                                        (st1_req_rtab_i   & ~rtab_req_valid_i);
                         end
 
@@ -876,6 +888,7 @@ import hpdcache_pkg::*;
                         //  {{{
                         else if (!cachedir_hit_i) begin
                             //  Write is write-back
+                            //  Allocating AMOs default to write-back behavior
                             //  {{{
                             if (st1_req_wr_wb_i || (st1_req_wr_auto_i && cfg_default_wb_i) || st1_req_is_amo_i)
                             begin
@@ -948,6 +961,7 @@ import hpdcache_pkg::*;
                                         st2_mshr_alloc_need_rsp_o = 1'b0;
                                         st2_mshr_alloc_dirty_o = 1'b0;
                                         st2_mshr_alloc_inval_o = !st1_req_is_amo_lr_i;
+                                        st2_mshr_alloc_excl_o  = st1_req_is_amo_lr_i;
                                         st1_rtab_alloc = 1'b1;
                                         st1_rtab_pend_trans_o = 1'b1;
                                     end
@@ -1204,8 +1218,9 @@ import hpdcache_pkg::*;
 
             //     New requests/refill are served according to the following priority:
             //     0 - Refills/Invalidations (Highest priority)
-            //     1 - Replay Table
-            //     2 - Core (Lowest priority)
+            //     1 - Snoop requests
+            //     2 - Replay Table
+            //     3 - Core (Lowest priority)
 
             //     * IMPORTANT: When the replay table is full, the cache
             //       cannot accept new core requests to prevent a deadlock: If
@@ -1228,10 +1243,18 @@ import hpdcache_pkg::*;
                                & ~refill_req_valid_i
                                & (~cmo_busy_i | cmo_wait_i)
                                & ~nop;
-
+            //  Snoop transactions must respect non-blocking requirements
+            //  The dependencies are then:
+            //  - No refill is ongoing. Otherwise, a fixed latency to refill is expected, thus no deadlock should arise.
+            //  - The CMO handler is not clobbering the cache directory or the cache data
+            //  - The UC/AMO handler is not serving a cacheable request (i.e. AMOs).
+            //    As a cacheable AMO in a coherent scenario reaches the UC/AMO handler only when it can be played locally,
+            //    no deadlock should arise due to missing a memory response.
+            //  - No NOPs
             snoop_req_ready_o = snoop_req_valid_i
                                 & ~refill_req_valid_i
                                 & (~cmo_busy_i | cmo_wait_i)
+                                & (~uc_busy_i | uc_i)
                                 & ~nop;
 
             refill_req_ready_o = refill_req_valid_i
@@ -1258,7 +1281,7 @@ import hpdcache_pkg::*;
                         ~st1_req_is_uncacheable_i;
 
                 if (HPDcacheCfg.u.lowLatency) begin
-                    st0_req_cachedata_read = st0_req_is_load_i &
+                    st0_req_cachedata_read = (st0_req_is_load_i | st0_req_is_cacheable_amo_nosc) &
                             (~st1_req_is_cacheable_store | st1_req_is_error_i);
                 end
 
