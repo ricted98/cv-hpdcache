@@ -212,6 +212,7 @@ import hpdcache_pkg::*;
     output logic                   uc_req_valid_o,
     output logic                   uc_core_rsp_ready_o,
     input  logic                   uc_i,
+    input  logic                   uc_lrsc_snoop_hit_i,
     //   }}}
 
     //   Cache Management Operation (CMO)
@@ -292,7 +293,10 @@ import hpdcache_pkg::*;
 
         unique case (1'b1)
             st1_req_is_amo_sc_i: begin
-                st1_req_is_amo_handler = 1'b1;
+                if (cachedir_hit_i || !uc_lrsc_snoop_hit_i)
+                    st1_req_is_amo_handler = 1'b1;
+                else
+                    st1_req_is_amo_refill = 1'b1;
             end
             st1_req_is_amo_lr_i: begin
                 if (cachedir_hit_i)

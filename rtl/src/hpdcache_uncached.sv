@@ -108,9 +108,11 @@ import hpdcache_pkg::*;
     //  LR/SC reservation buffer
     //  {{{
     input  logic                  lrsc_snoop_i,
+    input  logic                  lrsc_snoop_reset_i,
     input  hpdcache_req_addr_t    lrsc_snoop_addr_i,
     input  hpdcache_req_size_t    lrsc_snoop_size_i,
     input  logic                  lrsc_snoop_lr_err_i,
+    output logic                  lrsc_snoop_hit_o,
     //  }}}
 
     //  Core response interface
@@ -301,7 +303,8 @@ import hpdcache_pkg::*;
                                                   (lrsc_rsrv_word  >= lrsc_snoop_base) &
                                                   (lrsc_rsrv_word  <  lrsc_snoop_end );
 
-    assign lrsc_snoop_reset = lrsc_snoop_i & lrsc_snoop_hit;
+    assign lrsc_snoop_hit_o = lrsc_snoop_i & lrsc_snoop_hit;
+    assign lrsc_snoop_reset = lrsc_snoop_hit_o & lrsc_snoop_reset_i;
 
     //  Check hit on LR/SC reservation for AMOs and SC
     assign lrsc_uc_nline    = req_addr_i[HPDcacheCfg.clOffsetWidth +: HPDcacheCfg.nlineWidth];
