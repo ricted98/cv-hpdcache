@@ -176,9 +176,11 @@ import hpdcache_pkg::*;
     //      Uncacheable request handler
     input  logic                  uc_busy_i,
     output logic                  uc_lrsc_snoop_o,
+    output logic                  uc_lrsc_snoop_reset_o,
     output hpdcache_req_addr_t    uc_lrsc_snoop_addr_o,
     output hpdcache_req_size_t    uc_lrsc_snoop_size_o,
     output logic                  uc_lrsc_snoop_lr_err_o,
+    input  logic                  uc_lrsc_snoop_hit_i,
     output logic                  uc_req_valid_o,
     output hpdcache_uc_op_t       uc_req_op_o,
     output hpdcache_req_addr_t    uc_req_addr_o,
@@ -779,6 +781,7 @@ import hpdcache_pkg::*;
         .uc_req_valid_o,
         .uc_core_rsp_ready_o,
         .uc_i,
+        .uc_lrsc_snoop_hit_i,
 
         .cmo_busy_i,
         .cmo_wait_i,
@@ -1212,7 +1215,8 @@ import hpdcache_pkg::*;
 
     //  Uncacheable request handler outputs
     //  {{{
-    assign uc_lrsc_snoop_o           = st1_req_valid_q & st1_req_is_store,
+    assign uc_lrsc_snoop_o           = st1_req_valid_q & (st1_req_is_store | st1_req_is_amo_sc),
+           uc_lrsc_snoop_reset_o     = st1_req_is_store,
            uc_lrsc_snoop_addr_o      = st1_req_addr,
            uc_lrsc_snoop_size_o      = st1_req.size,
            uc_lrsc_snoop_lr_err_o    = st1_req_valid_q & st1_req_is_amo_lr & st1_req_is_error_q,
