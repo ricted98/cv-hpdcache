@@ -604,7 +604,8 @@ private:
                 }
             }
 
-            if (req.is_amo() || req.is_amo_lr() || (req.is_amo_sc() && e.is_atomic)) {
+            //  FIXME: cacheable AMO hotfix
+            if (e.is_uncacheable && (req.is_amo() || req.is_amo_lr() || (req.is_amo_sc() && e.is_atomic))) {
                 if (check_verbosity(sc_core::SC_DEBUG)) {
                     print_debug("atomic operation shall be forwarded to memory");
                 }
@@ -703,7 +704,8 @@ private:
                         sc_resp = (uint32_t)sc_resp;
                     }
 
-                    sc_ok = e.is_atomic && sc_is_atomic;
+                    //  FIXME: cacheable AMO hotfix
+                    sc_ok = e.is_atomic && (!e.is_uncacheable || sc_is_atomic);
                     if (sc_ok) {
                         ram_m->write(
                                 reinterpret_cast<const uint8_t*>(&e.wdata[_word]),
@@ -852,7 +854,7 @@ private:
 
             inflight_mem_read_m.insert(inflight_mem_map_pair_t(req_id, e));
 
-            if (req.is_ldex()) {
+            if (req.is_ldex() && e.is_uncacheable) {
                 inflight_entry_t inflight_ret;
                 if (inflight_amo_req_m.num_available() > 1) {
                     print_error("there shall be a single inflight atomic operation");
@@ -862,14 +864,15 @@ private:
                     continue;
                 }
             } else if (core_req && (core_req->is_amo_lr || core_req->is_amo) && e.is_error) {
-                inflight_entry_t inflight_ret;
-                if (inflight_amo_req_m.num_available() > 1) {
-                    print_error("there shall be a single inflight atomic operation");
-                }
-                if (!inflight_amo_req_m.nb_read(inflight_ret)) {
-                    print_error("unexpected amo refill erroneous request");
-                    continue;
-                }
+                //  FIXME: cacheable AMO hotfix
+                // inflight_entry_t inflight_ret;
+                // if (inflight_amo_req_m.num_available() > 1) {
+                //     print_error("there shall be a single inflight atomic operation");
+                // }
+                // if (!inflight_amo_req_m.nb_read(inflight_ret)) {
+                //     print_error("unexpected amo refill erroneous request");
+                //     continue;
+                // }
             }
         }
     }
@@ -1062,7 +1065,8 @@ private:
 
             inflight_mem_write_m.insert(inflight_mem_map_pair_t(req_id, e));
 
-            if (req.is_amo()) {
+            //  FIXME: cacheable AMO hotfix
+            if (req.is_amo() && e.is_uncacheable) {
                 inflight_entry_t inflight_ret;
                 if (inflight_amo_req_m.num_available() > 1) {
                     print_error("there shall be a single inflight atomic operation");
@@ -1077,7 +1081,8 @@ private:
                 inflight_mem_read_m.insert(inflight_mem_map_pair_t(req_id, e));
             }
 
-            if (req.is_stex()) {
+            //  FIXME: cacheable AMO hotfix
+            if (req.is_stex() && e.is_uncacheable) {
                 inflight_entry_t inflight_ret;
                 if (inflight_amo_req_m.num_available() > 1) {
                     print_error("there shall be a single inflight atomic operation");
