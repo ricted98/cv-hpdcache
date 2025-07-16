@@ -104,6 +104,7 @@ import hpdcache_pkg::*;
     input  logic                  mshr_alloc_wback_i,
     input  logic                  mshr_alloc_dirty_i,
     input  logic                  mshr_alloc_inval_i,
+    input  logic                  mshr_alloc_excl_i,
     input  logic                  mshr_alloc_refill_i,
     input  hpdcache_req_data_t    mshr_alloc_wdata_i,
     input  hpdcache_req_be_t      mshr_alloc_be_i,
@@ -265,6 +266,7 @@ import hpdcache_pkg::*;
     logic                    mshr_empty;
 
     hpdcache_mem_coherence_e mem_req_coherence_q, mem_req_coherence_d;
+    logic                    mem_req_excl_q, mem_req_excl_d;
     //  }}}
 
     //  Miss Request FSM
@@ -306,8 +308,8 @@ import hpdcache_pkg::*;
     assign mem_req_o.mem_req_addr = {mshr_alloc_nline_q, {HPDcacheCfg.clOffsetWidth{1'b0}} };
     assign mem_req_o.mem_req_len = hpdcache_mem_len_t'(REFILL_REQ_LEN-1);
     assign mem_req_o.mem_req_size = hpdcache_mem_size_t'(REFILL_REQ_SIZE);
-    assign mem_req_o.mem_req_command = HPDCACHE_MEM_READ;
-    assign mem_req_o.mem_req_atomic = HPDCACHE_MEM_ATOMIC_ADD;
+    assign mem_req_o.mem_req_command = mem_req_excl_q ? HPDCACHE_MEM_ATOMIC : HPDCACHE_MEM_READ;
+    assign mem_req_o.mem_req_atomic = mem_req_excl_q ? HPDCACHE_MEM_ATOMIC_LDEX : HPDCACHE_MEM_ATOMIC_ADD;
     assign mem_req_o.mem_req_cacheable = 1'b1;
 
     if ((HPDcacheCfg.u.mshrSets > 1) && (HPDcacheCfg.u.mshrWays > 1))
@@ -322,6 +324,8 @@ import hpdcache_pkg::*;
     end else begin : gen_mem_id_mshr_sets_and_ways_eq_1
         assign mem_req_o.mem_req_id = '0;
     end
+
+    assign mem_req_excl_d = mshr_alloc_excl_i;
 
     always_comb begin : mem_req_coherence_comb
 
@@ -342,6 +346,7 @@ import hpdcache_pkg::*;
             mshr_alloc_way_q <= mshr_alloc_way_d;
             mshr_alloc_nline_q <= mshr_alloc_nline_i;
             mem_req_coherence_q <= mem_req_coherence_d;
+            mem_req_excl_q <= mem_req_excl_d;
         end
     end
 
