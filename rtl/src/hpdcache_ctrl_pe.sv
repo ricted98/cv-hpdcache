@@ -650,6 +650,11 @@ import hpdcache_pkg::*;
                                     st1_rtab_pend_trans_o = 1'b1;
                                 end else begin
                                     uc_req_valid_o = 1'b1;
+                                    //  If not lowLatency, data is read from the cache in stage 1
+                                    if (!HPDcacheCfg.u.lowLatency) begin
+                                        //  Read data from the cache
+                                        st1_req_cachedata_read = 1'b1;
+                                    end
                                 end
                             end else begin
                                 uc_req_valid_o = 1'b1;

@@ -172,7 +172,8 @@ import hpdcache_pkg::*;
         UC_CORE_RSP,
         UC_AMO_WRITE_DATA,
         UC_AMO_UPDT_DIR,
-        UC_AMO_PLAY_LOCALLY
+        UC_AMO_PLAY_LOCALLY,
+        UC_AMO_WAIT_RDATA
     } hpdcache_uc_fsm_t;
 
     localparam logic AMO_SC_SUCCESS = 1'b0;
@@ -366,8 +367,12 @@ import hpdcache_pkg::*;
                                 rsp_error_set = 1'b1;
                                 uc_fsm_d = UC_CORE_RSP;
                             end else if (!req_uc_i) begin
-                                req_rdata_valid = 1'b1;
-                                uc_fsm_d = UC_AMO_PLAY_LOCALLY;
+                                if (HPDcacheCfg.u.lowLatency) begin
+                                    req_rdata_valid = 1'b1;
+                                    uc_fsm_d = UC_AMO_PLAY_LOCALLY;
+                                end else begin
+                                    uc_fsm_d = UC_AMO_WAIT_RDATA;
+                                end
                             end else begin
                                 uc_fsm_d = UC_MEM_REQ;
                             end
@@ -565,6 +570,14 @@ import hpdcache_pkg::*;
                         end
                     end
                 endcase
+            end
+            //  }}}
+
+            //  Wait for read data when lowLatency is set to 0
+            //  {{{
+            UC_AMO_WAIT_RDATA: begin
+                req_rdata_valid = 1'b1;
+                uc_fsm_d = UC_AMO_PLAY_LOCALLY;
             end
             //  }}}
 
