@@ -704,8 +704,7 @@ private:
                         sc_resp = (uint32_t)sc_resp;
                     }
 
-                    //  FIXME: cacheable AMO hotfix
-                    sc_ok = e.is_atomic && (!e.is_uncacheable || sc_is_atomic);
+                    sc_ok = e.is_atomic && sc_is_atomic;
                     if (sc_ok) {
                         ram_m->write(
                                 reinterpret_cast<const uint8_t*>(&e.wdata[_word]),
