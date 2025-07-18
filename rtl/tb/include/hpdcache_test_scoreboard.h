@@ -1119,9 +1119,11 @@ private:
                 continue;
             }
 
-            // Write the (tid, is_atomic) pair to the map for safe communication
-            uint32_t tid = it->second.core_req_ptr ? it->second.core_req_ptr->tid : 0;
-            sc_is_atomic_m[tid] = resp.is_atomic;
+            // Only push the (tid, is_atomic) pair to the map if this is a store-exclusive (stex)
+            if (it->second.core_req_ptr && it->second.core_req_ptr->is_amo_sc) {
+                uint32_t tid = it->second.core_req_ptr->tid;
+                sc_is_atomic_m[tid] = resp.is_atomic;
+            }
 
             //  remove request from the inflight table
             inflight_mem_write_m.erase(it);
