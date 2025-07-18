@@ -1096,6 +1096,7 @@ private:
     {
         hpdcache_test_transaction_mem_write_resp resp;
         for (;;) {
+            sc_is_atomic = true;
             resp = mem_write_resp_i.read();
             nb_mem_write_resp++;
 
