@@ -284,7 +284,7 @@ import hpdcache_pkg::*;
     //  Coherent LRs can be implemented as a refill with the LOCK signal asserted
     //  These signals decided whether the atomic operation should be served by the
     //  AMO/UC handler or via the miss handler
-    assign st0_req_is_cacheable_amo_nosc = st0_req_is_amo_i & ~st0_req_is_amo_sc_i & ~st0_req_is_uncacheable_i;
+    assign st0_req_is_cacheable_amo_nosc = HPDcacheCfg.u.wbEn & st0_req_is_amo_i & ~st0_req_is_amo_sc_i & ~st0_req_is_uncacheable_i;
     assign st1_req_is_amo_nolrsc = st1_req_is_amo_i & ~st1_req_is_amo_lr_i & ~st1_req_is_amo_sc_i;
 
     always_comb begin : amo_dispatch_comb
@@ -651,7 +651,7 @@ import hpdcache_pkg::*;
                                 end else begin
                                     uc_req_valid_o = 1'b1;
                                     //  If not lowLatency, data is read from the cache in stage 1
-                                    if (!HPDcacheCfg.u.lowLatency) begin
+                                    if (!HPDcacheCfg.u.lowLatency && HPDcacheCfg.u.wbEn) begin
                                         //  Read data from the cache
                                         st1_req_cachedata_read = 1'b1;
                                     end
