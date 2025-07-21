@@ -39,6 +39,7 @@ module hpdcache_wrapper
       cbufEntries: 4,
       refillCoreRspFeedthrough: 1'b1,
       refillFifoDepth: 2,
+      snoopFifoDepth: 2,
       wbufDirEntries: 16,
       wbufDataEntries: 8,
       wbufWords: 4,
