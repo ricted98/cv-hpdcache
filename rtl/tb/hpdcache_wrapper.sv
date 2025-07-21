@@ -61,6 +61,7 @@ import hpdcache_pkg::*;
         rtabEntries: `CONF_HPDCACHE_RTAB_ENTRIES,
         flushEntries: `CONF_HPDCACHE_FLUSH_ENTRIES,
         flushFifoDepth: `CONF_HPDCACHE_FLUSH_FIFO_DEPTH,
+        snoopFifoDepth: `CONF_HPDCACHE_SNOOP_FIFO_DEPTH,
         memAddrWidth: `CONF_HPDCACHE_MEM_ADDR_WIDTH,
         memIdWidth: `CONF_HPDCACHE_MEM_ID_WIDTH,
         memDataWidth: `CONF_HPDCACHE_MEM_DATA_WIDTH,
