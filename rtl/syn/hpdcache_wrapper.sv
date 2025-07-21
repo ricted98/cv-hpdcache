@@ -169,6 +169,21 @@ module hpdcache_wrapper
       .core_rsp_valid_o,
       .core_rsp_o,
 
+      /* TODO: properly drive snoop intf */
+      .snoop_req_valid_i                 (1'b0),
+      .snoop_req_ready_o                 (),
+      .snoop_req_i                       ('0),
+      .snoop_req_abort_i                 (1'b0),
+      .snoop_req_tag_i                   ('0),
+      .snoop_req_pma_i                   ('0),
+      .snoop_rsp_valid_o                 (),
+      .snoop_rsp_o                       (),
+      .snoop_rsp_meta_o                  (),
+      .snoop_rsp_data_ready_i            (1'b1),
+      .snoop_rsp_data_valid_o            (),
+      .snoop_rsp_data_o                  (),
+      /***********************************/
+
       .mem_req_read_ready_i,
       .mem_req_read_valid_o,
       .mem_req_read_o,
