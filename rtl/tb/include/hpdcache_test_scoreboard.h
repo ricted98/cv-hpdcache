@@ -109,7 +109,6 @@ public:
       , evt_stall(0)
       , seq(nullptr)
       , mem_resp_model(nullptr)
-      , sc_is_atomic(false)
       ,
 #if ENABLE_CACHE_DIR_VERIF
       cache_dir_m(std::make_shared<GenericCacheDirectoryPlru>("hpdcache_dir",
@@ -298,6 +297,7 @@ private:
         uint8_t bytes;
         bool is_uncacheable;
         bool is_error;
+        bool is_stex;
         const inflight_entry_t* core_req_ptr;
     };
 
@@ -340,7 +340,7 @@ private:
     std::shared_ptr<ram_t> ram_m;
 
     sc_fifo<inflight_entry_t> inflight_amo_req_m;
-    bool sc_is_atomic;
+    std::map<uint32_t, bool> sc_is_atomic_m;
 
 #if SC_VERSION_MAJOR < 3
     SC_HAS_PROCESS(hpdcache_test_scoreboard);
@@ -678,7 +678,14 @@ private:
                         sc_resp = (uint32_t)sc_resp;
                     }
 
-                    sc_ok = e.is_atomic && sc_is_atomic;
+                    // Read the is_atomic value from the map for thread-safe communication
+                    bool sc_is_atomic_val = true;
+                    auto it_atomic = sc_is_atomic_m.find(e.tid);
+                    if (it_atomic != sc_is_atomic_m.end()) {
+                        sc_is_atomic_val = it_atomic->second;
+                        sc_is_atomic_m.erase(it_atomic);
+                    }
+                    sc_ok = e.is_atomic && sc_is_atomic_val;
                     if (sc_ok) {
                         ram_m->write(reinterpret_cast<const uint8_t*>(&e.wdata[_word]),
                                      reinterpret_cast<const uint8_t*>(&e.be[_word]),
@@ -1078,7 +1085,11 @@ private:
                 continue;
             }
 
-            sc_is_atomic = resp.is_atomic;
+            // Only push the (tid, is_atomic) pair to the map if this is a store-exclusive (stex)
+            if (it->second.core_req_ptr && it->second.is_stex) {
+                uint32_t tid = it->second.core_req_ptr->tid;
+                sc_is_atomic_m[tid] = resp.is_atomic;
+            }
 
             //  remove request from the inflight table
             inflight_mem_write_m.erase(it);
