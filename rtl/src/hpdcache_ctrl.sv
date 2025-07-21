@@ -437,6 +437,9 @@ import hpdcache_pkg::*;
     logic                    st1_req_is_snoop;
     logic                    st1_req_is_snoop_make_shared;
     logic                    st1_req_is_snoop_make_inval;
+    logic                    st1_req_is_snoop_clean_inval;
+    logic                    st1_req_is_snoop_read_unique;
+    logic                    st1_req_is_snoop_store;
     logic                    st1_req_wr_wt;
     logic                    st1_req_wr_wb;
     logic                    st1_req_wr_auto;
@@ -606,27 +609,32 @@ import hpdcache_pkg::*;
     assign st1_req_abort           = core_req_abort_i & ~st1_req.phys_indexed;
 
     assign st1_req_is_uncacheable       = ~cfg_enable_i | st1_req.pma.uncacheable;
-    assign st1_req_is_load              =              is_load(st1_req.op);
-    assign st1_req_is_store             =             is_store(st1_req.op);
-    assign st1_req_is_amo               =               is_amo(st1_req.op);
-    assign st1_req_is_amo_lr            =            is_amo_lr(st1_req.op);
-    assign st1_req_is_amo_sc            =            is_amo_sc(st1_req.op);
-    assign st1_req_is_amo_swap          =          is_amo_swap(st1_req.op);
-    assign st1_req_is_amo_add           =           is_amo_add(st1_req.op);
-    assign st1_req_is_amo_and           =           is_amo_and(st1_req.op);
-    assign st1_req_is_amo_or            =            is_amo_or(st1_req.op);
-    assign st1_req_is_amo_xor           =           is_amo_xor(st1_req.op);
-    assign st1_req_is_amo_max           =           is_amo_max(st1_req.op);
-    assign st1_req_is_amo_maxu          =          is_amo_maxu(st1_req.op);
-    assign st1_req_is_amo_min           =           is_amo_min(st1_req.op);
-    assign st1_req_is_amo_minu          =          is_amo_minu(st1_req.op);
-    assign st1_req_is_cmo_inval         =         is_cmo_inval(st1_req.op);
-    assign st1_req_is_cmo_flush         =         is_cmo_flush(st1_req.op);
-    assign st1_req_is_cmo_fence         =         is_cmo_fence(st1_req.op);
-    assign st1_req_is_cmo_prefetch      =      is_cmo_prefetch(st1_req.op);
-    assign st1_req_is_snoop             =             is_snoop(st1_req.op);
-    assign st1_req_is_snoop_make_shared = is_snoop_make_shared(st1_req.op);
-    assign st1_req_is_snoop_make_inval  =  is_snoop_make_inval(st1_req.op);
+    assign st1_req_is_load              =                is_load(st1_req.op);
+    assign st1_req_is_store             =               is_store(st1_req.op);
+    assign st1_req_is_amo               =                 is_amo(st1_req.op);
+    assign st1_req_is_amo_lr            =              is_amo_lr(st1_req.op);
+    assign st1_req_is_amo_sc            =              is_amo_sc(st1_req.op);
+    assign st1_req_is_amo_swap          =            is_amo_swap(st1_req.op);
+    assign st1_req_is_amo_add           =             is_amo_add(st1_req.op);
+    assign st1_req_is_amo_and           =             is_amo_and(st1_req.op);
+    assign st1_req_is_amo_or            =              is_amo_or(st1_req.op);
+    assign st1_req_is_amo_xor           =             is_amo_xor(st1_req.op);
+    assign st1_req_is_amo_max           =             is_amo_max(st1_req.op);
+    assign st1_req_is_amo_maxu          =            is_amo_maxu(st1_req.op);
+    assign st1_req_is_amo_min           =             is_amo_min(st1_req.op);
+    assign st1_req_is_amo_minu          =            is_amo_minu(st1_req.op);
+    assign st1_req_is_cmo_inval         =           is_cmo_inval(st1_req.op);
+    assign st1_req_is_cmo_flush         =           is_cmo_flush(st1_req.op);
+    assign st1_req_is_cmo_fence         =           is_cmo_fence(st1_req.op);
+    assign st1_req_is_cmo_prefetch      =        is_cmo_prefetch(st1_req.op);
+    assign st1_req_is_snoop             =               is_snoop(st1_req.op);
+    assign st1_req_is_snoop_make_shared =   is_snoop_make_shared(st1_req.op);
+    assign st1_req_is_snoop_make_inval  =    is_snoop_make_inval(st1_req.op);
+    assign st1_req_is_snoop_clean_inval = is_snoop_clean_invalid(st1_req.op);
+    assign st1_req_is_snoop_read_unique =   is_snoop_read_unique(st1_req.op);
+    assign st1_req_is_snoop_store       = st1_req_is_snoop_make_inval
+                                        | st1_req_is_snoop_clean_inval
+                                        | st1_req_is_snoop_read_unique;
 
     //  Decode write-policy hint
     assign st1_req_wr_wt           = (st1_req.pma.wr_policy_hint == HPDCACHE_WR_POLICY_WT);
@@ -1215,8 +1223,8 @@ import hpdcache_pkg::*;
 
     //  Uncacheable request handler outputs
     //  {{{
-    assign uc_lrsc_snoop_o           = st1_req_valid_q & (st1_req_is_store | st1_req_is_amo_sc),
-           uc_lrsc_snoop_reset_o     = st1_req_is_store,
+    assign uc_lrsc_snoop_o           = st1_req_valid_q & (st1_req_is_store | st1_req_is_amo_sc | st1_req_is_snoop_store),
+           uc_lrsc_snoop_reset_o     = st1_req_is_store | st1_req_is_snoop_store,
            uc_lrsc_snoop_addr_o      = st1_req_addr,
            uc_lrsc_snoop_size_o      = st1_req.size,
            uc_lrsc_snoop_lr_err_o    = st1_req_valid_q & st1_req_is_amo_lr & st1_req_is_error_q,
