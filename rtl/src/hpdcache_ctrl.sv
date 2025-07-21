@@ -93,6 +93,8 @@ import hpdcache_pkg::*;
     output hpdcache_req_offset_t  st0_mshr_check_offset_o,
     output hpdcache_nline_t       st1_mshr_check_nline_o,
     input  logic                  st1_mshr_hit_i,
+    output logic                  st1_mshr_make_shared_o,
+    output logic                  st1_mshr_make_inval_o,
     input  logic                  st1_mshr_alloc_ready_i,
     input  logic                  st1_mshr_alloc_full_i,
     input  logic                  st1_mshr_alloc_cbuf_full_i,
@@ -109,6 +111,9 @@ import hpdcache_pkg::*;
     output logic                  st2_mshr_alloc_is_prefetch_o,
     output logic                  st2_mshr_alloc_wback_o,
     output logic                  st2_mshr_alloc_dirty_o,
+    output logic                  st2_mshr_alloc_inval_o,
+    output logic                  st2_mshr_alloc_refill_o,
+    output logic                  st2_mshr_alloc_excl_o,
 
     //      Refill interface
     input  logic                  refill_req_valid_i,
@@ -171,20 +176,34 @@ import hpdcache_pkg::*;
     //      Uncacheable request handler
     input  logic                  uc_busy_i,
     output logic                  uc_lrsc_snoop_o,
+    output logic                  uc_lrsc_snoop_reset_o,
     output hpdcache_req_addr_t    uc_lrsc_snoop_addr_o,
     output hpdcache_req_size_t    uc_lrsc_snoop_size_o,
+    output logic                  uc_lrsc_snoop_lr_err_o,
+    input  logic                  uc_lrsc_snoop_hit_i,
     output logic                  uc_req_valid_o,
     output hpdcache_uc_op_t       uc_req_op_o,
     output hpdcache_req_addr_t    uc_req_addr_o,
     output hpdcache_req_size_t    uc_req_size_o,
-    output hpdcache_req_data_t    uc_req_data_o,
+    output hpdcache_req_data_t    uc_req_wdata_o,
+    output hpdcache_req_data_t    uc_req_rdata_o,
     output hpdcache_req_be_t      uc_req_be_o,
     output logic                  uc_req_uc_o,
     output hpdcache_req_sid_t     uc_req_sid_o,
     output hpdcache_req_tid_t     uc_req_tid_o,
     output logic                  uc_req_need_rsp_o,
     output hpdcache_way_vector_t  uc_req_dir_hit_way_o,
+    input  logic                  uc_i,
     input  logic                  uc_wbuf_flush_all_i,
+    input  logic                  uc_dir_amo_updt_i,
+    input  hpdcache_set_t         uc_dir_amo_updt_set_i,
+    input  hpdcache_way_vector_t  uc_dir_amo_updt_way_i,
+    input  logic                  uc_dir_amo_updt_valid_i,
+    input  logic                  uc_dir_amo_updt_wback_i,
+    input  logic                  uc_dir_amo_updt_dirty_i,
+    input  logic                  uc_dir_amo_updt_shared_i,
+    input  logic                  uc_dir_amo_updt_fetch_i,
+    input  hpdcache_tag_t         uc_dir_amo_updt_tag_i,
     input  logic                  uc_data_amo_write_i,
     input  logic                  uc_data_amo_write_enable_i,
     input  hpdcache_set_t         uc_data_amo_write_set_i,
@@ -222,12 +241,14 @@ import hpdcache_pkg::*;
     output hpdcache_way_vector_t  cmo_dir_check_nline_hit_way_o,
     output logic                  cmo_dir_check_nline_wback_o,
     output logic                  cmo_dir_check_nline_dirty_o,
+    output logic                  cmo_dir_check_nline_shared_o,
     input  logic                  cmo_dir_check_entry_i,
     input  hpdcache_set_t         cmo_dir_check_entry_set_i,
     input  hpdcache_way_vector_t  cmo_dir_check_entry_way_i,
     output logic                  cmo_dir_check_entry_valid_o,
     output logic                  cmo_dir_check_entry_wback_o,
     output logic                  cmo_dir_check_entry_dirty_o,
+    output logic                  cmo_dir_check_entry_shared_o,
     output hpdcache_tag_t         cmo_dir_check_entry_tag_o,
     input  logic                  cmo_dir_updt_i,
     input  hpdcache_set_t         cmo_dir_updt_set_i,
@@ -235,6 +256,7 @@ import hpdcache_pkg::*;
     input  logic                  cmo_dir_updt_valid_i,
     input  logic                  cmo_dir_updt_wback_i,
     input  logic                  cmo_dir_updt_dirty_i,
+    input  logic                  cmo_dir_updt_shared_i,
     input  logic                  cmo_dir_updt_fetch_i,
     input  hpdcache_tag_t         cmo_dir_updt_tag_i,
     output logic                  cmo_core_rsp_ready_o,
@@ -246,6 +268,41 @@ import hpdcache_pkg::*;
 
     output logic                  rtab_empty_o,
     output logic                  ctrl_empty_o,
+
+    //      Snoop
+    input  logic                  snoop_req_valid_i,
+    output logic                  snoop_req_ready_o,
+    input  logic                  snoop_req_abort_i, /* unused */
+    input  hpdcache_tag_t         snoop_req_tag_i,   /* unused */
+    input  hpdcache_pma_t         snoop_req_pma_i,   /* unused */
+    input  hpdcache_req_t         snoop_req_i,
+    output logic                  snoop_req_valid_o,
+    input  logic                  snoop_busy_i,
+    output hpdcache_snoop_op_t    snoop_req_op_o,
+    output hpdcache_req_sid_t     snoop_req_sid_o,
+    output hpdcache_req_tid_t     snoop_req_tid_o,
+    output hpdcache_set_t         snoop_req_set_o,
+    output hpdcache_tag_t         snoop_req_tag_o,
+    output hpdcache_way_vector_t  snoop_req_way_o,
+    output logic                  snoop_req_dir_valid_o,
+    output logic                  snoop_req_dir_wback_o,
+    output logic                  snoop_req_dir_dirty_o,
+    output logic                  snoop_req_dir_shared_o,
+    output logic                  snoop_req_dir_fetch_o,
+    input  logic                  snoop_dir_updt_i,
+    input  hpdcache_set_t         snoop_dir_updt_set_i,
+    input  hpdcache_way_vector_t  snoop_dir_updt_way_i,
+    input  logic                  snoop_dir_updt_valid_i,
+    input  logic                  snoop_dir_updt_wback_i,
+    input  logic                  snoop_dir_updt_dirty_i,
+    input  logic                  snoop_dir_updt_shared_i,
+    input  logic                  snoop_dir_updt_fetch_i,
+    input  hpdcache_tag_t         snoop_dir_updt_tag_i,
+    input  logic                  snoop_data_read_i,
+    input  hpdcache_set_t         snoop_data_read_set_i,
+    input  hpdcache_word_t        snoop_data_read_word_i,
+    input  hpdcache_way_vector_t  snoop_data_read_way_i,
+    output hpdcache_access_data_t snoop_data_read_data_o,
 
     //   Configuration signals
     input  logic                  cfg_enable_i,
@@ -292,6 +349,9 @@ import hpdcache_pkg::*;
     logic                    st2_mshr_alloc_wback_q, st2_mshr_alloc_wback_d;
     logic                    st2_mshr_alloc_dirty_q, st2_mshr_alloc_dirty_d;
     logic                    st2_mshr_alloc_need_rsp_q, st2_mshr_alloc_need_rsp_d;
+    logic                    st2_mshr_alloc_inval_q, st2_mshr_alloc_inval_d;
+    logic                    st2_mshr_alloc_refill_q, st2_mshr_alloc_refill_d;
+    logic                    st2_mshr_alloc_excl_q, st2_mshr_alloc_excl_d;
     hpdcache_req_addr_t      st2_mshr_alloc_addr_q;
     hpdcache_req_sid_t       st2_mshr_alloc_sid_q;
     hpdcache_req_tid_t       st2_mshr_alloc_tid_q;
@@ -304,6 +364,7 @@ import hpdcache_pkg::*;
     hpdcache_way_vector_t    st2_flush_alloc_way_q;
 
     logic                    st2_dir_updt_q, st2_dir_updt_d;
+    logic                    st2_dir_updt_shared_q, st2_dir_updt_shared_d;
     hpdcache_set_t           st2_dir_updt_set_q;
     hpdcache_way_vector_t    st2_dir_updt_way_q;
     hpdcache_tag_t           st2_dir_updt_tag_q;
@@ -323,9 +384,12 @@ import hpdcache_pkg::*;
     logic                    st0_req_is_load;
     logic                    st0_req_is_store;
     logic                    st0_req_is_amo;
+    logic                    st0_req_is_amo_lr;
+    logic                    st0_req_is_amo_sc;
     logic                    st0_req_is_cmo_fence;
     logic                    st0_req_is_cmo_inval;
     logic                    st0_req_is_cmo_prefetch;
+    logic                    st0_req_is_snoop;
     logic                    st0_req_cachedir_read;
     hpdcache_set_t           st0_req_set;
     hpdcache_word_t          st0_req_word;
@@ -370,12 +434,19 @@ import hpdcache_pkg::*;
     logic                    st1_req_is_cmo_flush;
     logic                    st1_req_is_cmo_fence;
     logic                    st1_req_is_cmo_prefetch;
+    logic                    st1_req_is_snoop;
+    logic                    st1_req_is_snoop_make_shared;
+    logic                    st1_req_is_snoop_make_inval;
+    logic                    st1_req_is_snoop_clean_inval;
+    logic                    st1_req_is_snoop_read_unique;
+    logic                    st1_req_is_snoop_store;
     logic                    st1_req_wr_wt;
     logic                    st1_req_wr_wb;
     logic                    st1_req_wr_auto;
     logic                    st1_dir_hit;
     logic                    st1_dir_hit_wback;
     logic                    st1_dir_hit_dirty;
+    logic                    st1_dir_hit_shared;
     logic                    st1_dir_hit_fetch;
     hpdcache_way_vector_t    st1_dir_hit_way;
     hpdcache_way_t           st1_dir_hit_way_index;
@@ -384,6 +455,7 @@ import hpdcache_pkg::*;
     logic                    st1_dir_victim_valid;
     logic                    st1_dir_victim_wback;
     logic                    st1_dir_victim_dirty;
+    logic                    st1_dir_victim_shared;
     hpdcache_tag_t           st1_dir_victim_tag;
     hpdcache_way_vector_t    st1_dir_victim_way;
     hpdcache_nline_t         st1_victim_nline;
@@ -407,6 +479,7 @@ import hpdcache_pkg::*;
 
     logic                    rtab_full;
     logic                    rtab_fence;
+    logic                    rtab_fence_only;
     logic                    rtab_no_pend_trans;
 
     logic                    st1_empty;
@@ -442,41 +515,56 @@ import hpdcache_pkg::*;
         end
     end
 
-    //     Select between request in the replay table or a new core requests
-    assign st0_req.addr_offset  = st0_rtab_pop_try_valid ? st0_rtab_pop_try_req.req.addr_offset
-                                                         : core_req_i.addr_offset;
-    assign st0_req.addr_tag     = st0_rtab_pop_try_valid ? st0_rtab_pop_try_req.req.addr_tag
-                                                         : core_req_i.addr_tag;
-    assign st0_req.wdata        = st0_rtab_pop_try_valid ? st0_rtab_pop_try_req.req.wdata
-                                                         : core_req_i.wdata;
-    assign st0_req.op           = st0_rtab_pop_try_valid ? st0_rtab_pop_try_req.req.op
-                                                         : core_req_i.op;
-    assign st0_req.be           = st0_rtab_pop_try_valid ? st0_rtab_pop_try_req.req.be
-                                                         : core_req_i.be;
-    assign st0_req.size         = st0_rtab_pop_try_valid ? st0_rtab_pop_try_req.req.size
-                                                         : core_req_i.size;
-    assign st0_req.sid          = st0_rtab_pop_try_valid ? st0_rtab_pop_try_req.req.sid
-                                                         : core_req_i.sid;
-    assign st0_req.tid          = st0_rtab_pop_try_valid ? st0_rtab_pop_try_req.req.tid
-                                                         : core_req_i.tid;
-    assign st0_req.need_rsp     = st0_rtab_pop_try_valid ? st0_rtab_pop_try_req.req.need_rsp
-                                                         : core_req_i.need_rsp;
-    assign st0_req.phys_indexed = st0_rtab_pop_try_valid ? 1'b1 :
+    //     Select between a snoop request, a request in the replay table or a new core requests
+    assign st0_req.addr_offset  = snoop_req_valid_i      ? snoop_req_i.addr_offset              :
+                                  st0_rtab_pop_try_valid ? st0_rtab_pop_try_req.req.addr_offset :
+                                                           core_req_i.addr_offset;
+    assign st0_req.addr_tag     = snoop_req_valid_i      ? snoop_req_i.addr_tag              :
+                                  st0_rtab_pop_try_valid ? st0_rtab_pop_try_req.req.addr_tag :
+                                                           core_req_i.addr_tag;
+    assign st0_req.wdata        = snoop_req_valid_i      ? snoop_req_i.wdata              :
+                                  st0_rtab_pop_try_valid ? st0_rtab_pop_try_req.req.wdata :
+                                                           core_req_i.wdata;
+    assign st0_req.op           = snoop_req_valid_i      ? snoop_req_i.op              :
+                                  st0_rtab_pop_try_valid ? st0_rtab_pop_try_req.req.op :
+                                                           core_req_i.op;
+    assign st0_req.be           = snoop_req_valid_i      ? snoop_req_i.be              :
+                                  st0_rtab_pop_try_valid ? st0_rtab_pop_try_req.req.be :
+                                                           core_req_i.be;
+    assign st0_req.size         = snoop_req_valid_i      ? snoop_req_i.size              :
+                                  st0_rtab_pop_try_valid ? st0_rtab_pop_try_req.req.size :
+                                                           core_req_i.size;
+    assign st0_req.sid          = snoop_req_valid_i      ? snoop_req_i.sid              :
+                                  st0_rtab_pop_try_valid ? st0_rtab_pop_try_req.req.sid :
+                                                           core_req_i.sid;
+    assign st0_req.tid          = snoop_req_valid_i      ? snoop_req_i.tid              :
+                                  st0_rtab_pop_try_valid ? st0_rtab_pop_try_req.req.tid :
+                                                           core_req_i.tid;
+    assign st0_req.need_rsp     = snoop_req_valid_i      ? 1'b1                              :
+                                  st0_rtab_pop_try_valid ? st0_rtab_pop_try_req.req.need_rsp :
+                                                           core_req_i.need_rsp;
+    assign st0_req.phys_indexed = snoop_req_valid_i      ? 1'b1 :
+                                  st0_rtab_pop_try_valid ? 1'b1 :
                                                            core_req_i.phys_indexed;
-    assign st0_req.pma          = st0_rtab_pop_try_valid ? st0_rtab_pop_try_req.req.pma
-                                                         : st0_req_pma;
+    assign st0_req.pma          = snoop_req_valid_i      ? snoop_req_i.pma              :
+                                  st0_rtab_pop_try_valid ? st0_rtab_pop_try_req.req.pma :
+                                                           st0_req_pma;
 
     //     Check if the request from the RTAB has been tagged with an error
-    assign st0_req_is_error = st0_rtab_pop_try_valid & st0_rtab_pop_try_error;
+    assign st0_req_is_error = ~snoop_req_valid_i & st0_rtab_pop_try_valid & st0_rtab_pop_try_error;
 
     //     Decode operation in stage 0
     assign st0_req_is_uncacheable  =     st0_req.pma.uncacheable;
     assign st0_req_is_load         =         is_load(st0_req.op);
     assign st0_req_is_store        =        is_store(st0_req.op);
     assign st0_req_is_amo          =          is_amo(st0_req.op);
+    assign st0_req_is_amo_lr       =       is_amo_lr(st0_req.op);
+    assign st0_req_is_amo_sc       =       is_amo_sc(st0_req.op);
     assign st0_req_is_cmo_fence    =    is_cmo_fence(st0_req.op);
     assign st0_req_is_cmo_inval    =    is_cmo_inval(st0_req.op);
     assign st0_req_is_cmo_prefetch = is_cmo_prefetch(st0_req.op);
+    // TODO: snoop_req_valid_i is likely enough to compute this condition
+    assign st0_req_is_snoop        =        is_snoop(st0_req.op);
     //  }}}
 
     //  Decode operation in stage 1
@@ -520,25 +608,33 @@ import hpdcache_pkg::*;
     //         previous cycle (stage 0). Useful in case of TLB miss for example
     assign st1_req_abort           = core_req_abort_i & ~st1_req.phys_indexed;
 
-    assign st1_req_is_uncacheable  = ~cfg_enable_i | st1_req.pma.uncacheable;
-    assign st1_req_is_load         =         is_load(st1_req.op);
-    assign st1_req_is_store        =        is_store(st1_req.op);
-    assign st1_req_is_amo          =          is_amo(st1_req.op);
-    assign st1_req_is_amo_lr       =       is_amo_lr(st1_req.op);
-    assign st1_req_is_amo_sc       =       is_amo_sc(st1_req.op);
-    assign st1_req_is_amo_swap     =     is_amo_swap(st1_req.op);
-    assign st1_req_is_amo_add      =      is_amo_add(st1_req.op);
-    assign st1_req_is_amo_and      =      is_amo_and(st1_req.op);
-    assign st1_req_is_amo_or       =       is_amo_or(st1_req.op);
-    assign st1_req_is_amo_xor      =      is_amo_xor(st1_req.op);
-    assign st1_req_is_amo_max      =      is_amo_max(st1_req.op);
-    assign st1_req_is_amo_maxu     =     is_amo_maxu(st1_req.op);
-    assign st1_req_is_amo_min      =      is_amo_min(st1_req.op);
-    assign st1_req_is_amo_minu     =     is_amo_minu(st1_req.op);
-    assign st1_req_is_cmo_inval    =    is_cmo_inval(st1_req.op);
-    assign st1_req_is_cmo_flush    =    is_cmo_flush(st1_req.op);
-    assign st1_req_is_cmo_fence    =    is_cmo_fence(st1_req.op);
-    assign st1_req_is_cmo_prefetch = is_cmo_prefetch(st1_req.op);
+    assign st1_req_is_uncacheable       = ~cfg_enable_i | st1_req.pma.uncacheable;
+    assign st1_req_is_load              =                is_load(st1_req.op);
+    assign st1_req_is_store             =               is_store(st1_req.op);
+    assign st1_req_is_amo               =                 is_amo(st1_req.op);
+    assign st1_req_is_amo_lr            =              is_amo_lr(st1_req.op);
+    assign st1_req_is_amo_sc            =              is_amo_sc(st1_req.op);
+    assign st1_req_is_amo_swap          =            is_amo_swap(st1_req.op);
+    assign st1_req_is_amo_add           =             is_amo_add(st1_req.op);
+    assign st1_req_is_amo_and           =             is_amo_and(st1_req.op);
+    assign st1_req_is_amo_or            =              is_amo_or(st1_req.op);
+    assign st1_req_is_amo_xor           =             is_amo_xor(st1_req.op);
+    assign st1_req_is_amo_max           =             is_amo_max(st1_req.op);
+    assign st1_req_is_amo_maxu          =            is_amo_maxu(st1_req.op);
+    assign st1_req_is_amo_min           =             is_amo_min(st1_req.op);
+    assign st1_req_is_amo_minu          =            is_amo_minu(st1_req.op);
+    assign st1_req_is_cmo_inval         =           is_cmo_inval(st1_req.op);
+    assign st1_req_is_cmo_flush         =           is_cmo_flush(st1_req.op);
+    assign st1_req_is_cmo_fence         =           is_cmo_fence(st1_req.op);
+    assign st1_req_is_cmo_prefetch      =        is_cmo_prefetch(st1_req.op);
+    assign st1_req_is_snoop             =               is_snoop(st1_req.op);
+    assign st1_req_is_snoop_make_shared =   is_snoop_make_shared(st1_req.op);
+    assign st1_req_is_snoop_make_inval  =    is_snoop_make_inval(st1_req.op);
+    assign st1_req_is_snoop_clean_inval = is_snoop_clean_invalid(st1_req.op);
+    assign st1_req_is_snoop_read_unique =   is_snoop_read_unique(st1_req.op);
+    assign st1_req_is_snoop_store       = st1_req_is_snoop_make_inval
+                                        | st1_req_is_snoop_clean_inval
+                                        | st1_req_is_snoop_read_unique;
 
     //  Decode write-policy hint
     assign st1_req_wr_wt           = (st1_req.pma.wr_policy_hint == HPDCACHE_WR_POLICY_WT);
@@ -557,6 +653,8 @@ import hpdcache_pkg::*;
         .rtab_req_ready_o                   (st0_rtab_pop_try_ready),
         .refill_req_valid_i,
         .refill_req_ready_o,
+        .snoop_req_valid_i,
+        .snoop_req_ready_o,
 
         .st0_req_is_error_i                 (st0_req_is_error),
         .st0_req_is_uncacheable_i           (st0_req_is_uncacheable),
@@ -564,9 +662,12 @@ import hpdcache_pkg::*;
         .st0_req_is_load_i                  (st0_req_is_load),
         .st0_req_is_store_i                 (st0_req_is_store),
         .st0_req_is_amo_i                   (st0_req_is_amo),
+        .st0_req_is_amo_lr_i                (st0_req_is_amo_lr),
+        .st0_req_is_amo_sc_i                (st0_req_is_amo_sc),
         .st0_req_is_cmo_fence_i             (st0_req_is_cmo_fence),
         .st0_req_is_cmo_inval_i             (st0_req_is_cmo_inval),
         .st0_req_is_cmo_prefetch_i          (st0_req_is_cmo_prefetch),
+        .st0_req_is_snoop_i                 (st0_req_is_snoop),
         .st0_req_mshr_check_o               (st0_mshr_check_o),
         .st0_req_cachedir_read_o            (st0_req_cachedir_read),
 
@@ -579,20 +680,27 @@ import hpdcache_pkg::*;
         .st1_req_is_load_i                  (st1_req_is_load),
         .st1_req_is_store_i                 (st1_req_is_store),
         .st1_req_is_amo_i                   (st1_req_is_amo),
+        .st1_req_is_amo_sc_i                (st1_req_is_amo_sc),
+        .st1_req_is_amo_lr_i                (st1_req_is_amo_lr),
         .st1_req_is_cmo_inval_i             (st1_req_is_cmo_inval),
         .st1_req_is_cmo_flush_i             (st1_req_is_cmo_flush),
         .st1_req_is_cmo_fence_i             (st1_req_is_cmo_fence),
         .st1_req_is_cmo_prefetch_i          (st1_req_is_cmo_prefetch),
+        .st1_req_is_snoop_i                 (st1_req_is_snoop),
+        .st1_req_is_snoop_make_shared_i     (st1_req_is_snoop_make_shared),
+        .st1_req_is_snoop_make_inval_i      (st1_req_is_snoop_make_inval),
         .st1_req_wr_wt_i                    (st1_req_wr_wt),
         .st1_req_wr_wb_i                    (st1_req_wr_wb),
         .st1_req_wr_auto_i                  (st1_req_wr_auto),
         .st1_dir_hit_wback_i                (st1_dir_hit_wback),
         .st1_dir_hit_dirty_i                (st1_dir_hit_dirty),
+        .st1_dir_hit_shared_i               (st1_dir_hit_shared),
         .st1_dir_hit_fetch_i                (st1_dir_hit_fetch),
         .st1_dir_victim_unavailable_i       (st1_dir_victim_unavailable),
         .st1_dir_victim_valid_i             (st1_dir_victim_valid),
         .st1_dir_victim_wback_i             (st1_dir_victim_wback),
         .st1_dir_victim_dirty_i             (st1_dir_victim_dirty),
+        .st1_dir_victim_shared_i            (st1_dir_victim_shared),
         .st1_req_valid_o                    (st1_req_valid_d),
         .st1_req_is_error_o                 (st1_req_is_error_d),
         .st1_rsp_valid_o                    (st1_rsp_valid),
@@ -613,16 +721,21 @@ import hpdcache_pkg::*;
         .st2_mshr_alloc_need_rsp_o          (st2_mshr_alloc_need_rsp_d),
         .st2_mshr_alloc_wback_o             (st2_mshr_alloc_wback_d),
         .st2_mshr_alloc_dirty_o             (st2_mshr_alloc_dirty_d),
+        .st2_mshr_alloc_inval_o             (st2_mshr_alloc_inval_d),
+        .st2_mshr_alloc_refill_o            (st2_mshr_alloc_refill_d),
+        .st2_mshr_alloc_excl_o              (st2_mshr_alloc_excl_d),
 
         .st2_dir_updt_i                     (st2_dir_updt_q),
         .st2_dir_updt_valid_i               (st2_dir_updt_valid_q),
         .st2_dir_updt_wback_i               (st2_dir_updt_wback_q),
         .st2_dir_updt_dirty_i               (st2_dir_updt_dirty_q),
+        .st2_dir_updt_shared_i              (st2_dir_updt_shared_q),
         .st2_dir_updt_fetch_i               (st2_dir_updt_fetch_q),
         .st2_dir_updt_o                     (st2_dir_updt_d),
         .st2_dir_updt_valid_o               (st2_dir_updt_valid_d),
         .st2_dir_updt_wback_o               (st2_dir_updt_wback_d),
         .st2_dir_updt_dirty_o               (st2_dir_updt_dirty_d),
+        .st2_dir_updt_shared_o              (st2_dir_updt_shared_d),
         .st2_dir_updt_fetch_o               (st2_dir_updt_fetch_d),
 
         .req_cachedata_read_o               (data_req_read),
@@ -660,6 +773,8 @@ import hpdcache_pkg::*;
         .st1_mshr_hit_i                     (st1_mshr_hit_i),
         .st1_mshr_full_i                    (st1_mshr_alloc_full_i),
         .st1_mshr_cbuf_full_i               (st1_mshr_alloc_cbuf_full_i),
+        .st1_mshr_make_shared_o             (st1_mshr_make_shared_o),
+        .st1_mshr_make_inval_o              (st1_mshr_make_inval_o),
 
         .refill_busy_i,
         .refill_core_rsp_valid_i,
@@ -673,11 +788,16 @@ import hpdcache_pkg::*;
         .uc_busy_i,
         .uc_req_valid_o,
         .uc_core_rsp_ready_o,
+        .uc_i,
+        .uc_lrsc_snoop_hit_i,
 
         .cmo_busy_i,
         .cmo_wait_i,
         .cmo_req_valid_o,
         .cmo_core_rsp_ready_o,
+
+        .snoop_req_valid_o,
+        .snoop_busy_i,
 
         .cfg_prefetch_updt_plru_i,
         .cfg_default_wb_i,
@@ -697,7 +817,7 @@ import hpdcache_pkg::*;
 
     // No pending transaction across different handlers
     assign st1_no_pend_trans = st2_empty
-                               & rtab_empty_o
+                               & (rtab_empty_o | rtab_fence_only)
                                & wbuf_empty_i
                                & mshr_empty_i
                                & flush_empty_i;
@@ -754,6 +874,7 @@ import hpdcache_pkg::*;
         .empty_o                            (rtab_empty_o),
         .full_o                             (rtab_full),
         .fence_o                            (rtab_fence),
+        .fence_only_o                       (rtab_fence_only),
 
         .check_i                            (st1_rtab_check),
         .check_nline_i                      (st1_req_nline),
@@ -804,7 +925,7 @@ import hpdcache_pkg::*;
     //  {{{
     always_ff @(posedge clk_i)
     begin : st1_req_payload_ff
-        if (core_req_ready_o | st0_rtab_pop_try_ready) begin
+        if (core_req_ready_o | st0_rtab_pop_try_ready | snoop_req_ready_o) begin
             st1_req_q <= st0_req;
         end
     end
@@ -819,7 +940,7 @@ import hpdcache_pkg::*;
         end else begin
             st1_req_valid_q    <= st1_req_valid_d;
             st1_req_is_error_q <= st1_req_is_error_d;
-            if (core_req_ready_o | st0_rtab_pop_try_ready) begin
+            if (core_req_ready_o | st0_rtab_pop_try_ready | snoop_req_ready_o) begin
                 st1_req_rtab_q <= st0_rtab_pop_try_ready;
                 if (st0_rtab_pop_try_ready) begin
                     st1_rtab_pop_try_ptr_q <= st0_rtab_pop_try_ptr;
@@ -843,7 +964,10 @@ import hpdcache_pkg::*;
             st2_mshr_alloc_is_prefetch_q <= st1_req_is_cmo_prefetch;
             st2_mshr_alloc_wback_q       <= st2_mshr_alloc_wback_d;
             st2_mshr_alloc_dirty_q       <= st2_mshr_alloc_dirty_d;
-            st2_mshr_alloc_victim_way_q  <= st1_dir_victim_way;
+            st2_mshr_alloc_victim_way_q  <= st1_dir_hit ? st1_dir_hit_way : st1_dir_victim_way;
+            st2_mshr_alloc_inval_q       <= st2_mshr_alloc_inval_d;
+            st2_mshr_alloc_refill_q      <= st2_mshr_alloc_refill_d;
+            st2_mshr_alloc_excl_q        <= st2_mshr_alloc_excl_d;
         end
 
         if (st2_flush_alloc_d) begin
@@ -858,6 +982,7 @@ import hpdcache_pkg::*;
             st2_dir_updt_valid_q  <= st2_dir_updt_valid_d;
             st2_dir_updt_wback_q  <= st2_dir_updt_wback_d;
             st2_dir_updt_dirty_q  <= st2_dir_updt_dirty_d;
+            st2_dir_updt_shared_q <= st2_dir_updt_shared_d;
             st2_dir_updt_fetch_q  <= st2_dir_updt_fetch_d;
         end
     end
@@ -936,6 +1061,7 @@ import hpdcache_pkg::*;
         .dir_hit_tag_o                 (st1_dir_hit_tag),
         .dir_hit_wback_o               (st1_dir_hit_wback),
         .dir_hit_dirty_o               (st1_dir_hit_dirty),
+        .dir_hit_shared_o              (st1_dir_hit_shared),
         .dir_hit_fetch_o               (st1_dir_hit_fetch),
 
         .dir_updt_i                    (st2_dir_updt_q),
@@ -945,6 +1071,7 @@ import hpdcache_pkg::*;
         .dir_updt_valid_i              (st2_dir_updt_valid_q),
         .dir_updt_wback_i              (st2_dir_updt_wback_q),
         .dir_updt_dirty_i              (st2_dir_updt_dirty_q),
+        .dir_updt_shared_i             (st2_dir_updt_shared_q),
         .dir_updt_fetch_i              (st2_dir_updt_fetch_q),
 
         .dir_refill_i                  (refill_write_dir_i),
@@ -958,6 +1085,7 @@ import hpdcache_pkg::*;
         .dir_victim_valid_o            (st1_dir_victim_valid),
         .dir_victim_wback_o            (st1_dir_victim_wback),
         .dir_victim_dirty_o            (st1_dir_victim_dirty),
+        .dir_victim_shared_o           (st1_dir_victim_shared),
         .dir_victim_tag_o              (st1_dir_victim_tag),
         .dir_victim_way_o              (st1_dir_victim_way),
 
@@ -972,6 +1100,7 @@ import hpdcache_pkg::*;
         .dir_cmo_check_nline_hit_way_o (cmo_dir_check_nline_hit_way_o),
         .dir_cmo_check_nline_wback_o   (cmo_dir_check_nline_wback_o),
         .dir_cmo_check_nline_dirty_o   (cmo_dir_check_nline_dirty_o),
+        .dir_cmo_check_nline_shared_o  (cmo_dir_check_nline_shared_o),
 
         .dir_cmo_check_entry_i         (cmo_dir_check_entry_i),
         .dir_cmo_check_entry_set_i     (cmo_dir_check_entry_set_i),
@@ -979,6 +1108,7 @@ import hpdcache_pkg::*;
         .dir_cmo_check_entry_valid_o   (cmo_dir_check_entry_valid_o),
         .dir_cmo_check_entry_wback_o   (cmo_dir_check_entry_wback_o),
         .dir_cmo_check_entry_dirty_o   (cmo_dir_check_entry_dirty_o),
+        .dir_cmo_check_entry_shared_o  (cmo_dir_check_entry_shared_o),
         .dir_cmo_check_entry_tag_o     (cmo_dir_check_entry_tag_o),
 
         .dir_cmo_updt_i                (cmo_dir_updt_i),
@@ -988,7 +1118,28 @@ import hpdcache_pkg::*;
         .dir_cmo_updt_valid_i          (cmo_dir_updt_valid_i),
         .dir_cmo_updt_wback_i          (cmo_dir_updt_wback_i),
         .dir_cmo_updt_dirty_i          (cmo_dir_updt_dirty_i),
+        .dir_cmo_updt_shared_i         (cmo_dir_updt_shared_i),
         .dir_cmo_updt_fetch_i          (cmo_dir_updt_fetch_i),
+
+        .dir_snoop_updt_i              (snoop_dir_updt_i),
+        .dir_snoop_updt_set_i          (snoop_dir_updt_set_i),
+        .dir_snoop_updt_way_i          (snoop_dir_updt_way_i),
+        .dir_snoop_updt_valid_i        (snoop_dir_updt_valid_i),
+        .dir_snoop_updt_wback_i        (snoop_dir_updt_wback_i),
+        .dir_snoop_updt_dirty_i        (snoop_dir_updt_dirty_i),
+        .dir_snoop_updt_shared_i       (snoop_dir_updt_shared_i),
+        .dir_snoop_updt_fetch_i        (snoop_dir_updt_fetch_i),
+        .dir_snoop_updt_tag_i          (snoop_dir_updt_tag_i),
+
+        .dir_uc_updt_i                 (uc_dir_amo_updt_i),
+        .dir_uc_updt_set_i             (uc_dir_amo_updt_set_i),
+        .dir_uc_updt_way_i             (uc_dir_amo_updt_way_i),
+        .dir_uc_updt_valid_i           (uc_dir_amo_updt_valid_i),
+        .dir_uc_updt_wback_i           (uc_dir_amo_updt_wback_i),
+        .dir_uc_updt_dirty_i           (uc_dir_amo_updt_dirty_i),
+        .dir_uc_updt_shared_i          (uc_dir_amo_updt_shared_i),
+        .dir_uc_updt_fetch_i           (uc_dir_amo_updt_fetch_i),
+        .dir_uc_updt_tag_i             (uc_dir_amo_updt_tag_i),
 
         .data_req_read_i               (data_req_read),
         .data_req_read_set_i           (data_req_read_set),
@@ -1020,6 +1171,12 @@ import hpdcache_pkg::*;
         .data_flush_read_way_i         (flush_data_read_way_i),
         .data_flush_read_word_i        (flush_data_read_word_i),
         .data_flush_read_data_o        (flush_data_read_data_o),
+
+        .data_snoop_read_i             (snoop_data_read_i),
+        .data_snoop_read_set_i         (snoop_data_read_set_i),
+        .data_snoop_read_word_i        (snoop_data_read_word_i),
+        .data_snoop_read_way_i         (snoop_data_read_way_i),
+        .data_snoop_read_data_o        (snoop_data_read_data_o),
 
         .data_refill_i                 (refill_write_data_i),
         .data_refill_set_i             (refill_set_i),
@@ -1059,16 +1216,22 @@ import hpdcache_pkg::*;
     assign st2_mshr_alloc_is_prefetch_o = st2_mshr_alloc_is_prefetch_q;
     assign st2_mshr_alloc_wback_o       = st2_mshr_alloc_wback_q;
     assign st2_mshr_alloc_dirty_o       = st2_mshr_alloc_dirty_q;
+    assign st2_mshr_alloc_inval_o       = st2_mshr_alloc_inval_q;
+    assign st2_mshr_alloc_refill_o      = st2_mshr_alloc_refill_q;
+    assign st2_mshr_alloc_excl_o        = st2_mshr_alloc_excl_q;
     //  }}}
 
     //  Uncacheable request handler outputs
     //  {{{
-    assign uc_lrsc_snoop_o           = st1_req_valid_q & st1_req_is_store,
+    assign uc_lrsc_snoop_o           = st1_req_valid_q & (st1_req_is_store | st1_req_is_amo_sc | st1_req_is_snoop_store),
+           uc_lrsc_snoop_reset_o     = st1_req_is_store | st1_req_is_snoop_store,
            uc_lrsc_snoop_addr_o      = st1_req_addr,
            uc_lrsc_snoop_size_o      = st1_req.size,
+           uc_lrsc_snoop_lr_err_o    = st1_req_valid_q & st1_req_is_amo_lr & st1_req_is_error_q,
            uc_req_addr_o             = st1_req_addr,
            uc_req_size_o             = st1_req.size,
-           uc_req_data_o             = st1_req.wdata,
+           uc_req_wdata_o            = st1_req.wdata,
+           uc_req_rdata_o            = data_req_read_data,
            uc_req_be_o               = st1_req.be,
            uc_req_uc_o               = st1_req_is_uncacheable,
            uc_req_sid_o              = st1_req.sid,
@@ -1252,6 +1415,29 @@ import hpdcache_pkg::*;
     assign flush_alloc_way_o   = st2_flush_alloc_way_q;
     //  }}}
 
+    //  Snoop handler outputs
+    //  {{{
+    assign snoop_req_op_o.is_clean_invalid         = is_snoop_clean_invalid(st1_req.op);
+    assign snoop_req_op_o.is_clean_shared          = is_snoop_clean_shared(st1_req.op);
+    assign snoop_req_op_o.is_make_invalid          = is_snoop_make_invalid(st1_req.op);
+    assign snoop_req_op_o.is_read_clean            = is_snoop_read_clean(st1_req.op);
+    assign snoop_req_op_o.is_read_not_shared_dirty = is_snoop_read_not_shared_dirty(st1_req.op);
+    assign snoop_req_op_o.is_read_once             = is_snoop_read_once(st1_req.op);
+    assign snoop_req_op_o.is_read_shared           = is_snoop_read_shared(st1_req.op);
+    assign snoop_req_op_o.is_read_unique           = is_snoop_read_unique(st1_req.op);
+
+    assign snoop_req_sid_o        = st1_req.sid;
+    assign snoop_req_tid_o        = st1_req.tid;
+    assign snoop_req_set_o        = st1_req_set;
+    assign snoop_req_tag_o        = st1_req_tag;
+    assign snoop_req_way_o        = st1_dir_hit_way;
+    assign snoop_req_dir_valid_o  = st1_dir_hit;
+    assign snoop_req_dir_wback_o  = st1_dir_hit_wback;
+    assign snoop_req_dir_dirty_o  = st1_dir_hit_dirty;
+    assign snoop_req_dir_shared_o = st1_dir_hit_shared;
+    assign snoop_req_dir_fetch_o  = st1_dir_hit_fetch;
+    //  }}}
+
     //  Control of the response to the core
     //  {{{
     if (HPDcacheCfg.u.lowLatency) begin : gen_st2_core_rsp_comb
@@ -1310,7 +1496,7 @@ import hpdcache_pkg::*;
     //  Check that the cache controller is being used by one and only one among a core request, the
     //  RTAB or the miss handler.
     assert property (@(posedge clk_i) disable iff (rst_ni !== 1'b1)
-            $onehot0({core_req_ready_o, st0_rtab_pop_try_ready, refill_req_ready_o})) else
+            $onehot0({core_req_ready_o, st0_rtab_pop_try_ready, refill_req_ready_o, snoop_req_ready_o})) else
                     $error("ctrl: only one request can be served per cycle");
 
     //  Check that requests have a valid size field. The check is not necessary for the fence,
