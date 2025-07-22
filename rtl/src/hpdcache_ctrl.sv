@@ -60,7 +60,9 @@ import hpdcache_pkg::*;
     parameter type hpdcache_req_be_t = logic,
 
     parameter type hpdcache_req_t = logic,
-    parameter type hpdcache_rsp_t = logic
+    parameter type hpdcache_rsp_t = logic,
+
+    parameter type hpdcache_snoop_req_t = logic
 )
     // }}}
 
@@ -272,10 +274,7 @@ import hpdcache_pkg::*;
     //      Snoop
     input  logic                  snoop_req_valid_i,
     output logic                  snoop_req_ready_o,
-    input  logic                  snoop_req_abort_i, /* unused */
-    input  hpdcache_tag_t         snoop_req_tag_i,   /* unused */
-    input  hpdcache_pma_t         snoop_req_pma_i,   /* unused */
-    input  hpdcache_req_t         snoop_req_i,
+    input  hpdcache_snoop_req_t   snoop_req_i,
     output logic                  snoop_req_valid_o,
     input  logic                  snoop_busy_i,
     output hpdcache_snoop_op_t    snoop_req_op_o,
@@ -398,6 +397,8 @@ import hpdcache_pkg::*;
     rtab_entry_t             st0_rtab_pop_try_req;
     rtab_ptr_t               st0_rtab_pop_try_ptr;
     logic                    st0_rtab_pop_try_error;
+    hpdcache_set_t           st0_snoop_set;
+    hpdcache_tag_t           st0_snoop_tag;
 
     // Pipeline Stage 1
     logic                    st1_rsp_valid;
@@ -515,30 +516,31 @@ import hpdcache_pkg::*;
         end
     end
 
+    //     Snoop address manipulation
+    assign st0_snoop_set = snoop_req_i.nline[0                    +: HPDcacheCfg.setWidth];
+    assign st0_snoop_tag = snoop_req_i.nline[HPDcacheCfg.setWidth +: HPDcacheCfg.tagWidth];
+
     //     Select between a snoop request, a request in the replay table or a new core requests
-    assign st0_req.addr_offset  = snoop_req_valid_i      ? snoop_req_i.addr_offset              :
-                                  st0_rtab_pop_try_valid ? st0_rtab_pop_try_req.req.addr_offset :
+    //     Fields unused by snoop requests are not muxed to avoid useless steering logic
+    assign st0_req.addr_offset  = snoop_req_valid_i      ? {st0_snoop_set, {HPDcacheCfg.clOffsetWidth{1'b0}}} :
+                                  st0_rtab_pop_try_valid ? st0_rtab_pop_try_req.req.addr_offset               :
                                                            core_req_i.addr_offset;
-    assign st0_req.addr_tag     = snoop_req_valid_i      ? snoop_req_i.addr_tag              :
+    assign st0_req.addr_tag     = snoop_req_valid_i      ? st0_snoop_tag                     :
                                   st0_rtab_pop_try_valid ? st0_rtab_pop_try_req.req.addr_tag :
                                                            core_req_i.addr_tag;
-    assign st0_req.wdata        = snoop_req_valid_i      ? snoop_req_i.wdata              :
-                                  st0_rtab_pop_try_valid ? st0_rtab_pop_try_req.req.wdata :
+    assign st0_req.wdata        = st0_rtab_pop_try_valid ? st0_rtab_pop_try_req.req.wdata :
                                                            core_req_i.wdata;
     assign st0_req.op           = snoop_req_valid_i      ? snoop_req_i.op              :
                                   st0_rtab_pop_try_valid ? st0_rtab_pop_try_req.req.op :
                                                            core_req_i.op;
-    assign st0_req.be           = snoop_req_valid_i      ? snoop_req_i.be              :
-                                  st0_rtab_pop_try_valid ? st0_rtab_pop_try_req.req.be :
+    assign st0_req.be           = st0_rtab_pop_try_valid ? st0_rtab_pop_try_req.req.be :
                                                            core_req_i.be;
-    assign st0_req.size         = snoop_req_valid_i      ? snoop_req_i.size              :
+    assign st0_req.size         = snoop_req_valid_i      ? HPDcacheCfg.clOffsetWidth     :
                                   st0_rtab_pop_try_valid ? st0_rtab_pop_try_req.req.size :
                                                            core_req_i.size;
-    assign st0_req.sid          = snoop_req_valid_i      ? snoop_req_i.sid              :
-                                  st0_rtab_pop_try_valid ? st0_rtab_pop_try_req.req.sid :
+    assign st0_req.sid          = st0_rtab_pop_try_valid ? st0_rtab_pop_try_req.req.sid :
                                                            core_req_i.sid;
-    assign st0_req.tid          = snoop_req_valid_i      ? snoop_req_i.tid              :
-                                  st0_rtab_pop_try_valid ? st0_rtab_pop_try_req.req.tid :
+    assign st0_req.tid          = st0_rtab_pop_try_valid ? st0_rtab_pop_try_req.req.tid :
                                                            core_req_i.tid;
     assign st0_req.need_rsp     = snoop_req_valid_i      ? 1'b1                              :
                                   st0_rtab_pop_try_valid ? st0_rtab_pop_try_req.req.need_rsp :
@@ -546,8 +548,8 @@ import hpdcache_pkg::*;
     assign st0_req.phys_indexed = snoop_req_valid_i      ? 1'b1 :
                                   st0_rtab_pop_try_valid ? 1'b1 :
                                                            core_req_i.phys_indexed;
-    assign st0_req.pma          = snoop_req_valid_i      ? snoop_req_i.pma              :
-                                  st0_rtab_pop_try_valid ? st0_rtab_pop_try_req.req.pma :
+    assign st0_req.pma          = snoop_req_valid_i      ? '{uncacheable: 1'b0, io: 1'b0, wr_policy_hint: HPDCACHE_WR_POLICY_AUTO} :
+                                  st0_rtab_pop_try_valid ? st0_rtab_pop_try_req.req.pma                                            :
                                                            st0_req_pma;
 
     //     Check if the request from the RTAB has been tagged with an error

@@ -120,4 +120,23 @@
 `define HPDCACHE_TYPEDEF_RSP_T(__name__, __data_t, __sid_t, __tid_t) \
     typedef `HPDCACHE_DECL_RSP_T(__data_t, __sid_t, __tid_t) __name__
 
+`define HPDCACHE_DECL_SNOOP_REQ_T(__nline_t) \
+    struct packed { \
+        __nline_t                         nline; \
+        hpdcache_pkg::hpdcache_req_op_t   op; \
+    }
+
+`define HPDCACHE_TYPEDEF_SNOOP_REQ_T(__name__, __nline_t) \
+    typedef `HPDCACHE_DECL_SNOOP_REQ_T(__nline_t) __name__
+
+`define HPDCACHE_DECL_SNOOP_RESP_DATA_T(__data_t) \
+    struct packed { \
+        __data_t data; \
+        logic    last; \
+    }
+
+`define HPDCACHE_TYPEDEF_SNOOP_RESP_DATA_T(__name__, __data_t) \
+    typedef `HPDCACHE_DECL_SNOOP_RESP_DATA_T(__data_t) __name__
+
+
 `endif //  __HPDCACHE_TYPEDEF_SVH__

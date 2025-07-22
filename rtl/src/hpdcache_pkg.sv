@@ -464,7 +464,7 @@ package hpdcache_pkg;
         logic pass_dirty;
         logic left_dirty;
         logic data_transfer;
-    } hpdcache_coherence_t;
+    } hpdcache_snoop_meta_t;
     //  }}}
 
     //  Definition Replay Table (RTAB) dependencies
