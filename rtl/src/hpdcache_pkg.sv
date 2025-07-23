@@ -459,10 +459,11 @@ package hpdcache_pkg;
     } hpdcache_snoop_op_t;
 
     typedef struct packed {
+        logic left_dirty;
         logic was_unique;
         logic is_shared;
         logic pass_dirty;
-        logic left_dirty;
+        logic error;
         logic data_transfer;
     } hpdcache_snoop_meta_t;
     //  }}}
