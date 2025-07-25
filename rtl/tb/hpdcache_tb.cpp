@@ -124,6 +124,7 @@ public:
         top->mem_resp_read_id_i(mem_resp_read_id);
         top->mem_resp_read_data_i(mem_resp_read_data);
         top->mem_resp_read_last_i(mem_resp_read_last);
+        top->mem_resp_read_ack_o(mem_resp_read_ack);
         top->mem_req_write_ready_i(mem_req_write_ready);
         top->mem_req_write_valid_o(mem_req_write_valid);
         top->mem_req_write_addr_o(mem_req_write_addr);
@@ -143,6 +144,7 @@ public:
         top->mem_resp_write_is_atomic_i(mem_resp_write_is_atomic);
         top->mem_resp_write_error_i(mem_resp_write_error);
         top->mem_resp_write_id_i(mem_resp_write_id);
+        top->mem_resp_write_ack_o(mem_resp_write_ack);
         top->evt_cache_write_miss_o(evt_cache_write_miss);
         top->evt_cache_read_miss_o(evt_cache_read_miss);
         top->evt_uncached_req_o(evt_uncached_req);
@@ -417,6 +419,7 @@ private:
     sc_core::sc_signal<sc_bv<HPDCACHE_MEM_ID_WIDTH>> mem_resp_read_id;
     sc_core::sc_signal<sc_bv<HPDCACHE_MEM_DATA_WIDTH>> mem_resp_read_data;
     sc_core::sc_signal<bool> mem_resp_read_last;
+    sc_core::sc_signal<bool> mem_resp_read_ack;
     sc_core::sc_signal<bool> mem_req_write_ready;
     sc_core::sc_signal<bool> mem_req_write_valid;
     sc_core::sc_signal<sc_bv<HPDCACHE_MEM_ADDR_WIDTH>> mem_req_write_addr;
@@ -436,6 +439,7 @@ private:
     sc_core::sc_signal<bool> mem_resp_write_is_atomic;
     sc_core::sc_signal<sc_bv<2>> mem_resp_write_error;
     sc_core::sc_signal<sc_bv<HPDCACHE_MEM_ID_WIDTH>> mem_resp_write_id;
+    sc_core::sc_signal<bool> mem_resp_write_ack;
 
     sc_core::sc_fifo<hpdcache_test_transaction_req> sb_core_req;
     sc_core::sc_fifo<hpdcache_test_transaction_resp> sb_core_resp;
