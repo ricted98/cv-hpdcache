@@ -260,7 +260,7 @@ import hpdcache_pkg::*;
     logic  st0_req_is_cacheable_amo_nosc;
     logic  st1_req_is_amo_nolrsc;
     logic  st1_req_is_amo_handler;
-    logic  st1_req_is_amo_refill;
+    logic  st1_req_is_amo_miss_handler;
     //  }}}
 
     //  Global control signals
@@ -288,27 +288,27 @@ import hpdcache_pkg::*;
     assign st1_req_is_amo_nolrsc = st1_req_is_amo_i & ~st1_req_is_amo_lr_i & ~st1_req_is_amo_sc_i;
 
     always_comb begin : amo_dispatch_comb
-        st1_req_is_amo_handler = 1'b0;
-        st1_req_is_amo_refill  = 1'b0;
+        st1_req_is_amo_handler      = 1'b0;
+        st1_req_is_amo_miss_handler = 1'b0;
 
         unique case (1'b1)
             st1_req_is_amo_sc_i: begin
-                if (cachedir_hit_i || !uc_lrsc_snoop_hit_i)
+                if (!uc_lrsc_snoop_hit_i || (cachedir_hit_i && !st1_dir_hit_shared_i))
                     st1_req_is_amo_handler = 1'b1;
                 else
-                    st1_req_is_amo_refill = 1'b1;
+                    st1_req_is_amo_miss_handler = 1'b1;
             end
             st1_req_is_amo_lr_i: begin
                 if (cachedir_hit_i)
                     st1_req_is_amo_handler = 1'b1;
                 else
-                    st1_req_is_amo_refill = 1'b1;
+                    st1_req_is_amo_miss_handler = 1'b1;
             end
             st1_req_is_amo_nolrsc: begin
                 if (cachedir_hit_i && !st1_dir_hit_shared_i)
                     st1_req_is_amo_handler = 1'b1;
                 else
-                    st1_req_is_amo_refill = 1'b1;
+                    st1_req_is_amo_miss_handler = 1'b1;
             end
             default: ;
         endcase
@@ -851,7 +851,7 @@ import hpdcache_pkg::*;
 
                     //  Store cacheable request or AMO refill
                     //  {{{
-                    if (st1_req_is_store_i || st1_req_is_amo_refill) begin
+                    if (st1_req_is_store_i || st1_req_is_amo_miss_handler) begin
                         //  Add a NOP in the pipeline when: Replaying a request, the cache cannot
                         //  accept a request from the core the next cycle. It can however accept
                         //  a new request from the replay table
@@ -1049,8 +1049,9 @@ import hpdcache_pkg::*;
                             end
 
                             //  Write is write-back
+                            //  Allocating AMOs default to write-back behavior
                             //  {{{
-                            else if (st1_req_wr_wb_i || (st1_req_wr_auto_i && st1_dir_hit_wback_i))
+                            else if (st1_req_wr_wb_i || (st1_req_wr_auto_i && st1_dir_hit_wback_i) || st1_req_is_amo_i)
                             begin
                                 //  If there is a match in the write buffer, send the entry right
                                 //  away
@@ -1093,6 +1094,7 @@ import hpdcache_pkg::*;
                                         st2_mshr_alloc_refill_o = 1'b0;
                                         st2_mshr_alloc_inval_o = 1'b1;
                                         st2_mshr_alloc_dirty_o = st1_dir_hit_dirty_i;
+                                        st2_mshr_alloc_excl_o = st1_req_is_amo_i;
                                         // Put the request in the replay table
                                         st1_rtab_alloc = 1'b1;
                                         // Technically, this is not a miss
