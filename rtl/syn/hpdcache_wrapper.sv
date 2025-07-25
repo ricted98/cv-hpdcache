@@ -134,6 +134,7 @@ module hpdcache_wrapper
   output logic                        mem_resp_read_ready_o,
   input  logic                        mem_resp_read_valid_i,
   input  hpdcache_mem_resp_r_t        mem_resp_read_i,
+  output logic                        mem_resp_read_ack_o,
 
   input  logic                        mem_req_write_ready_i,
   output logic                        mem_req_write_valid_o,
@@ -145,7 +146,8 @@ module hpdcache_wrapper
 
   output logic                        mem_resp_write_ready_o,
   input  logic                        mem_resp_write_valid_i,
-  input  hpdcache_mem_resp_w_t        mem_resp_write_i
+  input  hpdcache_mem_resp_w_t        mem_resp_write_i,
+  output logic                        mem_resp_write_ack_o
 );
 
   hpdcache #(
@@ -204,6 +206,7 @@ module hpdcache_wrapper
       .mem_resp_read_ready_o,
       .mem_resp_read_valid_i,
       .mem_resp_read_i,
+      .mem_resp_read_ack_o,
 
       .mem_req_write_ready_i,
       .mem_req_write_valid_o,
@@ -216,6 +219,7 @@ module hpdcache_wrapper
       .mem_resp_write_ready_o,
       .mem_resp_write_valid_i,
       .mem_resp_write_i,
+      .mem_resp_write_ack_o,
 
       .evt_cache_write_miss_o(  /* unused */),
       .evt_cache_read_miss_o (  /* unused */),
