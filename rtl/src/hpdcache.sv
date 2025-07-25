@@ -120,6 +120,7 @@ import hpdcache_pkg::*;
     input  logic                          mem_resp_read_inval_i,
     input  hpdcache_nline_t               mem_resp_read_inval_nline_i,
 `endif
+    output logic                          mem_resp_read_ack_o,
 
     //      Write memory interface
     input  logic                          mem_req_write_ready_i,
@@ -133,6 +134,7 @@ import hpdcache_pkg::*;
     output logic                          mem_resp_write_ready_o,
     input  logic                          mem_resp_write_valid_i,
     input  hpdcache_mem_resp_w_t          mem_resp_write_i,
+    output logic                          mem_resp_write_ack_o,
 
     //      Performance events
     output logic                          evt_cache_write_miss_o,
@@ -1357,6 +1359,10 @@ import hpdcache_pkg::*;
     assign mem_resp_read_miss_inval_nline = '0;
 `endif
 
+    // Read acknowledgment should be a one-cycle pulse which indicates
+    // that the memory response has been committed to the cache status
+    assign mem_resp_read_ack_o = mem_resp_read_valid_i && mem_resp_read_ready_o;
+
     //      Write request interface
     //
     //      There is a fixed-priority arbiter between:
@@ -1484,6 +1490,10 @@ import hpdcache_pkg::*;
     assign mem_resp_write_wbuf = hpdcache_resp_write_sel_id(mem_resp_write_i, 0);
     assign mem_resp_write_flush = hpdcache_resp_write_sel_id(mem_resp_write_i, 1);
     assign mem_resp_write_uc = hpdcache_resp_write_sel_id(mem_resp_write_i, 2);
+
+    // Write acknowledgment should be a one-cycle pulse which indicates
+    // that the memory response has been committed to the cache status
+    assign mem_resp_write_ack_o = mem_resp_write_valid_i && mem_resp_write_ready_o;
     //  }}}
 
     //  Assertions

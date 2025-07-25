@@ -150,6 +150,7 @@ import hpdcache_pkg::*;
     input  wire logic                          mem_resp_read_last_i,
     input  wire logic                          mem_resp_read_dirty_i,
     input  wire logic                          mem_resp_read_shared_i,
+    output wire logic                          mem_resp_read_ack_o,
 
     //      Memory write interface
     input  wire logic                          mem_req_write_ready_i,
@@ -173,6 +174,7 @@ import hpdcache_pkg::*;
     input  wire logic                          mem_resp_write_is_atomic_i,
     input  wire hpdcache_mem_error_e           mem_resp_write_error_i,
     input  wire hpdcache_mem_id_t              mem_resp_write_id_i,
+    output wire logic                          mem_resp_write_ack_o,
 
     //      Snoop interface
     output  var  logic                         snoop_req_ready_o,
@@ -376,6 +378,7 @@ import hpdcache_pkg::*;
         .mem_resp_read_ready_o             (mem_resp_read_ready_o),
         .mem_resp_read_valid_i             (mem_resp_read_valid_i),
         .mem_resp_read_i                   (mem_resp_read),
+        .mem_resp_read_ack_o               (mem_resp_read_ack_o),
 
         .mem_req_write_ready_i             (mem_req_write_ready_i),
         .mem_req_write_valid_o             (mem_req_write_valid_o),
@@ -388,6 +391,7 @@ import hpdcache_pkg::*;
         .mem_resp_write_ready_o            (mem_resp_write_ready_o),
         .mem_resp_write_valid_i            (mem_resp_write_valid_i),
         .mem_resp_write_i                  (mem_resp_write),
+        .mem_resp_write_ack_o              (mem_resp_write_ack_o),
 
         .evt_cache_write_miss_o,
         .evt_cache_read_miss_o,
