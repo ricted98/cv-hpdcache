@@ -165,9 +165,9 @@ import hpdcache_pkg::*;
         endcase
     end
 
-    assign axi_ar_o.snoop    = snoop,
-           axi_ar_o.bar      = '0,
-           axi_ar_o.domain   = domain,
+    assign axi_aw_o.snoop    = snoop,
+           axi_aw_o.bar      = '0,
+           axi_aw_o.domain   = domain,
            axi_aw_o.awunique = '0;
 
 
