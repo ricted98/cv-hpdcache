@@ -118,7 +118,7 @@ import hpdcache_pkg::*;
     logic                      resp_data_wlast;
     logic                      resp_data_r;
     logic                      resp_data_rok;
-    hpdcache_snoop_resp_data_t resp_data_rdata;
+    hpdcache_access_data_t     resp_data_rdata;
     logic                      resp_data_rlast;
 
     hpdcache_word_t req_word_q, req_word_d;
