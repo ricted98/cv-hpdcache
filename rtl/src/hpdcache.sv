@@ -1365,7 +1365,7 @@ import hpdcache_pkg::*;
         if (!rst_ni)
             mem_resp_read_ack_o <= 1'b0;
         else
-            mem_resp_read_ack_o <= mem_resp_read_valid_i && mem_resp_read_ready_o;
+            mem_resp_read_ack_o <= mem_resp_read_valid_i && mem_resp_read_ready_o && mem_resp_read_i.mem_resp_r_last;
     end
 
     //      Write request interface
