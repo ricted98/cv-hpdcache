@@ -70,7 +70,7 @@ import hpdcache_pkg::*;
 
     assign snoop_req_valid_o = ace_ac_valid_i;
     assign ace_ac_ready_o    = snoop_req_ready_i;
-    assign snoop_req_o.nline = ace_ac_i.addr[HPDcacheCfg.clOffsetWidth +: HPDcacheCfg.nlineWidth];
+    assign snoop_req_o.nline = ace_ac_i.addr >> HPDcacheCfg.clOffsetWidth;
     assign snoop_req_o.op    = op;
     //  ACPROT is unused
 
