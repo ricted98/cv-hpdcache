@@ -444,8 +444,31 @@ import hpdcache_pkg::*;
         .r_i            (resp_data_r),
         .rok_o          (resp_data_rok),
         .rdata_o        (resp_data_rdata),
-        .rlast_o        (resp_data_rlast)
+        .rlast_o        (/* unused */)
     );
+
+    // Logic to detect the last beat
+    localparam hpdcache_uint32 MemReqBeats = HPDcacheCfg.u.memDataWidth < HPDcacheCfg.clWidth ?
+        (HPDcacheCfg.clWidth / HPDcacheCfg.u.memDataWidth) - 1 : 0;
+
+    hpdcache_mem_len_t beats_cnt_q;
+
+    assign resp_data_rlast = (hpdcache_uint32'(beats_cnt_q) == MemReqBeats);
+
+    always_ff @(posedge clk_i or negedge rst_ni)
+    begin
+        if (!rst_ni) begin
+            beats_cnt_q <= 0;
+        end else begin
+            if (snoop_rsp_data_valid_o && snoop_rsp_data_ready_i) begin
+                if (resp_data_rlast) begin
+                    beats_cnt_q <= 0;
+                end else begin
+                    beats_cnt_q <= beats_cnt_q + 1;
+                end
+            end
+        end
+    end
 
     //  Inputs
     assign resp_data_wdata = data_read_data_i;
