@@ -743,6 +743,7 @@ import hpdcache_pkg::*;
         .req_cachedata_read_o               (data_req_read),
 
         .flush_busy_i,
+        .flush_empty_i,
         .st1_flush_check_hit_i              (flush_check_hit_i),
         .st1_flush_alloc_ready_i            (flush_alloc_ready_i),
         .st2_flush_alloc_i                  (st2_flush_alloc_q),

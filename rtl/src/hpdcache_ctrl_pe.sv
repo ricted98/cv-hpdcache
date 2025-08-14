@@ -201,6 +201,7 @@ import hpdcache_pkg::*;
 
     //   Flush controller
     input  logic                   flush_busy_i,
+    input  logic                   flush_empty_i,
     input  logic                   st1_flush_check_hit_i,
     input  logic                   st1_flush_alloc_ready_i,
     input  logic                   st2_flush_alloc_i,
@@ -608,8 +609,6 @@ import hpdcache_pkg::*;
                     if (st1_req_is_amo_handler) begin
                         //  There are pending transactions which must be completed and the
                         //  request is not being replayed.
-                        //  When an uncacheable request is replayed, it is guaranteed
-                        //  that there is no other pending transaction.
                         if (!st1_no_pend_trans_i) begin
                             st1_rtab_alloc = 1'b1;
                             st1_rtab_pend_trans_o = 1'b1;
@@ -1261,11 +1260,14 @@ import hpdcache_pkg::*;
             //  - The UC/AMO handler is not serving a cacheable request (i.e. AMOs).
             //    As a cacheable AMO in a coherent scenario reaches the UC/AMO handler only when it can be played locally,
             //    no deadlock should arise due to missing a memory response.
+            //  - No pending flushes
+            //    It is allowed to wait for writebacks and evictions
             //  - No NOPs
             snoop_req_ready_o = snoop_req_valid_i
                                 & ~refill_req_valid_i
                                 & (~cmo_busy_i | cmo_wait_i)
                                 & (~uc_busy_i | uc_i)
+                                & flush_empty_i
                                 & ~nop;
 
             refill_req_ready_o = refill_req_valid_i
