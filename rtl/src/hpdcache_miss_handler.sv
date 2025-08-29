@@ -580,11 +580,13 @@ import hpdcache_pkg::*;
 
     assign refill_is_error_o = (refill_fifo_resp_meta_rdata.r_error == HPDCACHE_MEM_RESP_NOK);
 
-    //  Discard a refill response if a snoop transaction tried to invalidate the corresponding cache line
-    assign refill_discard_d = mshr_ack_make_inval;
+    // Discard the refill response if a snoop invalidated the cache line while the MSHR
+    // was allocated for a partial-line store invalidation
+    // In this case, the cache already held a copy of the line and thus did not request the data
+    assign refill_discard_d = mshr_ack_make_inval && !mshr_ack_op.refill;
 
     //  A transaction is classified as an invalidation only if it does not require a refill,
-    //  but still results in acquiring ownership of the cache line.
+    //  but still results in acquiring ownership of the cache line
     assign refill_inval_d = mshr_ack_op.inval && !mshr_ack_op.refill;
 
     assign refill_busy_o  = (refill_fsm_q != REFILL_IDLE);
