@@ -1093,7 +1093,7 @@ import hpdcache_pkg::*;
                                         st2_mshr_alloc_refill_o = 1'b0;
                                         st2_mshr_alloc_inval_o = 1'b1;
                                         st2_mshr_alloc_dirty_o = st1_dir_hit_dirty_i;
-                                        st2_mshr_alloc_excl_o = st1_req_is_amo_i;
+                                        st2_mshr_alloc_excl_o = st1_req_is_amo_lr_i;
                                         // Put the request in the replay table
                                         st1_rtab_alloc = 1'b1;
                                         // Technically, this is not a miss
