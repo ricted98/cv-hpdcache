@@ -1094,7 +1094,7 @@ import hpdcache_pkg::*;
         .mshr_empty_i                  (miss_mshr_empty),
         .rtab_empty_i                  (rtab_empty),
         .ctrl_empty_i                  (ctrl_empty),
-        .snoop_busy_i                  (~snoop_req_ready),
+        .snoop_busy_i                  (~snoop_req_ready | snoop_req_ready_o),
 
         .req_valid_i                   (cmo_req_valid),
         .req_ready_o                   (cmo_ready),
