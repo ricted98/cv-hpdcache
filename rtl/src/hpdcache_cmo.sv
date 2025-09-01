@@ -314,7 +314,7 @@ import hpdcache_pkg::*;
             end
             CMOH_FENCE_WAIT_WBUF_RTAB_EMPTY: begin
                 wbuf_flush_all_o = rtab_empty_i;
-                if (wbuf_empty_i && rtab_empty_i) begin
+                if (wbuf_empty_i && rtab_empty_i && !snoop_busy_i) begin
                     core_rsp_send_d = core_rsp_rok;
                     cmoh_fsm_d = CMOH_IDLE;
                 end
