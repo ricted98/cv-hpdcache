@@ -621,7 +621,9 @@ import hpdcache_pkg::*;
 
                             if (cachedir_hit_i) begin
                                 //  When the hit cacheline is dirty, flush its data to the memory
-                                st2_flush_alloc_o = st1_dir_hit_dirty_i;
+                                //  FIXME: this is an hotfix to avoid dirty lines flushing
+                                //  Proper parametrization is needed
+                                st2_flush_alloc_o = st1_dir_hit_dirty_i & 0;
 
                                 //  Update the directory: an AMO request clears the dirty bit
                                 //  because it triggers a flush of the cacheline before actually
@@ -644,7 +646,9 @@ import hpdcache_pkg::*;
 
                                 //  If the cacheline is dirty, put the current request in
                                 //  replay table to wait for the flush to finish
-                                if (st1_dir_hit_dirty_i) begin
+                                //  FIXME: this is an hotfix to avoid dirty lines flushing
+                                //  Proper parametrization is needed
+                                if (st1_dir_hit_dirty_i & 0) begin
                                     st1_rtab_alloc = 1'b1;
                                     st1_rtab_pend_trans_o = 1'b1;
                                 end else begin
