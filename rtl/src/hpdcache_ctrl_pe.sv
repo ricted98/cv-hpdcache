@@ -1248,11 +1248,6 @@ import hpdcache_pkg::*;
                                & ~rtab_fence_i
                                & ~nop;
 
-            rtab_req_ready_o = rtab_req_valid_i
-                               & ~snoop_req_valid_i
-                               & ~refill_req_valid_i
-                               & (~cmo_busy_i | cmo_wait_i)
-                               & ~nop;
             //  Snoop transactions must respect non-blocking requirements
             //  The dependencies are then:
             //  - No refill is ongoing. Otherwise, a fixed latency to refill is expected, thus no deadlock should arise.
@@ -1265,10 +1260,16 @@ import hpdcache_pkg::*;
             //  - No NOPs
             snoop_req_ready_o = snoop_req_valid_i
                                 & ~refill_req_valid_i
+                                & ~rtab_req_valid_i
                                 & (~cmo_busy_i | cmo_wait_i)
                                 & (~uc_busy_i | uc_i)
                                 & flush_empty_i
                                 & ~nop;
+
+            rtab_req_ready_o = rtab_req_valid_i
+                               & ~refill_req_valid_i
+                               & (~cmo_busy_i | cmo_wait_i)
+                               & ~nop;
 
             refill_req_ready_o = refill_req_valid_i
                                  & (~cmo_busy_i | cmo_wait_i)

@@ -522,34 +522,34 @@ import hpdcache_pkg::*;
 
     //     Select between a snoop request, a request in the replay table or a new core requests
     //     Fields unused by snoop requests are not muxed to avoid useless steering logic
-    assign st0_req.addr_offset  = snoop_req_valid_i      ? {st0_snoop_set, {HPDcacheCfg.clOffsetWidth{1'b0}}} :
-                                  st0_rtab_pop_try_valid ? st0_rtab_pop_try_req.req.addr_offset               :
+    assign st0_req.addr_offset  = st0_rtab_pop_try_valid ? st0_rtab_pop_try_req.req.addr_offset               :
+                                  snoop_req_valid_i      ? {st0_snoop_set, {HPDcacheCfg.clOffsetWidth{1'b0}}} :
                                                            core_req_i.addr_offset;
-    assign st0_req.addr_tag     = snoop_req_valid_i      ? st0_snoop_tag                     :
-                                  st0_rtab_pop_try_valid ? st0_rtab_pop_try_req.req.addr_tag :
+    assign st0_req.addr_tag     = st0_rtab_pop_try_valid ? st0_rtab_pop_try_req.req.addr_tag :
+                                  snoop_req_valid_i      ? st0_snoop_tag                     :
                                                            core_req_i.addr_tag;
     assign st0_req.wdata        = st0_rtab_pop_try_valid ? st0_rtab_pop_try_req.req.wdata :
                                                            core_req_i.wdata;
-    assign st0_req.op           = snoop_req_valid_i      ? snoop_req_i.op              :
-                                  st0_rtab_pop_try_valid ? st0_rtab_pop_try_req.req.op :
+    assign st0_req.op           = st0_rtab_pop_try_valid ? st0_rtab_pop_try_req.req.op :
+                                  snoop_req_valid_i      ? snoop_req_i.op              :
                                                            core_req_i.op;
     assign st0_req.be           = st0_rtab_pop_try_valid ? st0_rtab_pop_try_req.req.be :
                                                            core_req_i.be;
-    assign st0_req.size         = snoop_req_valid_i      ? HPDcacheCfg.clOffsetWidth     :
-                                  st0_rtab_pop_try_valid ? st0_rtab_pop_try_req.req.size :
+    assign st0_req.size         = st0_rtab_pop_try_valid ? st0_rtab_pop_try_req.req.size :
+                                  snoop_req_valid_i      ? HPDcacheCfg.clOffsetWidth     :
                                                            core_req_i.size;
     assign st0_req.sid          = st0_rtab_pop_try_valid ? st0_rtab_pop_try_req.req.sid :
                                                            core_req_i.sid;
     assign st0_req.tid          = st0_rtab_pop_try_valid ? st0_rtab_pop_try_req.req.tid :
                                                            core_req_i.tid;
-    assign st0_req.need_rsp     = snoop_req_valid_i      ? 1'b1                              :
-                                  st0_rtab_pop_try_valid ? st0_rtab_pop_try_req.req.need_rsp :
+    assign st0_req.need_rsp     = st0_rtab_pop_try_valid ? st0_rtab_pop_try_req.req.need_rsp :
+                                  snoop_req_valid_i      ? 1'b1                              :
                                                            core_req_i.need_rsp;
-    assign st0_req.phys_indexed = snoop_req_valid_i      ? 1'b1 :
-                                  st0_rtab_pop_try_valid ? 1'b1 :
+    assign st0_req.phys_indexed = st0_rtab_pop_try_valid ? 1'b1 :
+                                  snoop_req_valid_i      ? 1'b1 :
                                                            core_req_i.phys_indexed;
-    assign st0_req.pma          = snoop_req_valid_i      ? '{uncacheable: 1'b0, io: 1'b0, wr_policy_hint: HPDCACHE_WR_POLICY_AUTO} :
-                                  st0_rtab_pop_try_valid ? st0_rtab_pop_try_req.req.pma                                            :
+    assign st0_req.pma          = st0_rtab_pop_try_valid ? st0_rtab_pop_try_req.req.pma                                            :
+                                  snoop_req_valid_i      ? '{uncacheable: 1'b0, io: 1'b0, wr_policy_hint: HPDCACHE_WR_POLICY_AUTO} :
                                                            st0_req_pma;
 
     //     Check if the request from the RTAB has been tagged with an error
