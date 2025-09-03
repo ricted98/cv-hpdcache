@@ -580,17 +580,18 @@ private:
                 }
             }
 
-            //  FIXME: cacheable AMO hotfix
-            // if (req.is_amo() || req.is_amo_lr() || (req.is_amo_sc() && e.is_atomic)) {
-            //     if (check_verbosity(sc_core::SC_DEBUG)) {
-            //         print_debug("atomic operation shall be forwarded to memory");
-            //     }
-            //     //  Share transaction information with the memory interface threads
-            //     if (!inflight_amo_req_m.nb_write(e)) {
-            //         print_error("inflight AMO request fifo is full");
-            //         continue;
-            //     }
-            // }
+#if !CONF_HPDCACHE_COHERENCE_ENABLE
+            if (req.is_amo() || req.is_amo_lr() || (req.is_amo_sc() && e.is_atomic)) {
+                if (check_verbosity(sc_core::SC_DEBUG)) {
+                    print_debug("atomic operation shall be forwarded to memory");
+                }
+                //  Share transaction information with the memory interface threads
+                if (!inflight_amo_req_m.nb_write(e)) {
+                    print_error("inflight AMO request fifo is full");
+                    continue;
+                }
+            }
+#endif
 
             //  keep track of written data
             if (req.is_store() && !e.is_error) {
@@ -834,17 +835,18 @@ private:
 
             inflight_mem_read_m.insert(inflight_mem_map_pair_t(req_id, e));
 
-            //  FIXME: cacheable AMO hotfix
+#if !CONF_HPDCACHE_COHERENCE_ENABLE
             if (req.is_ldex()) {
-                // inflight_entry_t inflight_ret;
-                // if (inflight_amo_req_m.num_available() > 1) {
-                //     print_error("there shall be a single inflight atomic operation");
-                // }
-                // if (!inflight_amo_req_m.nb_read(inflight_ret)) {
-                //     print_error("unexpected load-exclusive request");
-                //     continue;
-                // }
+                inflight_entry_t inflight_ret;
+                if (inflight_amo_req_m.num_available() > 1) {
+                    print_error("there shall be a single inflight atomic operation");
+                }
+                if (!inflight_amo_req_m.nb_read(inflight_ret)) {
+                    print_error("unexpected load-exclusive request");
+                    continue;
+                }
             }
+#endif
         }
     }
 
@@ -1033,16 +1035,17 @@ private:
 
             inflight_mem_write_m.insert(inflight_mem_map_pair_t(req_id, e));
 
-            //  FIXME: cacheable AMO hotfix
             if (req.is_amo()) {
-                // inflight_entry_t inflight_ret;
-                // if (inflight_amo_req_m.num_available() > 1) {
-                //     print_error("there shall be a single inflight atomic operation");
-                // }
-                // if (!inflight_amo_req_m.nb_read(inflight_ret)) {
-                //     print_error("unexpected AMO request");
-                //     continue;
-                // }
+#if !CONF_HPDCACHE_COHERENCE_ENABLE
+                inflight_entry_t inflight_ret;
+                if (inflight_amo_req_m.num_available() > 1) {
+                    print_error("there shall be a single inflight atomic operation");
+                }
+                if (!inflight_amo_req_m.nb_read(inflight_ret)) {
+                    print_error("unexpected AMO request");
+                    continue;
+                }
+#endif
                 if (core_req == nullptr) {
                     print_error("memory AMO request with no associated core request");
                 }
@@ -1051,18 +1054,20 @@ private:
 
             //  FIXME: cacheable AMO hotfix
             if (req.is_stex()) {
-                // inflight_entry_t inflight_ret;
-                // if (inflight_amo_req_m.num_available() > 1) {
-                //     print_error("there shall be a single inflight atomic operation");
-                // }
-                // if (!inflight_amo_req_m.nb_read(inflight_ret)) {
-                //     print_error("unexpected store-exclusive request");
-                //     continue;
-                // }
-                // if (!inflight_ret.is_atomic) {
-                //     print_error("store exclusive access with no valid reservation");
-                //     continue;
-                // }
+#if !CONF_HPDCACHE_COHERENCE_ENABLE
+                inflight_entry_t inflight_ret;
+                if (inflight_amo_req_m.num_available() > 1) {
+                    print_error("there shall be a single inflight atomic operation");
+                }
+                if (!inflight_amo_req_m.nb_read(inflight_ret)) {
+                    print_error("unexpected store-exclusive request");
+                    continue;
+                }
+                if (!inflight_ret.is_atomic) {
+                    print_error("store exclusive access with no valid reservation");
+                    continue;
+                }
+#endif
                 if (core_req == nullptr) {
                     print_error("memory store-conditional request with no associated core request");
                 }

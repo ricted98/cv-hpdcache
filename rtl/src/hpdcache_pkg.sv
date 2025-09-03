@@ -570,6 +570,8 @@ package hpdcache_pkg;
         //  Enable fast loads.
         //  Perform loads in 1 cycle at the cost of structural hazard for stores
         bit lowLatency;
+        //  Enable coherence features
+        bit coherenceEn;
     } hpdcache_user_cfg_t;
 
     typedef struct packed {
@@ -628,6 +630,11 @@ package hpdcache_pkg;
 
         ret.accessWidth = p.accessWords * p.wordWidth;
         ret.accessBytes = ret.accessWidth/8;
+
+        if (p.coherenceEn) begin
+            if (!p.wbEn || p.wtEn)
+                $error ("[hpdcache_pkg] Hardware coherency is supported only in WB mode only.");
+        end
 
         return ret;
     endfunction

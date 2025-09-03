@@ -1243,54 +1243,75 @@ import hpdcache_pkg::*;
 
     //  Snoop request handler
     //  {{{
-    hpdcache_snoop #(
-        .HPDcacheCfg                (HPDcacheCfg),
-        .hpdcache_req_tid_t         (hpdcache_req_tid_t),
-        .hpdcache_req_sid_t         (hpdcache_req_sid_t),
-        .hpdcache_rsp_t             (hpdcache_rsp_t),
-        .hpdcache_tag_t             (hpdcache_tag_t),
-        .hpdcache_set_t             (hpdcache_set_t),
-        .hpdcache_way_vector_t      (hpdcache_way_vector_t),
-        .hpdcache_word_t            (hpdcache_word_t),
-        .hpdcache_access_data_t     (hpdcache_access_data_t),
-        .hpdcache_snoop_resp_data_t (hpdcache_snoop_resp_data_t)
-    ) snoop_i (
-        .clk_i,
-        .rst_ni,
-        .req_valid_i            (snoop_req_valid),
-        .req_ready_o            (snoop_req_ready),
-        .req_tid_i              (snoop_req_tid),
-        .req_sid_i              (snoop_req_sid),
-        .req_op_i               (snoop_req_op),
-        .req_set_i              (snoop_req_set),
-        .req_tag_i              (snoop_req_tag),
-        .req_way_i              (snoop_req_way),
-        .req_dir_valid_i        (snoop_req_dir_valid),
-        .req_dir_wback_i        (snoop_req_dir_wback),
-        .req_dir_dirty_i        (snoop_req_dir_dirty),
-        .req_dir_shared_i       (snoop_req_dir_shared),
-        .req_dir_fetch_i        (snoop_req_dir_fetch),
-        .dir_updt_o             (snoop_dir_updt),
-        .dir_updt_set_o         (snoop_dir_updt_set),
-        .dir_updt_way_o         (snoop_dir_updt_way),
-        .dir_updt_valid_o       (snoop_dir_updt_valid),
-        .dir_updt_wback_o       (snoop_dir_updt_wback),
-        .dir_updt_dirty_o       (snoop_dir_updt_dirty),
-        .dir_updt_shared_o      (snoop_dir_updt_shared),
-        .dir_updt_fetch_o       (snoop_dir_updt_fetch),
-        .dir_updt_tag_o         (snoop_dir_updt_tag),
-        .data_read_o            (snoop_data_read),
-        .data_read_set_o        (snoop_data_read_set),
-        .data_read_word_o       (snoop_data_read_word),
-        .data_read_way_o        (snoop_data_read_way),
-        .data_read_data_i       (snoop_data_read_data),
-        .snoop_rsp_meta_ready_i (snoop_rsp_meta_ready_i),
-        .snoop_rsp_meta_valid_o (snoop_rsp_meta_valid_o),
-        .snoop_rsp_meta_o       (snoop_rsp_meta_o),
-        .snoop_rsp_data_ready_i (snoop_rsp_data_ready_i),
-        .snoop_rsp_data_valid_o (snoop_rsp_data_valid_o),
-        .snoop_rsp_data_o       (snoop_rsp_data_o)
-    );
+    if (HPDcacheCfg.u.coherenceEn) begin : gen_snoop
+        hpdcache_snoop #(
+            .HPDcacheCfg                (HPDcacheCfg),
+            .hpdcache_req_tid_t         (hpdcache_req_tid_t),
+            .hpdcache_req_sid_t         (hpdcache_req_sid_t),
+            .hpdcache_rsp_t             (hpdcache_rsp_t),
+            .hpdcache_tag_t             (hpdcache_tag_t),
+            .hpdcache_set_t             (hpdcache_set_t),
+            .hpdcache_way_vector_t      (hpdcache_way_vector_t),
+            .hpdcache_word_t            (hpdcache_word_t),
+            .hpdcache_access_data_t     (hpdcache_access_data_t),
+            .hpdcache_snoop_resp_data_t (hpdcache_snoop_resp_data_t)
+        ) snoop_i (
+            .clk_i,
+            .rst_ni,
+            .req_valid_i            (snoop_req_valid),
+            .req_ready_o            (snoop_req_ready),
+            .req_tid_i              (snoop_req_tid),
+            .req_sid_i              (snoop_req_sid),
+            .req_op_i               (snoop_req_op),
+            .req_set_i              (snoop_req_set),
+            .req_tag_i              (snoop_req_tag),
+            .req_way_i              (snoop_req_way),
+            .req_dir_valid_i        (snoop_req_dir_valid),
+            .req_dir_wback_i        (snoop_req_dir_wback),
+            .req_dir_dirty_i        (snoop_req_dir_dirty),
+            .req_dir_shared_i       (snoop_req_dir_shared),
+            .req_dir_fetch_i        (snoop_req_dir_fetch),
+            .dir_updt_o             (snoop_dir_updt),
+            .dir_updt_set_o         (snoop_dir_updt_set),
+            .dir_updt_way_o         (snoop_dir_updt_way),
+            .dir_updt_valid_o       (snoop_dir_updt_valid),
+            .dir_updt_wback_o       (snoop_dir_updt_wback),
+            .dir_updt_dirty_o       (snoop_dir_updt_dirty),
+            .dir_updt_shared_o      (snoop_dir_updt_shared),
+            .dir_updt_fetch_o       (snoop_dir_updt_fetch),
+            .dir_updt_tag_o         (snoop_dir_updt_tag),
+            .data_read_o            (snoop_data_read),
+            .data_read_set_o        (snoop_data_read_set),
+            .data_read_word_o       (snoop_data_read_word),
+            .data_read_way_o        (snoop_data_read_way),
+            .data_read_data_i       (snoop_data_read_data),
+            .snoop_rsp_meta_ready_i (snoop_rsp_meta_ready_i),
+            .snoop_rsp_meta_valid_o (snoop_rsp_meta_valid_o),
+            .snoop_rsp_meta_o       (snoop_rsp_meta_o),
+            .snoop_rsp_data_ready_i (snoop_rsp_data_ready_i),
+            .snoop_rsp_data_valid_o (snoop_rsp_data_valid_o),
+            .snoop_rsp_data_o       (snoop_rsp_data_o)
+        );
+    end else begin : gen_no_snoop
+        assign snoop_req_ready        = 1'b1;
+        assign snoop_dir_updt         = 1'b0;
+        assign snoop_dir_updt_set     = '0;
+        assign snoop_dir_updt_way     = '0;
+        assign snoop_dir_updt_valid   = 1'b0;
+        assign snoop_dir_updt_wback   = 1'b0;
+        assign snoop_dir_updt_dirty   = 1'b0;
+        assign snoop_dir_updt_shared  = 1'b0;
+        assign snoop_dir_updt_fetch   = 1'b0;
+        assign snoop_dir_updt_tag     = 1'b0;
+        assign snoop_data_read        = 1'b0;
+        assign snoop_data_read_set    = '0;
+        assign snoop_data_read_word   = '0;
+        assign snoop_data_read_way    = '0;
+        assign snoop_rsp_meta_valid_o = 1'b0;
+        assign snoop_rsp_meta_o       = '0;
+        assign snoop_rsp_data_valid_o = 1'b0;
+        assign snoop_rsp_data_o       = '0;
+    end
 
     //  }}}
 
@@ -1359,13 +1380,17 @@ import hpdcache_pkg::*;
     assign mem_resp_read_miss_inval_nline = '0;
 `endif
 
-    // Read acknowledgment should be a one-cycle pulse which indicates
-    // that the memory response has been committed to the cache status
-    always_ff @(posedge clk_i or negedge rst_ni) begin
-        if (!rst_ni)
-            mem_resp_read_ack_o <= 1'b0;
-        else
-            mem_resp_read_ack_o <= mem_resp_read_valid_i && mem_resp_read_ready_o && mem_resp_read_i.mem_resp_r_last;
+    if (HPDcacheCfg.u.coherenceEn) begin : gen_read_ack_ff
+        // Read acknowledgment should be a one-cycle pulse which indicates
+        // that the memory response has been committed to the cache status
+        always_ff @(posedge clk_i or negedge rst_ni) begin
+            if (!rst_ni)
+                mem_resp_read_ack_o <= 1'b0;
+            else
+                mem_resp_read_ack_o <= mem_resp_read_valid_i && mem_resp_read_ready_o && mem_resp_read_i.mem_resp_r_last;
+        end
+    end else begin : gen_no_read_ack_ff
+        assign mem_resp_read_ack_o = 1'b0;
     end
 
     //      Write request interface
@@ -1496,13 +1521,18 @@ import hpdcache_pkg::*;
     assign mem_resp_write_flush = hpdcache_resp_write_sel_id(mem_resp_write_i, 1);
     assign mem_resp_write_uc = hpdcache_resp_write_sel_id(mem_resp_write_i, 2);
 
-    // Write acknowledgment should be a one-cycle pulse which indicates
-    // that the memory response has been committed to the cache status
-    always_ff @(posedge clk_i or negedge rst_ni) begin
-        if (!rst_ni)
-            mem_resp_write_ack_o <= 1'b0;
-        else
-            mem_resp_write_ack_o <= mem_resp_write_valid_i && mem_resp_write_ready_o;
+
+    if (HPDcacheCfg.u.coherenceEn) begin : gen_write_ack_ff
+        // Write acknowledgment should be a one-cycle pulse which indicates
+        // that the memory response has been committed to the cache status
+        always_ff @(posedge clk_i or negedge rst_ni) begin
+            if (!rst_ni)
+                mem_resp_write_ack_o <= 1'b0;
+            else
+                mem_resp_write_ack_o <= mem_resp_write_valid_i && mem_resp_write_ready_o;
+        end
+    end else begin : gen_no_write_ack_ff
+        assign mem_resp_write_ack_o = 1'b0;
     end
     //  }}}
 

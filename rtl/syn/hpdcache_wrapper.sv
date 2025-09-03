@@ -52,7 +52,8 @@ module hpdcache_wrapper
       memDataWidth: 512,
       wtEn: 1'b1,
       wbEn: 1'b1,
-      lowLatency: 1'b1
+      lowLatency: 1'b1,
+      coherenceEn: 1'b0
   },
 
   localparam hpdcache_pkg::hpdcache_cfg_t HPDcacheCfg = hpdcache_pkg::hpdcacheBuildConfig(

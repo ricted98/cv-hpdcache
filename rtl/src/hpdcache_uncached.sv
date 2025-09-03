@@ -366,7 +366,7 @@ import hpdcache_pkg::*;
                             if (!req_uc_i && cfg_error_on_cacheable_amo_i) begin
                                 rsp_error_set = 1'b1;
                                 uc_fsm_d = UC_CORE_RSP;
-                            end else if (!req_uc_i && HPDcacheCfg.u.wbEn) begin
+                            end else if (!req_uc_i && HPDcacheCfg.u.coherenceEn) begin
                                 if (HPDcacheCfg.u.lowLatency) begin
                                     req_rdata_valid = 1'b1;
                                     uc_fsm_d = UC_AMO_PLAY_LOCALLY;
@@ -388,7 +388,7 @@ import hpdcache_pkg::*;
 
                                 //  SC with valid reservation
                                 if (lrsc_uc_hit) begin
-                                    uc_fsm_d = !req_uc_i && HPDcacheCfg.u.wbEn ? UC_AMO_PLAY_LOCALLY : UC_MEM_REQ;
+                                    uc_fsm_d = !req_uc_i && HPDcacheCfg.u.coherenceEn ? UC_AMO_PLAY_LOCALLY : UC_MEM_REQ;
                                 end
                                 //  SC with no valid reservation, thus respond with the failure code
                                 else begin
@@ -724,7 +724,7 @@ import hpdcache_pkg::*;
         mem_req_read_o.mem_req_len       = 0;
         mem_req_read_o.mem_req_size      = req_size_q;
         mem_req_read_o.mem_req_id        = mem_read_id_i;
-        mem_req_read_o.mem_req_cacheable = ~req_uc_q;
+        mem_req_read_o.mem_req_cacheable = HPDcacheCfg.u.coherenceEn && ~req_uc_q;
         mem_req_read_o.mem_req_command   = HPDCACHE_MEM_READ;
         mem_req_read_o.mem_req_atomic    = HPDCACHE_MEM_ATOMIC_ADD;
         mem_req_read_o.mem_req_coherence = HPDCACHE_MEM_COHERENCE_READ_NO_SNOOP;
@@ -754,7 +754,7 @@ import hpdcache_pkg::*;
         mem_req_write_o.mem_req_len       = 0;
         mem_req_write_o.mem_req_size      = req_size_q;
         mem_req_write_o.mem_req_id        = mem_write_id_i;
-        mem_req_write_o.mem_req_cacheable = ~req_uc_q;
+        mem_req_write_o.mem_req_cacheable = HPDcacheCfg.u.coherenceEn && ~req_uc_q;
         mem_req_write_o.mem_req_coherence = HPDCACHE_MEM_COHERENCE_WRITE_NO_SNOOP;
         unique case (1'b1)
             req_op_q.is_amo_sc: begin

@@ -520,7 +520,7 @@ import hpdcache_pkg::*;
     assign st0_snoop_set = snoop_req_i.nline[0                    +: HPDcacheCfg.setWidth];
     assign st0_snoop_tag = snoop_req_i.nline[HPDcacheCfg.setWidth +: HPDcacheCfg.tagWidth];
 
-    //     Select between a snoop request, a request in the replay table or a new core requests
+    //     Select between a request in the replay table, a snoop request or a new core requests
     //     Fields unused by snoop requests are not muxed to avoid useless steering logic
     assign st0_req.addr_offset  = st0_rtab_pop_try_valid ? st0_rtab_pop_try_req.req.addr_offset               :
                                   snoop_req_valid_i      ? {st0_snoop_set, {HPDcacheCfg.clOffsetWidth{1'b0}}} :
@@ -565,7 +565,7 @@ import hpdcache_pkg::*;
     assign st0_req_is_cmo_fence    =    is_cmo_fence(st0_req.op);
     assign st0_req_is_cmo_inval    =    is_cmo_inval(st0_req.op);
     assign st0_req_is_cmo_prefetch = is_cmo_prefetch(st0_req.op);
-    // TODO: snoop_req_valid_i is likely enough to compute this condition
+    // FIXME: snoop_req_valid_i is likely enough to compute this condition
     assign st0_req_is_snoop        =        is_snoop(st0_req.op);
     //  }}}
 
@@ -630,10 +630,13 @@ import hpdcache_pkg::*;
     assign st1_req_is_cmo_fence         =           is_cmo_fence(st1_req.op);
     assign st1_req_is_cmo_prefetch      =        is_cmo_prefetch(st1_req.op);
     assign st1_req_is_snoop             =               is_snoop(st1_req.op);
+    //  make_shared: any snoop operation transitioning the cache line to shared
     assign st1_req_is_snoop_make_shared =   is_snoop_make_shared(st1_req.op);
+    //  make_invalid: any snoop operation transitioning the cache line to invalid
     assign st1_req_is_snoop_make_inval  =    is_snoop_make_inval(st1_req.op);
     assign st1_req_is_snoop_clean_inval = is_snoop_clean_invalid(st1_req.op);
     assign st1_req_is_snoop_read_unique =   is_snoop_read_unique(st1_req.op);
+    //  snoop_store: any snoop operation which should reset an LR/SC reservation
     assign st1_req_is_snoop_store       = st1_req_is_snoop_make_inval
                                         | st1_req_is_snoop_clean_inval
                                         | st1_req_is_snoop_read_unique;
@@ -967,6 +970,7 @@ import hpdcache_pkg::*;
             st2_mshr_alloc_is_prefetch_q <= st1_req_is_cmo_prefetch;
             st2_mshr_alloc_wback_q       <= st2_mshr_alloc_wback_d;
             st2_mshr_alloc_dirty_q       <= st2_mshr_alloc_dirty_d;
+            //  An invalidation without refill should update the hit way (coherency only)
             st2_mshr_alloc_victim_way_q  <= st1_dir_hit ? st1_dir_hit_way : st1_dir_victim_way;
             st2_mshr_alloc_inval_q       <= st2_mshr_alloc_inval_d;
             st2_mshr_alloc_refill_q      <= st2_mshr_alloc_refill_d;

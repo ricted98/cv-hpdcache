@@ -438,7 +438,6 @@ import hpdcache_pkg::*;
                 automatic logic is_prefetch;
                 automatic hpdcache_uint core_rsp_word;
 
-                //  The outstanding transaction was a proper refill
                 //  Respond to the core (when needed)
                 if (refill_cnt_q == 0) begin
                     core_rsp_word = hpdcache_uint'(mshr_ack_word)/HPDcacheCfg.u.accessWords;
@@ -492,6 +491,10 @@ import hpdcache_pkg::*;
                     refill_discard = refill_discard_q;
                     refill_inval = refill_inval_q;
                 end
+                //  Do not write refill data when:
+                //  - The response is tagged with an error
+                //  - The refill is nullified by a snoop transaction (coherence only)
+                //  - The MSHR is allocated only for an invalidation broadcast (coherence only)
                 refill_write_data_o = ~(refill_is_error_o | refill_discard | refill_inval);
 
                 //  Consume chunk of data from the FIFO buffer in the memory interface
@@ -618,7 +621,8 @@ import hpdcache_pkg::*;
     end
 
     //  Write the new entry in the cache directory
-    //  In case of error in the refill response, invalidate pre-allocated cache directory entry
+    //  In case of error in the refill response or a refill discarded due to snooping,
+    //  invalidate pre-allocated cache directory entry
     assign refill_dir_entry_o = '{
         valid   : ~(refill_is_error_o | refill_discard_q),
         wback   : ~(refill_is_error_o | refill_discard_q) & refill_wback_q,

@@ -259,7 +259,6 @@ import hpdcache_pkg::*;
     logic  st1_rtab_alloc, st1_rtab_alloc_and_link;
     logic  st0_req_cachedata_read, st1_req_cachedata_read;
     logic  st0_req_is_cacheable_amo_nosc;
-    logic  st1_req_is_amo_nolrsc;
     logic  st1_req_is_amo_handler;
     logic  st1_req_is_amo_miss_handler;
     //  }}}
@@ -280,39 +279,49 @@ import hpdcache_pkg::*;
                        st1_req_is_cmo_inval_i   |
                        st1_req_is_cmo_flush_i;
 
-    //  Coherent AMOs need to acquire the ownership of a cacheline before
-    //  playing the AMO locally in the AMO handler
-    //  Coherent LRs can be implemented as a refill with the LOCK signal asserted
-    //  These signals decided whether the atomic operation should be served by the
-    //  AMO/UC handler or via the miss handler
-    assign st0_req_is_cacheable_amo_nosc = HPDcacheCfg.u.wbEn & st0_req_is_amo_i & ~st0_req_is_amo_sc_i & ~st0_req_is_uncacheable_i;
-    assign st1_req_is_amo_nolrsc = st1_req_is_amo_i & ~st1_req_is_amo_lr_i & ~st1_req_is_amo_sc_i;
+    if (HPDcacheCfg.u.coherenceEn) begin : gen_coherent_amo_dispatch
+        //  Coherent AMOs need to acquire the ownership of a cacheline before
+        //  playing the AMO locally in the AMO handler
+        //  Coherent LRs can be implemented as a refill with the LOCK signal asserted
+        //  These signals decided whether the atomic operation should be served by the
+        //  AMO/UC handler or via the miss handler
 
-    always_comb begin : amo_dispatch_comb
-        st1_req_is_amo_handler      = 1'b0;
-        st1_req_is_amo_miss_handler = 1'b0;
+        logic  st1_req_is_amo_nolrsc;
 
-        unique case (1'b1)
-            st1_req_is_amo_sc_i: begin
-                if (!uc_lrsc_snoop_hit_i || (cachedir_hit_i && !st1_dir_hit_shared_i))
-                    st1_req_is_amo_handler = 1'b1;
-                else
-                    st1_req_is_amo_miss_handler = 1'b1;
-            end
-            st1_req_is_amo_lr_i: begin
-                if (cachedir_hit_i)
-                    st1_req_is_amo_handler = 1'b1;
-                else
-                    st1_req_is_amo_miss_handler = 1'b1;
-            end
-            st1_req_is_amo_nolrsc: begin
-                if (cachedir_hit_i && !st1_dir_hit_shared_i)
-                    st1_req_is_amo_handler = 1'b1;
-                else
-                    st1_req_is_amo_miss_handler = 1'b1;
-            end
-            default: ;
-        endcase
+        assign st0_req_is_cacheable_amo_nosc = st0_req_is_amo_i & ~st0_req_is_amo_sc_i & ~st0_req_is_uncacheable_i;
+        assign st1_req_is_amo_nolrsc = st1_req_is_amo_i & ~st1_req_is_amo_lr_i & ~st1_req_is_amo_sc_i;
+
+        always_comb begin : amo_dispatch_comb
+            st1_req_is_amo_handler      = 1'b0;
+            st1_req_is_amo_miss_handler = 1'b0;
+
+            unique case (1'b1)
+                st1_req_is_amo_sc_i: begin
+                    if (!uc_lrsc_snoop_hit_i || (cachedir_hit_i && !st1_dir_hit_shared_i))
+                        st1_req_is_amo_handler = 1'b1;
+                    else
+                        st1_req_is_amo_miss_handler = 1'b1;
+                end
+                st1_req_is_amo_lr_i: begin
+                    if (cachedir_hit_i)
+                        st1_req_is_amo_handler = 1'b1;
+                    else
+                        st1_req_is_amo_miss_handler = 1'b1;
+                end
+                st1_req_is_amo_nolrsc: begin
+                    if (cachedir_hit_i && !st1_dir_hit_shared_i)
+                        st1_req_is_amo_handler = 1'b1;
+                    else
+                        st1_req_is_amo_miss_handler = 1'b1;
+                end
+                default: ;
+            endcase
+        end
+    end else begin : gen_noncoherent_amo_dispatch
+        //  Without coherence, cacheable AMOs are always forwarded to the UC/AMO handler
+        assign st0_req_is_cacheable_amo_nosc = 1'b0;
+        assign st1_req_is_amo_handler        = st1_req_is_amo_i;
+        assign st1_req_is_amo_miss_handler   = 1'b0;
     end
 
     //      Trigger an event signal when a new request cannot consumed
@@ -621,9 +630,7 @@ import hpdcache_pkg::*;
 
                             if (cachedir_hit_i) begin
                                 //  When the hit cacheline is dirty, flush its data to the memory
-                                //  FIXME: this is an hotfix to avoid dirty lines flushing
-                                //  Proper parametrization is needed
-                                st2_flush_alloc_o = st1_dir_hit_dirty_i & 0;
+                                st2_flush_alloc_o = !HPDcacheCfg.u.coherenceEn && st1_dir_hit_dirty_i;
 
                                 //  Update the directory: an AMO request clears the dirty bit
                                 //  because it triggers a flush of the cacheline before actually
@@ -646,9 +653,7 @@ import hpdcache_pkg::*;
 
                                 //  If the cacheline is dirty, put the current request in
                                 //  replay table to wait for the flush to finish
-                                //  FIXME: this is an hotfix to avoid dirty lines flushing
-                                //  Proper parametrization is needed
-                                if (st1_dir_hit_dirty_i & 0) begin
+                                if (!HPDcacheCfg.u.coherenceEn && st1_dir_hit_dirty_i) begin
                                     st1_rtab_alloc = 1'b1;
                                     st1_rtab_pend_trans_o = 1'b1;
                                 end else begin
@@ -757,6 +762,8 @@ import hpdcache_pkg::*;
                                 st2_mshr_alloc_wback_o = (st1_req_wr_auto_i & cfg_default_wb_i) |
                                                           st1_req_wr_wb_i;
                                 st2_mshr_alloc_dirty_o = 1'b0;
+                                //  When using coherence, specify that a refill without
+                                //  invalidation is needed
                                 st2_mshr_alloc_refill_o = 1'b1;
                                 st2_mshr_alloc_inval_o = 1'b0;
 
@@ -852,7 +859,7 @@ import hpdcache_pkg::*;
                     end
                     //  }}}
 
-                    //  Store cacheable request or AMO refill
+                    //  Store cacheable request or cacheable AMO refill (coherency only)
                     //  {{{
                     if (st1_req_is_store_i || st1_req_is_amo_miss_handler) begin
                         //  Add a NOP in the pipeline when: Replaying a request, the cache cannot
@@ -863,7 +870,8 @@ import hpdcache_pkg::*;
                         end
 
                         // Additional NOP case in lowLatency mode: Structural hazard on the cache
-                        // data if the st0 request is a load operation or an AMO operation.
+                        // data if the st0 request is a load operation or an AMO operation reading
+                        // the cache data (coherency only).
                         else begin
                             st1_nop = ((core_req_valid_i |  rtab_req_valid_i) &
                                        (st0_req_is_load_i | st0_req_is_cacheable_amo_nosc)) |
@@ -900,7 +908,7 @@ import hpdcache_pkg::*;
                         //  {{{
                         else if (!cachedir_hit_i) begin
                             //  Write is write-back
-                            //  Allocating AMOs default to write-back behavior
+                            //  Allocating AMOs default to write-back behavior (coherency only)
                             //  {{{
                             if (st1_req_wr_wb_i || (st1_req_wr_auto_i && cfg_default_wb_i) || st1_req_is_amo_i)
                             begin
@@ -966,13 +974,21 @@ import hpdcache_pkg::*;
                                     //  Send a miss request to the memory (write-allocate)
                                     st2_mshr_alloc_o = 1'b1;
                                     st2_mshr_alloc_wback_o = 1'b1;
+                                    //  When using coherence, specify that a refill with
+                                    //  invalidation is needed
                                     st2_mshr_alloc_refill_o = 1'b1;
                                     st2_mshr_alloc_inval_o = 1'b1;
 
                                     if (st1_req_is_amo_i) begin
+                                        //  Coherent, cacheable AMOs issue a refill
+                                        //  similarly to cacheable stores but are replayed
+                                        //  only when no pending transaction exists
                                         st2_mshr_alloc_need_rsp_o = 1'b0;
                                         st2_mshr_alloc_dirty_o = 1'b0;
+                                        //  LR do not require invalidation during the refill
                                         st2_mshr_alloc_inval_o = !st1_req_is_amo_lr_i;
+                                        //  LR must set the reservation down the memory hierarchy
+                                        //  during the refill
                                         st2_mshr_alloc_excl_o  = st1_req_is_amo_lr_i;
                                         st1_rtab_alloc = 1'b1;
                                         st1_rtab_pend_trans_o = 1'b1;
@@ -1073,6 +1089,10 @@ import hpdcache_pkg::*;
                                     st1_nop = 1'b1;
                                 end
 
+                                //  When coherence is enabled, a store targeting a shared
+                                //  cache line must first invalidate any other copy in other
+                                //  coherent agents
+                                //  The miss handler is used to generate such transaction
                                 else if (st1_dir_hit_shared_i) begin
             			            //  Miss Handler is not ready to send
                                     if (!st1_mshr_alloc_ready_i) begin
@@ -1232,8 +1252,8 @@ import hpdcache_pkg::*;
 
             //     New requests/refill are served according to the following priority:
             //     0 - Refills/Invalidations (Highest priority)
-            //     1 - Snoop requests
-            //     2 - Replay Table
+            //     1 - Replay Table
+            //     2 - Snoop requests (coherency only)
             //     3 - Core (Lowest priority)
 
             //     * IMPORTANT: When the replay table is full, the cache
@@ -1255,13 +1275,12 @@ import hpdcache_pkg::*;
             //  Snoop transactions must respect non-blocking requirements
             //  The dependencies are then:
             //  - No refill is ongoing. Otherwise, a fixed latency to refill is expected, thus no deadlock should arise.
-            //  - The CMO handler is not clobbering the cache directory or the cache data
+            //  - The CMO handler is not clobbering the cache directory or the cache data.
             //  - The UC/AMO handler is not serving a cacheable request (i.e. AMOs).
             //    As a cacheable AMO in a coherent scenario reaches the UC/AMO handler only when it can be played locally,
             //    no deadlock should arise due to missing a memory response.
-            //  - No pending flushes
-            //    It is allowed to wait for writebacks and evictions
-            //  - No NOPs
+            //  - No pending flushes. It is allowed to wait for writebacks and evictions.
+            //  - No NOPs.
             snoop_req_ready_o = snoop_req_valid_i
                                 & ~refill_req_valid_i
                                 & ~rtab_req_valid_i
