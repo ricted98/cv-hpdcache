@@ -166,7 +166,7 @@ import hpdcache_pkg::*;
         dir_updt_shared_o = 1'b0;
         dir_updt_fetch_o  = 1'b0;
 
-        case (snoop_fsm_q)
+        unique case (snoop_fsm_q)
             SNOOP_IDLE: begin
                 if (req_valid_i && req_ready_o) begin
                     //  If there is a request, we can start processing it
