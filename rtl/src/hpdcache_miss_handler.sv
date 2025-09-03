@@ -894,7 +894,7 @@ import hpdcache_pkg::*;
     //    Indicate to the cache controller that there is no pending miss. This
     //    is, when the MSHR is empty, and the MISS handler has finished of
     //    processing the last miss response.
-    assign mshr_empty_o = mshr_empty & ~refill_busy_o;
+    assign mshr_empty_o = mshr_empty & (~refill_busy_o | refill_fsm_d == REFILL_IDLE);
 
     //    Encode the type of operation carried out by a given MSHR
     //    These bits are needed to decide if the snoop operations
