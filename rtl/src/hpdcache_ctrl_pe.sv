@@ -1094,7 +1094,10 @@ import hpdcache_pkg::*;
                                 //  coherent agents
                                 //  The miss handler is used to generate such transaction
                                 else if (st1_dir_hit_shared_i) begin
-            			            //  Miss Handler is not ready to send
+
+                                    st1_nop = 1'b1;
+
+                                    //  Miss Handler is not ready to send
                                     if (!st1_mshr_alloc_ready_i) begin
                                         st1_rtab_alloc = 1'b1;
                                         st1_rtab_mshr_ready_o = 1'b1;
@@ -1133,8 +1136,6 @@ import hpdcache_pkg::*;
                                         st2_dir_updt_dirty_o  = st1_dir_hit_dirty_i;
                                         st2_dir_updt_shared_o = st1_dir_hit_shared_i;
                                         st2_dir_updt_fetch_o  = 1'b1;
-
-                                        st1_nop = 1'b1;
                                     end
                                 end
 
