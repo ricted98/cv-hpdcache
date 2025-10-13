@@ -916,7 +916,7 @@ import hpdcache_pkg::*;
         logic cbuf_alloc, cbuf_ack;
 
         assign cbuf_alloc = mshr_alloc_dirty_i && mshr_alloc && mshr_alloc_refill_i;
-        assign cbuf_ack   = refill_dirty && mshr_alloc_op.refill && (refill_fsm_q == REFILL_WRITE) && (refill_cnt_q == 0);
+        assign cbuf_ack   = mshr_ack_dirty && mshr_ack_op.refill && (refill_fsm_q == REFILL_WRITE) && (refill_cnt_q == 0);
 
         hpdcache_cbuf #(
             .HPDcacheCfg         (HPDcacheCfg),
