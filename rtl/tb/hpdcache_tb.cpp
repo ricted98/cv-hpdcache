@@ -96,6 +96,17 @@ public:
         top->core_req_pma_i(core_req_pma);
         top->core_rsp_valid_o(core_rsp_valid);
         top->core_rsp_o(core_rsp);
+        top->snoop_req_ready_o(snoop_req_ready);
+        top->snoop_req_valid_i(snoop_req_valid);
+        top->snoop_req_nline_i(snoop_req_nline);
+        top->snoop_req_op_i(snoop_req_op);
+        top->snoop_resp_meta_ready_i(snoop_resp_meta_ready);
+        top->snoop_resp_meta_valid_o(snoop_resp_meta_valid);
+        top->snoop_resp_meta_o(snoop_resp_meta);
+        top->snoop_resp_data_ready_i(snoop_resp_data_ready);
+        top->snoop_resp_data_valid_o(snoop_resp_data_valid);
+        top->snoop_resp_data_o(snoop_resp_data);
+        top->snoop_resp_data_last_o(snoop_resp_data_last);
         top->mem_req_read_ready_i(mem_req_read_ready);
         top->mem_req_read_valid_o(mem_req_read_valid);
         top->mem_req_read_addr_o(mem_req_read_addr);
@@ -108,9 +119,12 @@ public:
         top->mem_resp_read_ready_o(mem_resp_read_ready);
         top->mem_resp_read_valid_i(mem_resp_read_valid);
         top->mem_resp_read_error_i(mem_resp_read_error);
+        top->mem_resp_read_dirty_i(mem_resp_read_dirty);
+        top->mem_resp_read_shared_i(mem_resp_read_shared);
         top->mem_resp_read_id_i(mem_resp_read_id);
         top->mem_resp_read_data_i(mem_resp_read_data);
         top->mem_resp_read_last_i(mem_resp_read_last);
+        top->mem_resp_read_ack_o(mem_resp_read_ack);
         top->mem_req_write_ready_i(mem_req_write_ready);
         top->mem_req_write_valid_o(mem_req_write_valid);
         top->mem_req_write_addr_o(mem_req_write_addr);
@@ -130,6 +144,7 @@ public:
         top->mem_resp_write_is_atomic_i(mem_resp_write_is_atomic);
         top->mem_resp_write_error_i(mem_resp_write_error);
         top->mem_resp_write_id_i(mem_resp_write_id);
+        top->mem_resp_write_ack_o(mem_resp_write_ack);
         top->evt_cache_write_miss_o(evt_cache_write_miss);
         top->evt_cache_read_miss_o(evt_cache_read_miss);
         top->evt_uncached_req_o(evt_uncached_req);
@@ -179,6 +194,8 @@ public:
         hpdcache_test_mem_resp_model_i->mem_resp_read_ready_i(mem_resp_read_ready);
         hpdcache_test_mem_resp_model_i->mem_resp_read_valid_o(mem_resp_read_valid);
         hpdcache_test_mem_resp_model_i->mem_resp_read_error_o(mem_resp_read_error);
+        hpdcache_test_mem_resp_model_i->mem_resp_read_dirty_o(mem_resp_read_dirty);
+        hpdcache_test_mem_resp_model_i->mem_resp_read_shared_o(mem_resp_read_shared);
         hpdcache_test_mem_resp_model_i->mem_resp_read_id_o(mem_resp_read_id);
         hpdcache_test_mem_resp_model_i->mem_resp_read_data_o(mem_resp_read_data);
         hpdcache_test_mem_resp_model_i->mem_resp_read_last_o(mem_resp_read_last);
@@ -257,6 +274,14 @@ public:
         cfg_error_on_cacheable_amo.write(false);
         cfg_rtab_single_entry.write(false);
         cfg_default_wb.write(false);
+
+        // Snoop tieoffs
+        // TODO: generate actual snoop requests
+        snoop_req_valid.write(false);
+        snoop_req_nline.write(0);
+        snoop_req_op.write(0);
+        snoop_resp_meta_ready.write(true);
+        snoop_resp_data_ready.write(true);
 
         Verilated::assertOn(false);
         rst_ni = 1;
@@ -365,6 +390,18 @@ private:
     sc_core::sc_signal<bool> core_rsp_valid;
     sc_core::sc_signal<sc_bv<HPDCACHE_CORE_RSP_WIDTH>> core_rsp;
 
+    sc_core::sc_signal<bool> snoop_req_ready;
+    sc_core::sc_signal<bool> snoop_req_valid;
+    sc_core::sc_signal<sc_bv<HPDCACHE_NLINE_WIDTH>> snoop_req_nline;
+    sc_core::sc_signal<sc_bv<HPDCACHE_REQ_OP_WIDTH>> snoop_req_op;
+    sc_core::sc_signal<bool> snoop_resp_meta_ready;
+    sc_core::sc_signal<bool> snoop_resp_meta_valid;
+    sc_core::sc_signal<sc_bv<HPDCACHE_SNOOP_META_WIDTH>> snoop_resp_meta;
+    sc_core::sc_signal<bool> snoop_resp_data_ready;
+    sc_core::sc_signal<bool> snoop_resp_data_valid;
+    sc_core::sc_signal<sc_bv<HPDCACHE_MEM_DATA_WIDTH>> snoop_resp_data;
+    sc_core::sc_signal<bool> snoop_resp_data_last;
+
     sc_core::sc_signal<bool> mem_req_read_ready;
     sc_core::sc_signal<bool> mem_req_read_valid;
     sc_core::sc_signal<sc_bv<HPDCACHE_MEM_ADDR_WIDTH>> mem_req_read_addr;
@@ -377,9 +414,12 @@ private:
     sc_core::sc_signal<bool> mem_resp_read_ready;
     sc_core::sc_signal<bool> mem_resp_read_valid;
     sc_core::sc_signal<sc_bv<2>> mem_resp_read_error;
+    sc_core::sc_signal<bool> mem_resp_read_dirty;
+    sc_core::sc_signal<bool> mem_resp_read_shared;
     sc_core::sc_signal<sc_bv<HPDCACHE_MEM_ID_WIDTH>> mem_resp_read_id;
     sc_core::sc_signal<sc_bv<HPDCACHE_MEM_DATA_WIDTH>> mem_resp_read_data;
     sc_core::sc_signal<bool> mem_resp_read_last;
+    sc_core::sc_signal<bool> mem_resp_read_ack;
     sc_core::sc_signal<bool> mem_req_write_ready;
     sc_core::sc_signal<bool> mem_req_write_valid;
     sc_core::sc_signal<sc_bv<HPDCACHE_MEM_ADDR_WIDTH>> mem_req_write_addr;
@@ -399,6 +439,7 @@ private:
     sc_core::sc_signal<bool> mem_resp_write_is_atomic;
     sc_core::sc_signal<sc_bv<2>> mem_resp_write_error;
     sc_core::sc_signal<sc_bv<HPDCACHE_MEM_ID_WIDTH>> mem_resp_write_id;
+    sc_core::sc_signal<bool> mem_resp_write_ack;
 
     sc_core::sc_fifo<hpdcache_test_transaction_req> sb_core_req;
     sc_core::sc_fifo<hpdcache_test_transaction_resp> sb_core_resp;
