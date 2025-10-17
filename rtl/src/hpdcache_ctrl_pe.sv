@@ -112,11 +112,13 @@ import hpdcache_pkg::*;
     input  logic                   st2_mshr_alloc_is_prefetch_i,
     input  logic                   st2_mshr_alloc_wback_i,
     input  logic                   st2_mshr_alloc_dirty_i,
+    input  logic                   st2_mshr_alloc_uc_i,
     output logic                   st2_mshr_alloc_o,
     output logic                   st2_mshr_alloc_cs_o,
     output logic                   st2_mshr_alloc_need_rsp_o,
     output logic                   st2_mshr_alloc_wback_o,
     output logic                   st2_mshr_alloc_dirty_o,
+    output logic                   st2_mshr_alloc_uc_o,
 
     input  logic                   st2_dir_updt_i,
     input  logic                   st2_dir_updt_valid_i,
@@ -318,6 +320,7 @@ import hpdcache_pkg::*;
         st2_mshr_alloc_need_rsp_o           = 1'b0;
         st2_mshr_alloc_wback_o              = st2_mshr_alloc_wback_i;
         st2_mshr_alloc_dirty_o              = st2_mshr_alloc_dirty_i;
+        st2_mshr_alloc_uc_o                 = st2_mshr_alloc_uc_i;
 
         st2_flush_alloc_o                   = st2_flush_alloc_i;
 
@@ -472,7 +475,7 @@ import hpdcache_pkg::*;
 
                 //  Uncacheable load, store or AMO request
                 //  {{{
-                else if (st1_req_is_uncacheable_i) begin
+                else if (st1_req_is_uncacheable_i && !st1_req_is_load_i) begin
                     //  There are pending transactions which must be completed and the
                     //  request is not being replayed.
                     //  When an uncacheable request is replayed, it is guaranteed
@@ -562,9 +565,9 @@ import hpdcache_pkg::*;
                     if (|{st1_req_is_load_i,
                           st1_req_is_cmo_prefetch_i})
                     begin
-                        //  Cache miss
+                        //  Cache miss or uncacheable request
                         //  {{{
-                        if (!cachedir_hit_i) begin
+                        if (!cachedir_hit_i || st1_req_is_uncacheable_i) begin
                             //  A cache miss inserts a nop into the pipeline
                             st1_nop = 1'b1;
 
@@ -572,7 +575,7 @@ import hpdcache_pkg::*;
                             wbuf_read_flush_hit_o = 1'b1;
 
                             //  Select a victim cacheline
-                            st1_req_cachedir_sel_victim_o = 1'b1;
+                            st1_req_cachedir_sel_victim_o = !st1_req_is_uncacheable_i;
 
                             //  Pending miss on the same line
                             if (st1_mshr_hit_i) begin
@@ -587,7 +590,7 @@ import hpdcache_pkg::*;
                             end
 
                             //  All entries in the target set are being fetched
-                            else if (st1_dir_victim_unavailable_i) begin
+                            else if (st1_dir_victim_unavailable_i && !st1_req_is_uncacheable_i) begin
                                 st1_rtab_alloc = 1'b1;
                                 st1_rtab_dir_unavailable_o = 1'b1;
                             end
@@ -633,7 +636,7 @@ import hpdcache_pkg::*;
                             else begin
                                 //  When the victim cacheline is dirty, flush its data to the
                                 //  memory
-                                st2_flush_alloc_o = st1_dir_victim_dirty_i;
+                                st2_flush_alloc_o = st1_dir_victim_dirty_i && !st1_req_is_uncacheable_i;
 
                                 //  If the request comes from the replay table, free the
                                 //  corresponding RTAB entry
@@ -645,9 +648,10 @@ import hpdcache_pkg::*;
                                 st2_mshr_alloc_wback_o = (st1_req_wr_auto_i & cfg_default_wb_i) |
                                                           st1_req_wr_wb_i;
                                 st2_mshr_alloc_dirty_o = 1'b0;
+                                st2_mshr_alloc_uc_o = st1_req_is_uncacheable_i;
 
                                 //  Update the cache directory state to FETCHING
-                                st2_dir_updt_o = 1'b1;
+                                st2_dir_updt_o = !st1_req_is_uncacheable_i;
                                 st2_dir_updt_valid_o = st1_dir_victim_valid_i;
                                 st2_dir_updt_wback_o = st1_dir_victim_wback_i;
                                 st2_dir_updt_dirty_o = 1'b0;
@@ -853,6 +857,7 @@ import hpdcache_pkg::*;
                                     if (st1_mshr_cbuf_full_i) begin
                                         st2_mshr_alloc_need_rsp_o = 1'b0;
                                         st2_mshr_alloc_dirty_o = 1'b0;
+                                        st2_mshr_alloc_uc_o = 1'b0;
                                         st1_rtab_alloc = 1'b1;
                                         st1_rtab_write_miss_o = 1'b1;
                                     end
@@ -864,6 +869,7 @@ import hpdcache_pkg::*;
                                     else begin
                                         st2_mshr_alloc_need_rsp_o = st1_req_need_rsp_i;
                                         st2_mshr_alloc_dirty_o = 1'b1;
+                                        st2_mshr_alloc_uc_o = 1'b0;
                                         st1_rtab_commit_o = st1_req_rtab_i;
                                     end
 
@@ -1092,14 +1098,13 @@ import hpdcache_pkg::*;
             //          removes the timing paths RAM-to-RAM between the cache
             //          directory and the data array.
             if ((core_req_ready_o | rtab_req_ready_o) &&
-                !st0_req_is_uncacheable_i &&
                 !st0_req_is_error_i)
             begin
                 st1_req_is_cacheable_store = st1_req_valid_i & st1_req_is_store_i &
                         ~st1_req_is_uncacheable_i;
 
                 if (HPDcacheCfg.u.lowLatency) begin
-                    st0_req_cachedata_read = st0_req_is_load_i &
+                    st0_req_cachedata_read = (st0_req_is_load_i & ~st0_req_is_uncacheable_i) &
                             (~st1_req_is_cacheable_store | st1_req_is_error_i);
                 end
 
@@ -1109,7 +1114,7 @@ import hpdcache_pkg::*;
                     st0_req_is_amo_i          )
                 begin
                     st0_req_mshr_check_o    = 1'b1;
-                    st0_req_cachedir_read_o = 1'b1;
+                    st0_req_cachedir_read_o = ~st0_req_is_uncacheable_i;
                 end
             end
             //      }}}

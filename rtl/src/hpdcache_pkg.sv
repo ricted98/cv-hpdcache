@@ -487,6 +487,7 @@ package hpdcache_pkg;
         int unsigned wbufDataPtrWidth;
         int unsigned accessWidth;
         int unsigned accessBytes;
+        int unsigned memDataWords;
     } hpdcache_cfg_t;
 
     function automatic hpdcache_cfg_t hpdcacheBuildConfig(input hpdcache_user_cfg_t p);
@@ -518,6 +519,7 @@ package hpdcache_pkg;
 
         ret.accessWidth = p.accessWords * p.wordWidth;
         ret.accessBytes = ret.accessWidth/8;
+        ret.memDataWords = p.memDataWidth / p.wordWidth;
 
         return ret;
     endfunction
