@@ -33,6 +33,7 @@ import hpdcache_pkg::*;
     parameter hpdcache_cfg_t HPDcacheCfg = '0,
 
     parameter type hpdcache_nline_t = logic,
+    parameter type hpdcache_offset_t = logic,
     parameter type hpdcache_set_t = logic,
     parameter type hpdcache_tag_t = logic,
     parameter type hpdcache_word_t = logic,
@@ -44,6 +45,7 @@ import hpdcache_pkg::*;
 
     parameter type hpdcache_refill_data_t = logic,
 
+    parameter type hpdcache_req_addr_t = logic,
     parameter type hpdcache_req_data_t = logic,
     parameter type hpdcache_req_be_t = logic,
     parameter type hpdcache_req_offset_t = logic,
@@ -55,7 +57,8 @@ import hpdcache_pkg::*;
 
     parameter type hpdcache_mem_id_t = logic,
     parameter type hpdcache_mem_req_t = logic,
-    parameter type hpdcache_mem_resp_r_t = logic
+    parameter type hpdcache_mem_resp_r_t = logic,
+    parameter type hpdcache_mem_addr_t = logic
 )
 //  }}}
 
@@ -90,19 +93,20 @@ import hpdcache_pkg::*;
     output logic                  mshr_alloc_ready_o,
     input  logic                  mshr_alloc_i,
     input  logic                  mshr_alloc_cs_i,
-    input  hpdcache_nline_t       mshr_alloc_nline_i,
+    input  hpdcache_req_addr_t    mshr_alloc_addr_i,
     output logic                  mshr_alloc_full_o,
     output logic                  mshr_alloc_cbuf_full_o,
     input  hpdcache_req_tid_t     mshr_alloc_tid_i,
     input  hpdcache_req_sid_t     mshr_alloc_sid_i,
-    input  hpdcache_word_t        mshr_alloc_word_i,
     input  hpdcache_way_vector_t  mshr_alloc_victim_way_i,
     input  logic                  mshr_alloc_need_rsp_i,
     input  logic                  mshr_alloc_is_prefetch_i,
     input  logic                  mshr_alloc_wback_i,
     input  logic                  mshr_alloc_dirty_i,
+    input  logic                  mshr_alloc_uc_i,
     input  hpdcache_req_data_t    mshr_alloc_wdata_i,
     input  hpdcache_req_be_t      mshr_alloc_be_i,
+    input  hpdcache_req_size_t    mshr_alloc_size_i,
 
     //          REFILL MISS / Invalidation interface
     input  logic                  refill_req_ready_i,
@@ -151,6 +155,11 @@ import hpdcache_pkg::*;
                                                 HPDcacheCfg.u.reqWords;
     localparam hpdcache_uint REFILL_LAST_CHUNK_WORD = HPDcacheCfg.u.clWords -
                                                       HPDcacheCfg.u.accessWords;
+    localparam hpdcache_uint MEM_DATA_WORDS = HPDcacheCfg.u.memDataWidth / HPDcacheCfg.u.wordWidth;
+    localparam hpdcache_uint MEM_WORD_INDEX_WIDTH = MEM_DATA_WORDS > 1 ? $clog2(MEM_DATA_WORDS) : 1;
+    localparam hpdcache_uint MEM_ACCESS_RATIO = HPDcacheCfg.u.memDataWidth / HPDcacheCfg.accessWidth;
+    localparam hpdcache_uint UC_LAST_CHUNK_WORD = MEM_ACCESS_RATIO > 1 ? MEM_DATA_WORDS -
+                                                                         HPDcacheCfg.u.accessWords : 0;
 
     typedef enum logic {
         MISS_REQ_IDLE = 1'b0,
@@ -180,8 +189,14 @@ import hpdcache_pkg::*;
     //  Declaration of internal signals and registers
     //  {{{
     miss_req_fsm_e           miss_req_fsm_q, miss_req_fsm_d;
+    hpdcache_nline_t         mshr_alloc_nline_in;
+    hpdcache_word_t          mshr_alloc_word_in;
     mshr_way_t               mshr_alloc_way_q, mshr_alloc_way_d;
-    hpdcache_nline_t         mshr_alloc_nline_q;
+    hpdcache_req_addr_t      mshr_alloc_addr_q;
+    hpdcache_req_size_t      mshr_alloc_size_q;
+    logic                    mshr_alloc_uc_q;
+    hpdcache_nline_t         mshr_alloc_nline;
+    hpdcache_offset_t        mshr_alloc_offset;
 
     refill_fsm_e             refill_fsm_q, refill_fsm_d;
     hpdcache_set_t           refill_set_q;
@@ -194,11 +209,13 @@ import hpdcache_pkg::*;
     logic                    refill_is_prefetch_q;
     logic                    refill_wback_q;
     logic                    refill_dirty_q;
+    logic                    refill_uc_q;
     hpdcache_req_data_t      refill_dirty_wdata_q;
     hpdcache_req_be_t        refill_dirty_be_q;
     hpdcache_word_t          refill_core_rsp_word_q;
     hpdcache_way_t           refill_way;
     logic                    refill_dirty;
+    logic                    refill_uc;
     logic                    refill_dirty_valid;
     hpdcache_req_data_t      refill_dirty_wdata;
     hpdcache_req_be_t        refill_dirty_be;
@@ -239,6 +256,7 @@ import hpdcache_pkg::*;
     logic                    mshr_ack_is_prefetch;
     logic                    mshr_ack_wback;
     logic                    mshr_ack_dirty;
+    logic                    mshr_ack_uc;
     cbuf_id_t                mshr_ack_cbuf_id;
     hpdcache_req_data_t      mshr_ack_wdata;
     hpdcache_req_be_t        mshr_ack_be;
@@ -281,20 +299,23 @@ import hpdcache_pkg::*;
     localparam hpdcache_uint REFILL_REQ_SIZE = $clog2(HPDcacheCfg.u.memDataWidth / 8);
     localparam hpdcache_uint REFILL_REQ_LEN = HPDcacheCfg.clWidth / HPDcacheCfg.u.memDataWidth;
 
-    assign mem_req_o.mem_req_addr = {mshr_alloc_nline_q, {HPDcacheCfg.clOffsetWidth{1'b0}} };
-    assign mem_req_o.mem_req_len = hpdcache_mem_len_t'(REFILL_REQ_LEN-1);
-    assign mem_req_o.mem_req_size = hpdcache_mem_size_t'(REFILL_REQ_SIZE);
+    assign mshr_alloc_nline = mshr_alloc_addr_q[HPDcacheCfg.clOffsetWidth +: HPDcacheCfg.nlineWidth];
+    assign mshr_alloc_offset = mshr_alloc_uc_q ? mshr_alloc_addr_q[0 +: HPDcacheCfg.clOffsetWidth] : '0;
+
+    assign mem_req_o.mem_req_addr = {mshr_alloc_nline, mshr_alloc_offset};
+    assign mem_req_o.mem_req_len = mshr_alloc_uc_q ? hpdcache_mem_len_t'(0) : hpdcache_mem_len_t'(REFILL_REQ_LEN-1);
+    assign mem_req_o.mem_req_size = mshr_alloc_uc_q ? mshr_alloc_size_q : hpdcache_mem_size_t'(REFILL_REQ_SIZE);
     assign mem_req_o.mem_req_command = HPDCACHE_MEM_READ;
     assign mem_req_o.mem_req_atomic = HPDCACHE_MEM_ATOMIC_ADD;
-    assign mem_req_o.mem_req_cacheable = 1'b1;
+    assign mem_req_o.mem_req_cacheable = ~mshr_alloc_uc_q;
 
     if ((HPDcacheCfg.u.mshrSets > 1) && (HPDcacheCfg.u.mshrWays > 1))
     begin : gen_mem_id_mshr_sets_and_ways_gt_1
         assign mem_req_o.mem_req_id = hpdcache_mem_id_t'({
-                mshr_alloc_way_q, mshr_alloc_nline_q[0 +: HPDcacheCfg.mshrSetWidth]});
+                mshr_alloc_way_q, mshr_alloc_nline[0 +: HPDcacheCfg.mshrSetWidth]});
     end else if (HPDcacheCfg.u.mshrSets > 1) begin : gen_mem_id_mshr_sets_gt_1
         assign mem_req_o.mem_req_id = hpdcache_mem_id_t'(
-                mshr_alloc_nline_q[0 +: HPDcacheCfg.mshrSetWidth]);
+                mshr_alloc_nline[0 +: HPDcacheCfg.mshrSetWidth]);
     end else if (HPDcacheCfg.u.mshrWays > 1) begin : gen_mem_id_mshr_ways_gt_1
         assign mem_req_o.mem_req_id = hpdcache_mem_id_t'(mshr_alloc_way_q);
     end else begin : gen_mem_id_mshr_sets_and_ways_eq_1
@@ -305,7 +326,9 @@ import hpdcache_pkg::*;
     begin : miss_req_fsm_internal_ff
         if (mshr_alloc) begin
             mshr_alloc_way_q <= mshr_alloc_way_d;
-            mshr_alloc_nline_q <= mshr_alloc_nline_i;
+            mshr_alloc_addr_q <= mshr_alloc_addr_i;
+            mshr_alloc_size_q <= mshr_alloc_size_i;
+            mshr_alloc_uc_q <= mshr_alloc_uc_i;
         end
     end
 
@@ -393,6 +416,7 @@ import hpdcache_pkg::*;
             //  {{{
             REFILL_WRITE: begin
                 automatic logic is_prefetch;
+                automatic logic is_last_chunk;
                 automatic hpdcache_uint core_rsp_word;
 
                 //  Respond to the core (when needed)
@@ -436,6 +460,7 @@ import hpdcache_pkg::*;
                     refill_dirty = mshr_ack_dirty;
                     refill_dirty_wdata = mshr_ack_wdata;
                     refill_dirty_be = mshr_ack_be;
+                    refill_uc = mshr_ack_uc;
                 end else begin
                     refill_set_o = refill_set_q;
                     refill_way = refill_way_q;
@@ -443,8 +468,9 @@ import hpdcache_pkg::*;
                     refill_dirty = refill_dirty_q;
                     refill_dirty_wdata = refill_dirty_wdata_q;
                     refill_dirty_be = refill_dirty_be_q;
+                    refill_uc = refill_uc_q;
                 end
-                refill_write_data_o = ~refill_is_error_o;
+                refill_write_data_o = ~refill_is_error_o & ~refill_uc;
 
                 //  Consume chunk of data from the FIFO buffer in the memory interface
                 refill_fifo_resp_data_r = 1'b1;
@@ -452,21 +478,24 @@ import hpdcache_pkg::*;
                 //  Update directory on the last chunk of data
                 refill_cnt_d = refill_cnt_q + hpdcache_word_t'(HPDcacheCfg.u.accessWords);
 
-                if (hpdcache_uint'(refill_cnt_q) == REFILL_LAST_CHUNK_WORD) begin
-                    if (REFILL_LAST_CHUNK_WORD == 0) begin
+                is_last_chunk = refill_uc ? hpdcache_uint'(refill_cnt_q) == UC_LAST_CHUNK_WORD :
+                                            hpdcache_uint'(refill_cnt_q) == REFILL_LAST_CHUNK_WORD;
+
+                if (is_last_chunk) begin
+                    if (REFILL_LAST_CHUNK_WORD == 0 & ~refill_uc) begin
                         //  Special case: if the cache-line data can be written in a single cycle,
                         //  wait an additional cycle to write the directory. This allows to prevent
                         //  a RAM-to-RAM timing path between the MSHR and the DIR.
                         refill_fsm_d = REFILL_WRITE_DIR;
                     end else begin
                         //  Write the new entry in the cache directory
-                        refill_write_dir_o = 1'b1;
+                        refill_write_dir_o = ~refill_uc;
 
                         //  Update the victim selection. Only in the following cases:
                         //  - There is no error in response AND
                         //  - It is a prefetch and the cfg_prefetch_updt_sel_victim_i is set OR
                         //  - It is a read miss.
-                        refill_updt_sel_victim_o  =  ~refill_is_error_o &
+                        refill_updt_sel_victim_o  =  ~(refill_is_error_o | refill_uc) &
                                                     (~is_prefetch | cfg_prefetch_updt_sel_victim_i);
 
                         //  Update dependency flags in the retry table
@@ -520,6 +549,7 @@ import hpdcache_pkg::*;
 
                 refill_fsm_d = REFILL_IDLE;
             end
+            //  }}}
 
             default: begin
 `ifndef HPDCACHE_ASSERT_OFF
@@ -740,6 +770,7 @@ import hpdcache_pkg::*;
             refill_is_prefetch_q <= mshr_ack_is_prefetch;
             refill_wback_q <= mshr_ack_wback;
             refill_dirty_q <= mshr_ack_dirty;
+            refill_uc_q <= mshr_ack_uc;
             refill_dirty_wdata_q <= mshr_ack_wdata;
             refill_dirty_be_q <= mshr_ack_be;
             refill_core_rsp_word_q <= mshr_ack_word;
@@ -779,15 +810,16 @@ import hpdcache_pkg::*;
         .hit_o                    (mshr_check_hit_o),
         .alloc_i                  (mshr_alloc),
         .alloc_cs_i               (mshr_alloc_cs),
-        .alloc_nline_i            (mshr_alloc_nline_i),
+        .alloc_nline_i            (mshr_alloc_nline_in),
         .alloc_req_id_i           (mshr_alloc_tid_i),
         .alloc_src_id_i           (mshr_alloc_sid_i),
-        .alloc_word_i             (mshr_alloc_word_i),
+        .alloc_word_i             (mshr_alloc_word_in),
         .alloc_victim_way_i       (mshr_alloc_victim_way),
         .alloc_need_rsp_i         (mshr_alloc_need_rsp_i),
         .alloc_is_prefetch_i      (mshr_alloc_is_prefetch_i),
         .alloc_wback_i            (mshr_alloc_wback_i),
         .alloc_dirty_i            (mshr_alloc_dirty_i),
+        .alloc_uc_i               (mshr_alloc_uc_i),
         .alloc_cbuf_id_i          (mshr_alloc_cbuf_id),
         .alloc_full_o             (mshr_alloc_full_o),
         .alloc_way_o              (mshr_alloc_way_d),
@@ -806,6 +838,7 @@ import hpdcache_pkg::*;
         .ack_is_prefetch_o        (mshr_ack_is_prefetch),
         .ack_wback_o              (mshr_ack_wback),
         .ack_dirty_o              (mshr_ack_dirty),
+        .ack_uc_o                 (mshr_ack_uc),
         .ack_cbuf_id_o            (mshr_ack_cbuf_id)
     );
 
@@ -824,6 +857,19 @@ import hpdcache_pkg::*;
     //    is, when the MSHR is empty, and the MISS handler has finished of
     //    processing the last miss response.
     assign mshr_empty_o = mshr_empty & ~refill_busy_o;
+
+    //    Derive nline and word bits from the request address.
+    //    Uncached requests align to their own size, not a full cache line.
+    //    The realigner stores only 2**(request size) bytes, so the word index
+    //    is based on the memory bus width.
+    always_comb begin : alloc_addr_comb
+        mshr_alloc_nline_in = mshr_alloc_addr_i[HPDcacheCfg.clOffsetWidth +: HPDcacheCfg.nlineWidth];
+
+        if (mshr_alloc_uc_i)
+            mshr_alloc_word_in = mshr_alloc_addr_i[HPDcacheCfg.wordByteIdxWidth +: MEM_WORD_INDEX_WIDTH];
+        else
+            mshr_alloc_word_in = mshr_alloc_addr_i[HPDcacheCfg.wordByteIdxWidth +: HPDcacheCfg.clWordIdxWidth];
+    end
     //  }}}
 
     //  Coalesce Buffer

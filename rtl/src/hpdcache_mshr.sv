@@ -73,6 +73,7 @@ import hpdcache_pkg::*;
     input  logic                  alloc_is_prefetch_i,
     input  logic                  alloc_wback_i,
     input  logic                  alloc_dirty_i,
+    input  logic                  alloc_uc_i,
     input  cbuf_id_t              alloc_cbuf_id_i,
     output logic                  alloc_full_o,
     output mshr_way_t             alloc_way_o,
@@ -92,6 +93,7 @@ import hpdcache_pkg::*;
     output logic                  ack_is_prefetch_o,
     output logic                  ack_wback_o,
     output logic                  ack_dirty_o,
+    output logic                  ack_uc_o,
     output cbuf_id_t              ack_cbuf_id_o
 );
     //  }}}
@@ -106,6 +108,7 @@ import hpdcache_pkg::*;
         hpdcache_way_t     victim_way_idx;
         logic              wback;
         logic              dirty;
+        logic              uc;
         logic              need_rsp;
         logic              is_prefetch;
         cbuf_id_t          cbuf_id;
@@ -208,6 +211,7 @@ import hpdcache_pkg::*;
             mshr_wentry[i].is_prefetch = alloc_is_prefetch_i;
             mshr_wentry[i].wback = alloc_wback_i;
             mshr_wentry[i].dirty = alloc_dirty_i;
+            mshr_wentry[i].uc = alloc_uc_i;
             mshr_wentry[i].cbuf_id = alloc_cbuf_id_i;
         end
     end
@@ -257,6 +261,7 @@ import hpdcache_pkg::*;
     assign ack_is_prefetch_o = mshr_rentry[ack_way_q].is_prefetch;
     assign ack_wback_o       = mshr_rentry[ack_way_q].wback;
     assign ack_dirty_o       = mshr_rentry[ack_way_q].dirty;
+    assign ack_uc_o          = mshr_rentry[ack_way_q].uc;
     assign ack_cbuf_id_o     = mshr_rentry[ack_way_q].cbuf_id;
     //  }}}
 
