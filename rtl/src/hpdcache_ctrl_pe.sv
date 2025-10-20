@@ -629,24 +629,26 @@ import hpdcache_pkg::*;
                             st1_nop = 1'b1;
 
                             if (cachedir_hit_i) begin
-                                //  When the hit cacheline is dirty, flush its data to the memory
-                                st2_flush_alloc_o = !HPDcacheCfg.u.coherenceEn && st1_dir_hit_dirty_i;
+                                if (!HPDcacheCfg.u.coherenceEn) begin
+                                    //  When the hit cacheline is dirty, flush its data to the memory
+                                    st2_flush_alloc_o = st1_dir_hit_dirty_i;
 
-                                //  Update the directory: an AMO request clears the dirty bit
-                                //  because it triggers a flush of the cacheline before actually
-                                //  executing the AMO.
-                                //  An AMO does not set the dirty bit because it is always forwarded
-                                //  to the memory. Then the local copy is updated with respect
-                                //  to the old data from the memory.
-                                st2_dir_updt_o = 1'b1;
-                                st2_dir_updt_valid_o  = 1'b1;
-                                st2_dir_updt_wback_o  = st1_dir_hit_wback_i;
-                                st2_dir_updt_dirty_o  = 1'b0;
-                                st2_dir_updt_shared_o = st1_dir_hit_shared_i;
+                                    //  Update the directory: an AMO request clears the dirty bit
+                                    //  because it triggers a flush of the cacheline before actually
+                                    //  executing the AMO.
+                                    //  An AMO does not set the dirty bit because it is always forwarded
+                                    //  to the memory. Then the local copy is updated with respect
+                                    //  to the old data from the memory.
+                                    st2_dir_updt_o = 1'b1;
+                                    st2_dir_updt_valid_o  = 1'b1;
+                                    st2_dir_updt_wback_o  = st1_dir_hit_wback_i;
+                                    st2_dir_updt_dirty_o  = 1'b0;
+                                    st2_dir_updt_shared_o = st1_dir_hit_shared_i;
 
-                                //  If the cacheline has been pre-allocated for a pending miss, keep
-                                //  the fetch bit set
-                                st2_dir_updt_fetch_o = st1_dir_hit_fetch_i;
+                                    //  If the cacheline has been pre-allocated for a pending miss, keep
+                                    //  the fetch bit set
+                                    st2_dir_updt_fetch_o = st1_dir_hit_fetch_i;
+                                end
 
                                 //  Update victim selection for the accessed set
                                 st1_req_cachedir_updt_sel_victim_o = 1'b1;
