@@ -473,9 +473,9 @@ import hpdcache_pkg::*;
                 end
                 //  }}}
 
-                //  Uncacheable load, store or AMO request
+                //  Uncacheable AMO request
                 //  {{{
-                else if (st1_req_is_uncacheable_i && !st1_req_is_load_i) begin
+                else if (st1_req_is_uncacheable_i && !st1_req_is_load_i && !st1_req_is_store_i) begin
                     //  There are pending transactions which must be completed and the
                     //  request is not being replayed.
                     //  When an uncacheable request is replayed, it is guaranteed
@@ -782,12 +782,12 @@ import hpdcache_pkg::*;
                             st1_nop = 1'b1;
                         end
 
-                        //  Cache miss
+                        //  Cache miss or uncacheable request
                         //  {{{
-                        else if (!cachedir_hit_i) begin
+                        else if (!cachedir_hit_i || st1_req_is_uncacheable_i) begin
                             //  Write is write-back
                             //  {{{
-                            if (st1_req_wr_wb_i || (st1_req_wr_auto_i && cfg_default_wb_i))
+                            if (!st1_req_is_uncacheable_i && (st1_req_wr_wb_i || (st1_req_wr_auto_i && cfg_default_wb_i)))
                             begin
                                 //  Select a victim cacheline
                                 st1_req_cachedir_sel_victim_o = 1'b1;
@@ -880,7 +880,7 @@ import hpdcache_pkg::*;
                             end
                             //  }}}
 
-                            //  Write is write-through
+                            //  Write is write-through or uncacheable
                             //  {{{
                             else begin
                                 //  Request write into the write-buffer
@@ -905,7 +905,7 @@ import hpdcache_pkg::*;
                                     st1_rsp_valid_o = st1_req_need_rsp_i;
 
                                     //  Performance event
-                                    evt_cache_write_miss_o = 1'b1;
+                                    evt_cache_write_miss_o = !st1_req_is_uncacheable_i;
                                     evt_write_req_o        = 1'b1;
                                 end
                             end
