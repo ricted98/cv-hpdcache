@@ -229,6 +229,7 @@ import hpdcache_pkg::*;
     hpdcache_rsp_t         refill_core_rsp;
     hpdcache_nline_t       refill_nline;
     logic                  refill_updt_rtab;
+    logic                  refill_excl;
 
     logic                  inval_check_dir;
     logic                  inval_write_dir;
@@ -260,6 +261,7 @@ import hpdcache_pkg::*;
     logic                  miss_mshr_alloc_dirty;
     logic                  miss_mshr_alloc_inval;
     logic                  miss_mshr_alloc_refill;
+    logic                  miss_mshr_alloc_excl;
 
     logic                  wbuf_flush_all;
     logic                  wbuf_write;
@@ -282,14 +284,25 @@ import hpdcache_pkg::*;
     hpdcache_uc_op_t       uc_req_op;
     hpdcache_req_addr_t    uc_req_addr;
     hpdcache_req_size_t    uc_req_size;
-    hpdcache_req_data_t    uc_req_data;
+    hpdcache_req_data_t    uc_req_wdata;
+    hpdcache_req_data_t    uc_req_rdata;
     hpdcache_req_be_t      uc_req_be;
     logic                  uc_req_uncacheable;
     hpdcache_req_sid_t     uc_req_sid;
     hpdcache_req_tid_t     uc_req_tid;
     logic                  uc_req_need_rsp;
     hpdcache_way_vector_t  uc_req_dir_hit_way;
+    logic                  uc_uncacheable;
     logic                  uc_wbuf_flush_all;
+    logic                  uc_dir_amo_updt;
+    hpdcache_set_t         uc_dir_amo_updt_set;
+    hpdcache_way_vector_t  uc_dir_amo_updt_way;
+    logic                  uc_dir_amo_updt_valid;
+    logic                  uc_dir_amo_updt_wback;
+    logic                  uc_dir_amo_updt_dirty;
+    logic                  uc_dir_amo_updt_shared;
+    logic                  uc_dir_amo_updt_fetch;
+    hpdcache_tag_t         uc_dir_amo_updt_tag;
     logic                  uc_data_amo_write;
     logic                  uc_data_amo_write_enable;
     hpdcache_set_t         uc_data_amo_write_set;
@@ -298,9 +311,11 @@ import hpdcache_pkg::*;
     hpdcache_way_vector_t  uc_data_amo_write_way;
     hpdcache_req_data_t    uc_data_amo_write_data;
     hpdcache_req_be_t      uc_data_amo_write_be;
-    logic                  uc_lrsc_snoop;
+    logic                  uc_lrsc_snoop_set;
+    logic                  uc_lrsc_snoop_rst;
     hpdcache_req_addr_t    uc_lrsc_snoop_addr;
     hpdcache_req_size_t    uc_lrsc_snoop_size;
+    logic                  uc_lrsc_snoop_hit;
     logic                  uc_core_rsp_ready;
     logic                  uc_core_rsp_valid;
     hpdcache_rsp_t         uc_core_rsp;
@@ -586,6 +601,7 @@ import hpdcache_pkg::*;
         .st2_mshr_alloc_dirty_o             (miss_mshr_alloc_dirty),
         .st2_mshr_alloc_inval_o             (miss_mshr_alloc_inval),
         .st2_mshr_alloc_refill_o            (miss_mshr_alloc_refill),
+        .st2_mshr_alloc_excl_o              (miss_mshr_alloc_excl),
 
         .refill_req_valid_i                 (refill_req_valid),
         .refill_req_ready_o                 (refill_req_ready),
@@ -603,6 +619,7 @@ import hpdcache_pkg::*;
         .refill_core_rsp_i                  (refill_core_rsp),
         .refill_nline_i                     (refill_nline),
         .refill_updt_rtab_i                 (refill_updt_rtab),
+        .refill_excl_i                      (refill_excl),
 
         .flush_busy_i                       (flush_busy),
         .flush_check_nline_o                (flush_check_nline),
@@ -642,21 +659,34 @@ import hpdcache_pkg::*;
         .wbuf_rtab_not_ready_i              (wbuf_rtab_not_ready),
 
         .uc_busy_i                          (~uc_ready),
-        .uc_lrsc_snoop_o                    (uc_lrsc_snoop),
+        .uc_lrsc_snoop_set_o                (uc_lrsc_snoop_set),
+        .uc_lrsc_snoop_rst_o                (uc_lrsc_snoop_rst),
         .uc_lrsc_snoop_addr_o               (uc_lrsc_snoop_addr),
         .uc_lrsc_snoop_size_o               (uc_lrsc_snoop_size),
+        .uc_lrsc_snoop_hit_i                (uc_lrsc_snoop_hit),
         .uc_req_valid_o                     (uc_req_valid),
         .uc_req_op_o                        (uc_req_op),
         .uc_req_addr_o                      (uc_req_addr),
         .uc_req_size_o                      (uc_req_size),
-        .uc_req_data_o                      (uc_req_data),
+        .uc_req_wdata_o                     (uc_req_wdata),
+        .uc_req_rdata_o                     (uc_req_rdata),
         .uc_req_be_o                        (uc_req_be),
         .uc_req_uc_o                        (uc_req_uncacheable),
         .uc_req_sid_o                       (uc_req_sid),
         .uc_req_tid_o                       (uc_req_tid),
         .uc_req_need_rsp_o                  (uc_req_need_rsp),
         .uc_req_dir_hit_way_o               (uc_req_dir_hit_way),
+        .uc_i                               (uc_uncacheable),
         .uc_wbuf_flush_all_i                (uc_wbuf_flush_all),
+        .uc_dir_amo_updt_i                  (uc_dir_amo_updt),
+        .uc_dir_amo_updt_set_i              (uc_dir_amo_updt_set),
+        .uc_dir_amo_updt_way_i              (uc_dir_amo_updt_way),
+        .uc_dir_amo_updt_valid_i            (uc_dir_amo_updt_valid),
+        .uc_dir_amo_updt_wback_i            (uc_dir_amo_updt_wback),
+        .uc_dir_amo_updt_dirty_i            (uc_dir_amo_updt_dirty),
+        .uc_dir_amo_updt_shared_i           (uc_dir_amo_updt_shared),
+        .uc_dir_amo_updt_fetch_i            (uc_dir_amo_updt_fetch),
+        .uc_dir_amo_updt_tag_i              (uc_dir_amo_updt_tag),
         .uc_data_amo_write_i                (uc_data_amo_write),
         .uc_data_amo_write_enable_i         (uc_data_amo_write_enable),
         .uc_data_amo_write_set_i            (uc_data_amo_write_set),
@@ -899,6 +929,7 @@ import hpdcache_pkg::*;
         .mshr_alloc_wback_i                 (miss_mshr_alloc_wback),
         .mshr_alloc_inval_i                 (miss_mshr_alloc_inval),
         .mshr_alloc_refill_i                (miss_mshr_alloc_refill),
+        .mshr_alloc_excl_i                  (miss_mshr_alloc_excl),
         .mshr_alloc_dirty_i                 (miss_mshr_alloc_dirty),
         .mshr_alloc_wdata_i                 (miss_mshr_alloc_wdata),
         .mshr_alloc_be_i                    (miss_mshr_alloc_be),
@@ -917,6 +948,7 @@ import hpdcache_pkg::*;
         .refill_word_o                      (refill_word),
         .refill_nline_o                     (refill_nline),
         .refill_updt_rtab_o                 (refill_updt_rtab),
+        .refill_excl_o                      (refill_excl),
 
         .inval_check_dir_o                  (inval_check_dir),
         .inval_write_dir_o                  (inval_write_dir),
@@ -969,7 +1001,8 @@ import hpdcache_pkg::*;
         .req_op_i                      (uc_req_op),
         .req_addr_i                    (uc_req_addr),
         .req_size_i                    (uc_req_size),
-        .req_data_i                    (uc_req_data),
+        .req_wdata_i                   (uc_req_wdata),
+        .req_rdata_i                   (uc_req_rdata),
         .req_be_i                      (uc_req_be),
         .req_uc_i                      (uc_req_uncacheable),
         .req_sid_i                     (uc_req_sid),
@@ -977,7 +1010,19 @@ import hpdcache_pkg::*;
         .req_need_rsp_i                (uc_req_need_rsp),
         .req_hit_way_i                 (uc_req_dir_hit_way),
 
+        .uc_o                          (uc_uncacheable),
+
         .wbuf_flush_all_o              (uc_wbuf_flush_all),
+
+        .dir_amo_updt_o                (uc_dir_amo_updt),
+        .dir_amo_updt_set_o            (uc_dir_amo_updt_set),
+        .dir_amo_updt_way_o            (uc_dir_amo_updt_way),
+        .dir_amo_updt_valid_o          (uc_dir_amo_updt_valid),
+        .dir_amo_updt_wback_o          (uc_dir_amo_updt_wback),
+        .dir_amo_updt_dirty_o          (uc_dir_amo_updt_dirty),
+        .dir_amo_updt_shared_o         (uc_dir_amo_updt_shared),
+        .dir_amo_updt_fetch_o          (uc_dir_amo_updt_fetch),
+        .dir_amo_updt_tag_o            (uc_dir_amo_updt_tag),
 
         .data_amo_write_o              (uc_data_amo_write),
         .data_amo_write_enable_o       (uc_data_amo_write_enable),
@@ -988,9 +1033,11 @@ import hpdcache_pkg::*;
         .data_amo_write_data_o         (uc_data_amo_write_data),
         .data_amo_write_be_o           (uc_data_amo_write_be),
 
-        .lrsc_snoop_i                  (uc_lrsc_snoop),
+        .lrsc_snoop_set_i              (uc_lrsc_snoop_set),
+        .lrsc_snoop_rst_i              (uc_lrsc_snoop_rst),
         .lrsc_snoop_addr_i             (uc_lrsc_snoop_addr),
         .lrsc_snoop_size_i             (uc_lrsc_snoop_size),
+        .lrsc_snoop_hit_o              (uc_lrsc_snoop_hit),
 
         .core_rsp_ready_i              (uc_core_rsp_ready),
         .core_rsp_valid_o              (uc_core_rsp_valid),

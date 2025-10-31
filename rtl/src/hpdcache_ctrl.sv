@@ -115,6 +115,7 @@ import hpdcache_pkg::*;
     output logic                  st2_mshr_alloc_dirty_o,
     output logic                  st2_mshr_alloc_inval_o,
     output logic                  st2_mshr_alloc_refill_o,
+    output logic                  st2_mshr_alloc_excl_o,
 
     //      Refill interface
     input  logic                  refill_req_valid_i,
@@ -133,6 +134,7 @@ import hpdcache_pkg::*;
     input  hpdcache_rsp_t         refill_core_rsp_i,
     input  hpdcache_nline_t       refill_nline_i,
     input  logic                  refill_updt_rtab_i,
+    input  logic                  refill_excl_i,
 
     //      Flush interface
     input  logic                  flush_busy_i,
@@ -176,21 +178,34 @@ import hpdcache_pkg::*;
 
     //      Uncacheable request handler
     input  logic                  uc_busy_i,
-    output logic                  uc_lrsc_snoop_o,
+    output logic                  uc_lrsc_snoop_set_o,
+    output logic                  uc_lrsc_snoop_rst_o,
     output hpdcache_req_addr_t    uc_lrsc_snoop_addr_o,
     output hpdcache_req_size_t    uc_lrsc_snoop_size_o,
+    input  logic                  uc_lrsc_snoop_hit_i,
     output logic                  uc_req_valid_o,
     output hpdcache_uc_op_t       uc_req_op_o,
     output hpdcache_req_addr_t    uc_req_addr_o,
     output hpdcache_req_size_t    uc_req_size_o,
-    output hpdcache_req_data_t    uc_req_data_o,
+    output hpdcache_req_data_t    uc_req_wdata_o,
+    output hpdcache_req_data_t    uc_req_rdata_o,
     output hpdcache_req_be_t      uc_req_be_o,
     output logic                  uc_req_uc_o,
     output hpdcache_req_sid_t     uc_req_sid_o,
     output hpdcache_req_tid_t     uc_req_tid_o,
     output logic                  uc_req_need_rsp_o,
     output hpdcache_way_vector_t  uc_req_dir_hit_way_o,
+    input  logic                  uc_i,
     input  logic                  uc_wbuf_flush_all_i,
+    input  logic                  uc_dir_amo_updt_i,
+    input  hpdcache_set_t         uc_dir_amo_updt_set_i,
+    input  hpdcache_way_vector_t  uc_dir_amo_updt_way_i,
+    input  logic                  uc_dir_amo_updt_valid_i,
+    input  logic                  uc_dir_amo_updt_wback_i,
+    input  logic                  uc_dir_amo_updt_dirty_i,
+    input  logic                  uc_dir_amo_updt_shared_i,
+    input  logic                  uc_dir_amo_updt_fetch_i,
+    input  hpdcache_tag_t         uc_dir_amo_updt_tag_i,
     input  logic                  uc_data_amo_write_i,
     input  logic                  uc_data_amo_write_enable_i,
     input  hpdcache_set_t         uc_data_amo_write_set_i,
@@ -335,6 +350,7 @@ import hpdcache_pkg::*;
     logic                    st2_mshr_alloc_need_rsp_q, st2_mshr_alloc_need_rsp_d;
     logic                    st2_mshr_alloc_inval_q, st2_mshr_alloc_inval_d;
     logic                    st2_mshr_alloc_refill_q, st2_mshr_alloc_refill_d;
+    logic                    st2_mshr_alloc_excl_q;
     hpdcache_req_addr_t      st2_mshr_alloc_addr_q;
     hpdcache_req_sid_t       st2_mshr_alloc_sid_q;
     hpdcache_req_tid_t       st2_mshr_alloc_tid_q;
@@ -367,6 +383,9 @@ import hpdcache_pkg::*;
     logic                    st0_req_is_load;
     logic                    st0_req_is_store;
     logic                    st0_req_is_amo;
+    logic                    st0_req_is_amo_lr;
+    logic                    st0_req_is_amo_sc;
+    logic                    st0_req_is_amo_atop;
     logic                    st0_req_is_cmo_fence;
     logic                    st0_req_is_cmo_inval;
     logic                    st0_req_is_cmo_prefetch;
@@ -413,6 +432,7 @@ import hpdcache_pkg::*;
     logic                    st1_req_is_amo_maxu;
     logic                    st1_req_is_amo_min;
     logic                    st1_req_is_amo_minu;
+    logic                    st1_req_is_amo_atop;
     logic                    st1_req_is_cmo_inval;
     logic                    st1_req_is_cmo_flush;
     logic                    st1_req_is_cmo_fence;
@@ -422,7 +442,7 @@ import hpdcache_pkg::*;
     logic                    st1_req_is_snoop_make_inval;
     logic                    st1_req_is_snoop_clean_inval;
     logic                    st1_req_is_snoop_read_unique;
-    logic                    st1_req_is_snoop_store;
+    logic                    st1_req_lrsc_snoop_rst;
     logic                    st1_req_wr_wt;
     logic                    st1_req_wr_wb;
     logic                    st1_req_wr_auto;
@@ -542,6 +562,17 @@ import hpdcache_pkg::*;
     assign st0_req_is_load         =         is_load(st0_req.op);
     assign st0_req_is_store        =        is_store(st0_req.op);
     assign st0_req_is_amo          =          is_amo(st0_req.op);
+    assign st0_req_is_amo_lr       =       is_amo_lr(st0_req.op);
+    assign st0_req_is_amo_sc       =       is_amo_sc(st0_req.op);
+    assign st0_req_is_amo_atop     =     is_amo_swap(st0_req.op)
+                                   |      is_amo_add(st0_req.op)
+                                   |      is_amo_and(st0_req.op)
+                                   |       is_amo_or(st0_req.op)
+                                   |      is_amo_xor(st0_req.op)
+                                   |      is_amo_max(st0_req.op)
+                                   |     is_amo_maxu(st0_req.op)
+                                   |      is_amo_min(st0_req.op)
+                                   |     is_amo_minu(st0_req.op);
     assign st0_req_is_cmo_fence    =    is_cmo_fence(st0_req.op);
     assign st0_req_is_cmo_inval    =    is_cmo_inval(st0_req.op);
     assign st0_req_is_cmo_prefetch = is_cmo_prefetch(st0_req.op);
@@ -605,6 +636,15 @@ import hpdcache_pkg::*;
     assign st1_req_is_amo_maxu          =            is_amo_maxu(st1_req.op);
     assign st1_req_is_amo_min           =             is_amo_min(st1_req.op);
     assign st1_req_is_amo_minu          =            is_amo_minu(st1_req.op);
+    assign st1_req_is_amo_atop          =                st1_req_is_amo_swap
+                                        |                st1_req_is_amo_add
+                                        |                st1_req_is_amo_and
+                                        |                st1_req_is_amo_or
+                                        |                st1_req_is_amo_xor
+                                        |                st1_req_is_amo_max
+                                        |                st1_req_is_amo_maxu
+                                        |                st1_req_is_amo_min
+                                        |                st1_req_is_amo_minu;
     assign st1_req_is_cmo_inval         =           is_cmo_inval(st1_req.op);
     assign st1_req_is_cmo_flush         =           is_cmo_flush(st1_req.op);
     assign st1_req_is_cmo_fence         =           is_cmo_fence(st1_req.op);
@@ -616,10 +656,10 @@ import hpdcache_pkg::*;
     assign st1_req_is_snoop_make_inval  =    is_snoop_make_inval(st1_req.op);
     assign st1_req_is_snoop_clean_inval = is_snoop_clean_invalid(st1_req.op);
     assign st1_req_is_snoop_read_unique =   is_snoop_read_unique(st1_req.op);
-    //  snoop_store: any snoop operation which should reset an LR/SC reservation
-    assign st1_req_is_snoop_store       = st1_req_is_snoop_make_inval
-                                        | st1_req_is_snoop_clean_inval
-                                        | st1_req_is_snoop_read_unique;
+    //  lrsc_snoop_rst: any snoop operation which should reset an LR/SC reservation
+    assign st1_req_lrsc_snoop_rst       =       st1_req_is_snoop_make_inval
+                                        |       st1_req_is_snoop_clean_inval
+                                        |       st1_req_is_snoop_read_unique;
 
     //  Decode write-policy hint
     assign st1_req_wr_wt           = (st1_req.pma.wr_policy_hint == HPDCACHE_WR_POLICY_WT);
@@ -647,6 +687,9 @@ import hpdcache_pkg::*;
         .st0_req_is_load_i                  (st0_req_is_load),
         .st0_req_is_store_i                 (st0_req_is_store),
         .st0_req_is_amo_i                   (st0_req_is_amo),
+        .st0_req_is_amo_lr_i                (st0_req_is_amo_lr),
+        .st0_req_is_amo_sc_i                (st0_req_is_amo_sc),
+        .st0_req_is_amo_atop_i              (st0_req_is_amo_atop),
         .st0_req_is_cmo_fence_i             (st0_req_is_cmo_fence),
         .st0_req_is_cmo_inval_i             (st0_req_is_cmo_inval),
         .st0_req_is_cmo_prefetch_i          (st0_req_is_cmo_prefetch),
@@ -663,6 +706,9 @@ import hpdcache_pkg::*;
         .st1_req_is_load_i                  (st1_req_is_load),
         .st1_req_is_store_i                 (st1_req_is_store),
         .st1_req_is_amo_i                   (st1_req_is_amo),
+        .st1_req_is_amo_sc_i                (st1_req_is_amo_sc),
+        .st1_req_is_amo_lr_i                (st1_req_is_amo_lr),
+        .st1_req_is_amo_atop_i              (st1_req_is_amo_atop),
         .st1_req_is_cmo_inval_i             (st1_req_is_cmo_inval),
         .st1_req_is_cmo_flush_i             (st1_req_is_cmo_flush),
         .st1_req_is_cmo_fence_i             (st1_req_is_cmo_fence),
@@ -769,6 +815,8 @@ import hpdcache_pkg::*;
         .uc_busy_i,
         .uc_req_valid_o,
         .uc_core_rsp_ready_o,
+        .uc_i,
+        .uc_lrsc_snoop_hit_i,
 
         .cmo_busy_i,
         .cmo_wait_i,
@@ -947,6 +995,7 @@ import hpdcache_pkg::*;
             st2_mshr_alloc_victim_way_q  <= st1_dir_hit ? st1_dir_hit_way : st1_dir_victim_way;
             st2_mshr_alloc_inval_q       <= st2_mshr_alloc_inval_d;
             st2_mshr_alloc_refill_q      <= st2_mshr_alloc_refill_d;
+            st2_mshr_alloc_excl_q        <= st1_req_is_amo_lr;
         end
 
         if (st2_flush_alloc_d) begin
@@ -1110,6 +1159,16 @@ import hpdcache_pkg::*;
         .dir_snoop_updt_fetch_i        (snoop_dir_updt_fetch_i),
         .dir_snoop_updt_tag_i          (snoop_dir_updt_tag_i),
 
+        .dir_uc_updt_i                 (uc_dir_amo_updt_i),
+        .dir_uc_updt_set_i             (uc_dir_amo_updt_set_i),
+        .dir_uc_updt_way_i             (uc_dir_amo_updt_way_i),
+        .dir_uc_updt_valid_i           (uc_dir_amo_updt_valid_i),
+        .dir_uc_updt_wback_i           (uc_dir_amo_updt_wback_i),
+        .dir_uc_updt_dirty_i           (uc_dir_amo_updt_dirty_i),
+        .dir_uc_updt_shared_i          (uc_dir_amo_updt_shared_i),
+        .dir_uc_updt_fetch_i           (uc_dir_amo_updt_fetch_i),
+        .dir_uc_updt_tag_i             (uc_dir_amo_updt_tag_i),
+
         .data_req_read_i               (data_req_read),
         .data_req_read_set_i           (data_req_read_set),
         .data_req_read_size_i          (data_req_read_size),
@@ -1187,16 +1246,20 @@ import hpdcache_pkg::*;
     assign st2_mshr_alloc_dirty_o       = st2_mshr_alloc_dirty_q;
     assign st2_mshr_alloc_inval_o       = st2_mshr_alloc_inval_q;
     assign st2_mshr_alloc_refill_o      = st2_mshr_alloc_refill_q;
+    assign st2_mshr_alloc_excl_o        = st2_mshr_alloc_excl_q;
     //  }}}
 
     //  Uncacheable request handler outputs
     //  {{{
-    assign uc_lrsc_snoop_o           = st1_req_valid_q & st1_req_is_store,
+    assign uc_lrsc_snoop_rst_o       = st1_req_valid_q &
+                                      (st1_req_is_store | st1_req_lrsc_snoop_rst | (refill_is_error_i & refill_excl_i)),
+           uc_lrsc_snoop_set_o       = st1_req_valid_q & st1_req_is_amo_lr,
            uc_lrsc_snoop_addr_o      = st1_req_addr,
            uc_lrsc_snoop_size_o      = st1_req.size,
            uc_req_addr_o             = st1_req_addr,
            uc_req_size_o             = st1_req.size,
-           uc_req_data_o             = st1_req.wdata,
+           uc_req_wdata_o            = st1_req.wdata,
+           uc_req_rdata_o            = data_req_read_data,
            uc_req_be_o               = st1_req.be,
            uc_req_uc_o               = st1_req_is_uncacheable,
            uc_req_sid_o              = st1_req.sid,

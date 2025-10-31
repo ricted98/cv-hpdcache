@@ -105,6 +105,7 @@ import hpdcache_pkg::*;
     input  logic                  mshr_alloc_dirty_i,
     input  logic                  mshr_alloc_inval_i,
     input  logic                  mshr_alloc_refill_i,
+    input  logic                  mshr_alloc_excl_i,
     input  hpdcache_req_data_t    mshr_alloc_wdata_i,
     input  hpdcache_req_be_t      mshr_alloc_be_i,
 
@@ -123,6 +124,7 @@ import hpdcache_pkg::*;
     output hpdcache_word_t        refill_word_o,
     output hpdcache_nline_t       refill_nline_o,
     output logic                  refill_updt_rtab_o,
+    output logic                  refill_excl_o,
 
     output logic                  inval_check_dir_o,
     output logic                  inval_write_dir_o,
@@ -171,6 +173,7 @@ import hpdcache_pkg::*;
     typedef struct packed {
         logic inval;    // Gain ownership of the cache line
         logic refill;   // Read cache line from memory
+        logic excl;     // Exclusive access
     } mshr_op_t;
 
     typedef struct packed {
@@ -217,6 +220,7 @@ import hpdcache_pkg::*;
     logic                    refill_inval;
     logic                    refill_inval_q, refill_inval_d;
     logic                    refill_shared_q;
+    logic                    refill_excl_q, refill_excl_d;
 
     mem_resp_metadata_t      refill_fifo_resp_meta_wdata, refill_fifo_resp_meta_rdata;
     logic                    refill_fifo_resp_meta_w, refill_fifo_resp_meta_wok;
@@ -264,6 +268,7 @@ import hpdcache_pkg::*;
     logic                    mshr_empty;
 
     hpdcache_mem_coherence_e mem_req_coherence_q, mem_req_coherence_d;
+    logic                    mem_req_excl_q;
     //  }}}
 
     //  Miss Request FSM
@@ -305,8 +310,8 @@ import hpdcache_pkg::*;
     assign mem_req_o.mem_req_addr = {mshr_alloc_nline_q, {HPDcacheCfg.clOffsetWidth{1'b0}} };
     assign mem_req_o.mem_req_len = hpdcache_mem_len_t'(REFILL_REQ_LEN-1);
     assign mem_req_o.mem_req_size = hpdcache_mem_size_t'(REFILL_REQ_SIZE);
-    assign mem_req_o.mem_req_command = HPDCACHE_MEM_READ;
-    assign mem_req_o.mem_req_atomic = HPDCACHE_MEM_ATOMIC_ADD;
+    assign mem_req_o.mem_req_command = mem_req_excl_q ? HPDCACHE_MEM_ATOMIC : HPDCACHE_MEM_READ;
+    assign mem_req_o.mem_req_atomic = mem_req_excl_q ? HPDCACHE_MEM_ATOMIC_LDEX : HPDCACHE_MEM_ATOMIC_ADD;
     assign mem_req_o.mem_req_cacheable = 1'b1;
 
     if ((HPDcacheCfg.u.mshrSets > 1) && (HPDcacheCfg.u.mshrWays > 1))
@@ -341,6 +346,7 @@ import hpdcache_pkg::*;
             mshr_alloc_way_q <= mshr_alloc_way_d;
             mshr_alloc_nline_q <= mshr_alloc_nline_i;
             mem_req_coherence_q <= mem_req_coherence_d;
+            mem_req_excl_q <= mshr_alloc_excl_i;
         end
     end
 
@@ -390,6 +396,8 @@ import hpdcache_pkg::*;
         mshr_ack                = 1'b0;
 
         refill_discard          = 1'b0;
+        refill_inval            = 1'b0;
+        refill_excl_o           = 1'b0;
 
         refill_fsm_d            = refill_fsm_q;
 
@@ -473,6 +481,7 @@ import hpdcache_pkg::*;
                     refill_dirty_be = mshr_ack_be;
                     refill_discard = refill_discard_d;
                     refill_inval = refill_inval_d;
+                    refill_excl_o = refill_excl_d;
                 end else begin
                     refill_set_o = refill_set_q;
                     refill_way = refill_way_q;
@@ -481,6 +490,7 @@ import hpdcache_pkg::*;
                     refill_dirty_be = refill_dirty_be_q;
                     refill_discard = refill_discard_q;
                     refill_inval = refill_inval_q;
+                    refill_excl_o = refill_excl_q;
                 end
                 //  Do not write refill data when:
                 //  - The response is tagged with an error
@@ -582,6 +592,9 @@ import hpdcache_pkg::*;
     //  A transaction is classified as an invalidation only if it does not require a refill,
     //  but still results in acquiring ownership of the cache line
     assign refill_inval_d = mshr_ack_op.inval && !mshr_ack_op.refill;
+
+    //  The refill is an exclusive access
+    assign refill_excl_d = mshr_ack_op.excl;
 
     assign refill_busy_o  = (refill_fsm_q != REFILL_IDLE);
     assign refill_nline_o = {refill_tag_q, refill_set_q};
@@ -802,6 +815,7 @@ import hpdcache_pkg::*;
             refill_shared_q <= mshr_ack_make_shared;
             refill_discard_q <= refill_discard_d;
             refill_inval_q <= refill_inval_d;
+            refill_excl_q <= refill_excl_d;
         end
         refill_cnt_q <= refill_cnt_d;
     end
@@ -897,7 +911,8 @@ import hpdcache_pkg::*;
     //    memory response is handled
     assign mshr_alloc_op = '{
         refill: mshr_alloc_refill_i,
-        inval: mshr_alloc_inval_i
+        inval: mshr_alloc_inval_i,
+        excl: mshr_alloc_excl_i
     };
     //  }}}
 

@@ -61,6 +61,9 @@ import hpdcache_pkg::*;
     input  logic                   st0_req_is_load_i,
     input  logic                   st0_req_is_store_i,
     input  logic                   st0_req_is_amo_i,
+    input  logic                   st0_req_is_amo_lr_i,
+    input  logic                   st0_req_is_amo_sc_i,
+    input  logic                   st0_req_is_amo_atop_i,
     input  logic                   st0_req_is_cmo_fence_i,
     input  logic                   st0_req_is_cmo_inval_i,
     input  logic                   st0_req_is_cmo_prefetch_i,
@@ -80,6 +83,9 @@ import hpdcache_pkg::*;
     input  logic                   st1_req_is_load_i,
     input  logic                   st1_req_is_store_i,
     input  logic                   st1_req_is_amo_i,
+    input  logic                   st1_req_is_amo_sc_i,
+    input  logic                   st1_req_is_amo_lr_i,
+    input  logic                   st1_req_is_amo_atop_i,
     input  logic                   st1_req_is_cmo_inval_i,
     input  logic                   st1_req_is_cmo_flush_i,
     input  logic                   st1_req_is_cmo_fence_i,
@@ -207,6 +213,8 @@ import hpdcache_pkg::*;
     input  logic                   uc_busy_i,
     output logic                   uc_req_valid_o,
     output logic                   uc_core_rsp_ready_o,
+    input  logic                   uc_i,
+    input  logic                   uc_lrsc_snoop_hit_i,
     //   }}}
 
     //   Cache Management Operation (CMO)
@@ -251,10 +259,33 @@ import hpdcache_pkg::*;
     logic  st1_fence;
     logic  st1_rtab_alloc, st1_rtab_alloc_and_link;
     logic  st0_req_cachedata_read, st1_req_cachedata_read;
+    logic  st0_req_is_cacheable_amo_load;
+    logic  st1_req_is_cacheable_amo;
+    logic  st1_req_is_cacheable_amo_refill;
     //  }}}
 
     //  Global control signals
     //  {{{
+
+    always_comb begin : cacheable_amo_comb
+        st0_req_is_cacheable_amo_load   = 1'b0;
+        st1_req_is_cacheable_amo        = st1_req_is_amo_i & ~st1_req_is_uncacheable_i;
+        st1_req_is_cacheable_amo_refill = 1'b0;
+
+        if (HPDcacheCfg.u.coherenceEn) begin
+            //  Cacheable and coherent ATOPs and LDEX operations
+            //  read both data and directory
+            st0_req_is_cacheable_amo_load = st0_req_is_amo_i & ~st0_req_is_uncacheable_i & ~st1_req_is_amo_sc_i;
+            if (st1_req_is_amo_sc_i & ~uc_lrsc_snoop_hit_i) begin
+                //  The AMO SC has no valid reservation
+            end else if (cachedir_hit_i & ~st1_dir_hit_shared_i) begin
+                //  The cacheline is unique
+            end else begin
+                st1_req_is_cacheable_amo = 1'b0;
+                st1_req_is_cacheable_amo_refill = st1_req_is_amo_i & ~st1_req_is_uncacheable_i;
+            end
+        end
+    end
 
     //  Determine if the new request is a "fence". Here, fence instructions are
     //  considered those that need to be executed in program order
@@ -556,12 +587,10 @@ import hpdcache_pkg::*;
 
                     //  AMO cacheable request
                     //  {{{
-                    if (st1_req_is_amo_i) begin
+                    if (st1_req_is_cacheable_amo) begin
                         //  There are pending transactions which must be completed and the
                         //  request is not being replayed.
-                        //  When an AMO request is replayed, it is guaranteed that there
-                        //  is no other pending transaction.
-                        if (!st1_no_pend_trans_i && !st1_req_rtab_i) begin
+                        if (!st1_no_pend_trans_i) begin
                             st1_rtab_alloc = 1'b1;
                             st1_rtab_pend_trans_o = 1'b1;
                             st1_nop = 1'b1;
@@ -572,35 +601,42 @@ import hpdcache_pkg::*;
                             st1_nop = 1'b1;
 
                             if (cachedir_hit_i) begin
-                                //  When the hit cacheline is dirty, flush its data to the memory
-                                st2_flush_alloc_o = st1_dir_hit_dirty_i;
+                                if (!HPDcacheCfg.u.coherenceEn) begin
+                                    //  When the hit cacheline is dirty, flush its data to the memory
+                                    st2_flush_alloc_o = st1_dir_hit_dirty_i;
 
-                                //  Update the directory: an AMO request clears the dirty bit
-                                //  because it triggers a flush of the cacheline before actually
-                                //  executing the AMO.
-                                //  An AMO does not set the dirty bit because it is always forwarded
-                                //  to the memory. Then the local copy is updated with respect
-                                //  to the old data from the memory.
-                                st2_dir_updt_o = 1'b1;
-                                st2_dir_updt_valid_o  = 1'b1;
-                                st2_dir_updt_wback_o  = st1_dir_hit_wback_i;
-                                st2_dir_updt_dirty_o  = 1'b0;
-                                st2_dir_updt_shared_o = st1_dir_hit_shared_i;
+                                    //  Update the directory: an AMO request clears the dirty bit
+                                    //  because it triggers a flush of the cacheline before actually
+                                    //  executing the AMO.
+                                    //  An AMO does not set the dirty bit because it is always forwarded
+                                    //  to the memory. Then the local copy is updated with respect
+                                    //  to the old data from the memory.
+                                    st2_dir_updt_o = 1'b1;
+                                    st2_dir_updt_valid_o  = 1'b1;
+                                    st2_dir_updt_wback_o  = st1_dir_hit_wback_i;
+                                    st2_dir_updt_dirty_o  = 1'b0;
+                                    st2_dir_updt_shared_o = st1_dir_hit_shared_i;
 
-                                //  If the cacheline has been pre-allocated for a pending miss, keep
-                                //  the fetch bit set
-                                st2_dir_updt_fetch_o = st1_dir_hit_fetch_i;
+                                    //  If the cacheline has been pre-allocated for a pending miss, keep
+                                    //  the fetch bit set
+                                    st2_dir_updt_fetch_o = st1_dir_hit_fetch_i;
+                                end
 
                                 //  Update victim selection for the accessed set
                                 st1_req_cachedir_updt_sel_victim_o = 1'b1;
 
                                 //  If the cacheline is dirty, put the current request in
                                 //  replay table to wait for the flush to finish
-                                if (st1_dir_hit_dirty_i) begin
+                                if (!HPDcacheCfg.u.coherenceEn && st1_dir_hit_dirty_i) begin
                                     st1_rtab_alloc = 1'b1;
                                     st1_rtab_pend_trans_o = 1'b1;
                                 end else begin
                                     uc_req_valid_o = 1'b1;
+                                    //  If not lowLatency, data is read from the cache in stage 1
+                                    if (!HPDcacheCfg.u.lowLatency && HPDcacheCfg.u.coherenceEn) begin
+                                        //  Read data from the cache
+                                        st1_req_cachedata_read = 1'b1;
+                                    end
                                 end
                             end else begin
                                 uc_req_valid_o = 1'b1;
@@ -615,9 +651,10 @@ import hpdcache_pkg::*;
                     //  Load cacheable request
                     //  {{{
                     if (|{st1_req_is_load_i,
-                          st1_req_is_cmo_prefetch_i})
+                          st1_req_is_cmo_prefetch_i,
+                          st1_req_is_amo_lr_i && st1_req_is_cacheable_amo_refill})
                     begin
-                        //  Cache miss
+                        //  Cache miss or shared AMO LR refill
                         //  {{{
                         if (!cachedir_hit_i) begin
                             //  A cache miss inserts a nop into the pipeline
@@ -627,10 +664,15 @@ import hpdcache_pkg::*;
                             wbuf_read_flush_hit_o = 1'b1;
 
                             //  Select a victim cacheline
-                            st1_req_cachedir_sel_victim_o = 1'b1;
+                            st1_req_cachedir_sel_victim_o = !cachedir_hit_i;
+
+                            if (st1_req_is_amo_lr_i && !st1_no_pend_trans_i) begin
+                                st1_rtab_alloc = 1'b1;
+                                st1_rtab_pend_trans_o = 1'b1;
+                            end
 
                             //  Pending miss on the same line
-                            if (st1_mshr_hit_i) begin
+                            else if (st1_mshr_hit_i) begin
                                 st1_rtab_alloc = 1'b1;
                                 st1_rtab_mshr_hit_o = 1'b1;
                             end
@@ -688,7 +730,7 @@ import hpdcache_pkg::*;
                             else begin
                                 //  When the victim cacheline is dirty, flush its data to the
                                 //  memory
-                                st2_flush_alloc_o = st1_dir_victim_dirty_i;
+                                st2_flush_alloc_o = !cachedir_hit_i && st1_dir_victim_dirty_i;
 
                                 //  If the request comes from the replay table, free the
                                 //  corresponding RTAB entry
@@ -707,11 +749,20 @@ import hpdcache_pkg::*;
 
                                 //  Update the cache directory state to FETCHING
                                 st2_dir_updt_o = 1'b1;
-                                st2_dir_updt_valid_o  = st1_dir_victim_valid_i;
-                                st2_dir_updt_wback_o  = st1_dir_victim_wback_i;
-                                st2_dir_updt_dirty_o  = 1'b0;
-                                st2_dir_updt_shared_o = st1_dir_hit_shared_i;
-                                st2_dir_updt_fetch_o  = 1'b1;
+                                if (!cachedir_hit_i) begin
+                                    st2_dir_updt_valid_o  = st1_dir_victim_valid_i;
+                                    st2_dir_updt_wback_o  = st1_dir_victim_wback_i;
+                                    st2_dir_updt_dirty_o  = 1'b0;
+                                    st2_dir_updt_shared_o = st1_dir_victim_shared_i;
+                                    st2_dir_updt_fetch_o  = 1'b1;
+                                end else begin
+                                    // Cacheable and coherent AMO LR
+                                    st2_dir_updt_valid_o  = 1'b1;
+                                    st2_dir_updt_wback_o  = st1_dir_hit_wback_i;
+                                    st2_dir_updt_dirty_o  = st1_dir_hit_dirty_i;
+                                    st2_dir_updt_shared_o = st1_dir_hit_shared_i;
+                                    st2_dir_updt_fetch_o  = 1'b1;
+                                end
                             end
                         end
                         //  }}}
@@ -797,9 +848,10 @@ import hpdcache_pkg::*;
                     end
                     //  }}}
 
-                    //  Store cacheable request
+                    //  Store cacheable request or cacheable AMO ATOP/SC refill
                     //  {{{
-                    if (st1_req_is_store_i) begin
+                    if (st1_req_is_store_i | (st1_req_is_cacheable_amo_refill &
+                       (st1_req_is_amo_atop_i | st1_req_is_amo_sc_i))) begin
                         //  Add a NOP in the pipeline when: Replaying a request, the cache cannot
                         //  accept a request from the core the next cycle. It can however accept
                         //  a new request from the replay table
@@ -810,7 +862,8 @@ import hpdcache_pkg::*;
                         // Additional NOP case in lowLatency mode: Structural hazard on the cache
                         // data if the st0 request is a load operation.
                         else begin
-                            st1_nop = ((core_req_valid_i |  rtab_req_valid_i) & st0_req_is_load_i) |
+                            st1_nop = ((core_req_valid_i |  rtab_req_valid_i) &
+                                       (st0_req_is_load_i | st0_req_is_cacheable_amo_load)) |
                                        (st1_req_rtab_i   & ~rtab_req_valid_i);
                         end
 
@@ -900,11 +953,20 @@ import hpdcache_pkg::*;
 
                                     //  Update the directory state of the cacheline to FETCHING
                                     st2_dir_updt_o = 1'b1;
-                                    st2_dir_updt_valid_o  = st1_dir_victim_valid_i;
-                                    st2_dir_updt_wback_o  = st1_dir_victim_wback_i;
-                                    st2_dir_updt_dirty_o  = 1'b0;
-                                    st2_dir_updt_shared_o = st1_dir_victim_shared_i;
-                                    st2_dir_updt_fetch_o  = 1'b1;
+                                    if (!cachedir_hit_i) begin
+                                        st2_dir_updt_valid_o  = st1_dir_victim_valid_i;
+                                        st2_dir_updt_wback_o  = st1_dir_victim_wback_i;
+                                        st2_dir_updt_dirty_o  = 1'b0;
+                                        st2_dir_updt_shared_o = st1_dir_victim_shared_i;
+                                        st2_dir_updt_fetch_o  = 1'b1;
+                                    end else begin
+                                        // Cacheable and coherent AMO ATOP/SC
+                                        st2_dir_updt_valid_o  = 1'b1;
+                                        st2_dir_updt_wback_o  = st1_dir_hit_wback_i;
+                                        st2_dir_updt_dirty_o  = st1_dir_hit_dirty_i;
+                                        st2_dir_updt_shared_o = st1_dir_hit_shared_i;
+                                        st2_dir_updt_fetch_o  = 1'b1;
+                                    end
 
                                     //  Send a miss request to the memory (write-allocate)
                                     st2_mshr_alloc_o = 1'b1;
@@ -914,10 +976,21 @@ import hpdcache_pkg::*;
                                     st2_mshr_alloc_refill_o = 1'b1;
                                     st2_mshr_alloc_inval_o = 1'b1;
 
+                                    if (st1_req_is_amo_i) begin
+                                        //  Coherent, cacheable AMOs issue a refill
+                                        //  similarly to cacheable stores but are replayed
+                                        //  only when no pending transaction exists
+                                        st2_mshr_alloc_need_rsp_o = 1'b0;
+                                        st2_mshr_alloc_dirty_o = 1'b0;
+                                        st2_mshr_alloc_inval_o = 1'b1;
+                                        st1_rtab_alloc = 1'b1;
+                                        st1_rtab_pend_trans_o = 1'b1;
+                                    end
+
                                     //  No available slot in the Coalesce Buffer:
                                     //  - Put the write operation into the replay table (but the
                                     //    read miss is triggered before hand to save some time)
-                                    if (st1_mshr_cbuf_full_i) begin
+                                    else if (st1_mshr_cbuf_full_i) begin
                                         st2_mshr_alloc_need_rsp_o = 1'b0;
                                         st2_mshr_alloc_dirty_o = 1'b0;
                                         st1_rtab_alloc = 1'b1;
@@ -935,7 +1008,7 @@ import hpdcache_pkg::*;
                                     end
 
                                     //  Performance event
-                                    evt_cache_write_miss_o = 1'b1;
+                                    evt_cache_write_miss_o = ~st1_req_is_amo_i;
                                     evt_write_req_o = ~st1_mshr_cbuf_full_i;
                                 end
                             end
@@ -1038,7 +1111,7 @@ import hpdcache_pkg::*;
                                         st2_mshr_alloc_wback_o = 1'b1;
                                         st2_mshr_alloc_refill_o = 1'b0;
                                         st2_mshr_alloc_inval_o = 1'b1;
-                                        st2_mshr_alloc_dirty_o = st1_dir_hit_dirty_i;
+                                        st2_mshr_alloc_dirty_o = 1'b0;
                                         // Put the request in the replay table
                                         st1_rtab_alloc = 1'b1;
                                         // Technically, this is not a miss
@@ -1204,7 +1277,7 @@ import hpdcache_pkg::*;
                                 & ~refill_req_valid_i
                                 & ~rtab_req_valid_i
                                 & (~cmo_busy_i | cmo_wait_i)
-                                & ~uc_busy_i
+                                & (~uc_busy_i | uc_i)
                                 & flush_empty_i
                                 & ~nop;
 
@@ -1237,7 +1310,7 @@ import hpdcache_pkg::*;
                         ~st1_req_is_uncacheable_i;
 
                 if (HPDcacheCfg.u.lowLatency) begin
-                    st0_req_cachedata_read = st0_req_is_load_i &
+                    st0_req_cachedata_read = (st0_req_is_load_i | st0_req_is_cacheable_amo_load) &
                             (~st1_req_is_cacheable_store | st1_req_is_error_i);
                 end
 
