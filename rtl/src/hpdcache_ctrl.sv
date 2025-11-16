@@ -1336,6 +1336,17 @@ import hpdcache_pkg::*;
                     v_min = hpdcache_uint32'(refill_set_i);
                     v_max = hpdcache_uint32'(refill_set_i);
                 end
+            end else if (uc_dir_amo_updt_i && uc_dir_amo_updt_dirty_i) begin
+                //  Cacheline updated due to AMO writes
+                 if (cmo_dirty_set_en_q) begin
+                    v_min = hpdcache_min(hpdcache_uint32'(uc_data_amo_write_set_i),
+                        hpdcache_uint32'(cmo_dirty_min_set_q));
+                    v_max = hpdcache_max(hpdcache_uint32'(uc_data_amo_write_set_i),
+                        hpdcache_uint32'(cmo_dirty_max_set_q));
+                end else begin
+                    v_min = hpdcache_uint32'(uc_data_amo_write_set_i);
+                    v_max = hpdcache_uint32'(uc_data_amo_write_set_i);
+                end
             end else begin
                 v_min = hpdcache_uint32'(cmo_dirty_min_set_q);
                 v_max = hpdcache_uint32'(cmo_dirty_max_set_q);
@@ -1348,7 +1359,8 @@ import hpdcache_pkg::*;
         begin : cmo_dirty_set_en_comb
             unique if (
                 (st2_dir_updt_q && st2_dir_updt_dirty_q) ||
-                (refill_write_dir_i && refill_dir_entry_i.dirty))
+                (refill_write_dir_i && refill_dir_entry_i.dirty) ||
+                (uc_dir_amo_updt_i && uc_dir_amo_updt_dirty_i))
             begin
                 cmo_dirty_set_en_d = 1'b1;
             end else if (cmo_flush_all_i) begin
