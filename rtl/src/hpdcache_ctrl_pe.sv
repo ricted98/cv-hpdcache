@@ -953,20 +953,11 @@ import hpdcache_pkg::*;
 
                                     //  Update the directory state of the cacheline to FETCHING
                                     st2_dir_updt_o = 1'b1;
-                                    if (!cachedir_hit_i) begin
-                                        st2_dir_updt_valid_o  = st1_dir_victim_valid_i;
-                                        st2_dir_updt_wback_o  = st1_dir_victim_wback_i;
-                                        st2_dir_updt_dirty_o  = 1'b0;
-                                        st2_dir_updt_shared_o = st1_dir_victim_shared_i;
-                                        st2_dir_updt_fetch_o  = 1'b1;
-                                    end else begin
-                                        // Cacheable and coherent AMO ATOP/SC
-                                        st2_dir_updt_valid_o  = 1'b1;
-                                        st2_dir_updt_wback_o  = st1_dir_hit_wback_i;
-                                        st2_dir_updt_dirty_o  = st1_dir_hit_dirty_i;
-                                        st2_dir_updt_shared_o = st1_dir_hit_shared_i;
-                                        st2_dir_updt_fetch_o  = 1'b1;
-                                    end
+                                    st2_dir_updt_valid_o  = st1_dir_victim_valid_i;
+                                    st2_dir_updt_wback_o  = st1_dir_victim_wback_i;
+                                    st2_dir_updt_dirty_o  = 1'b0;
+                                    st2_dir_updt_shared_o = st1_dir_victim_shared_i;
+                                    st2_dir_updt_fetch_o  = 1'b1;
 
                                     //  Send a miss request to the memory (write-allocate)
                                     st2_mshr_alloc_o = 1'b1;
@@ -982,7 +973,6 @@ import hpdcache_pkg::*;
                                         //  only when no pending transaction exists
                                         st2_mshr_alloc_need_rsp_o = 1'b0;
                                         st2_mshr_alloc_dirty_o = 1'b0;
-                                        st2_mshr_alloc_inval_o = 1'b1;
                                         st1_rtab_alloc = 1'b1;
                                         st1_rtab_pend_trans_o = 1'b1;
                                     end
