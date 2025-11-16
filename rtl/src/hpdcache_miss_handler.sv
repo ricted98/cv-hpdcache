@@ -918,7 +918,7 @@ import hpdcache_pkg::*;
 
     //  Coalesce Buffer
     //  {{{
-    if (HPDcacheCfg.u.wbEn) begin : gen_wb_cbuf
+    if (HPDcacheCfg.u.wbEn && !HPDcacheCfg.u.coherenceEn) begin : gen_wb_cbuf
         logic cbuf_alloc, cbuf_ack;
 
         assign cbuf_alloc = mshr_alloc_dirty_i && mshr_alloc && mshr_alloc_refill_i;
@@ -946,7 +946,7 @@ import hpdcache_pkg::*;
         );
     end else begin : gen_no_wb_cbuf
         assign mshr_alloc_cbuf_id = '0;
-        assign mshr_alloc_cbuf_full_o = 1'b0;
+        assign mshr_alloc_cbuf_full_o = 1'b1;
         assign mshr_ack_wdata = '0;
         assign mshr_ack_be = '0;
     end
