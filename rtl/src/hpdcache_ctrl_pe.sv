@@ -151,9 +151,10 @@ import hpdcache_pkg::*;
     output logic                   st2_dir_updt_fetch_o,
     //   }}}
 
-    //   Cache data read enable
+    //   Cache data
     //   {{{
     output logic                   req_cachedata_read_o,
+    input  logic                   rd_wr_conflict_i,
     //   }}}
 
     //   Replay
@@ -860,11 +861,11 @@ import hpdcache_pkg::*;
                         end
 
                         // Additional NOP case in lowLatency mode: Structural hazard on the cache
-                        // data if the st0 request is a load operation.
+                        // data if the st0 request is a load operation with word access overlapping
+                        // with the write
                         else begin
-                            st1_nop = ((core_req_valid_i |  rtab_req_valid_i) &
-                                       (st0_req_is_load_i | st0_req_is_cacheable_amo_load)) |
-                                       (st1_req_rtab_i   & ~rtab_req_valid_i);
+                            st1_nop = (st1_req_rtab_i & ~rtab_req_valid_i) |
+                                      (rd_wr_conflict_i & (st0_req_is_load_i | st0_req_is_cacheable_amo_load));
                         end
 
                         //  Enable the data RAM in case of write. However, the actual write
@@ -1308,8 +1309,7 @@ import hpdcache_pkg::*;
                         ~st1_req_is_uncacheable_i;
 
                 if (HPDcacheCfg.u.lowLatency) begin
-                    st0_req_cachedata_read = (st0_req_is_load_i | st0_req_is_cacheable_amo_load) &
-                            (~st1_req_is_cacheable_store | st1_req_is_error_i);
+                    st0_req_cachedata_read = st0_req_is_load_i | st0_req_is_cacheable_amo_load;
                 end
 
                 if (st0_req_is_load_i         |
