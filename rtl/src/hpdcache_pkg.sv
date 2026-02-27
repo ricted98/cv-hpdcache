@@ -477,6 +477,16 @@ package hpdcache_pkg;
         int unsigned wbufDataPtrWidth;
         int unsigned accessWidth;
         int unsigned accessBytes;
+        int unsigned dirEntryWidth;
+        int unsigned dirRamWidth;
+        int unsigned dirRamAddrWidth;
+        int unsigned dataRamWayIdxBits;
+        int unsigned dataRamEntrPerSet;
+        int unsigned dataRamDepth;
+        int unsigned dataRamAddrWidth;
+        int unsigned dataReqRatio;
+        int unsigned dataRamYCuts;
+        int unsigned dataRamXCuts;
     } hpdcache_cfg_t;
 
     function automatic hpdcache_cfg_t hpdcacheBuildConfig(input hpdcache_user_cfg_t p);
@@ -508,6 +518,17 @@ package hpdcache_pkg;
 
         ret.accessWidth = p.accessWords * p.wordWidth;
         ret.accessBytes = ret.accessWidth/8;
+
+        ret.dirEntryWidth = ret.tagWidth + 4; // valid, wback, dirty, fetch
+        ret.dirRamWidth = ret.dirEntryWidth;
+        ret.dirRamAddrWidth = $clog2(p.sets);
+        ret.dataRamWayIdxBits = HPDcacheCfg.u.dataWaysPerRamWord > 1 ? $clog2(HPDcacheCfg.u.dataWaysPerRamWord) : 1;
+        ret.dataRamEntrPerSet = p.clWords / p.accessWords;
+        ret.dataRamDepth = p.sets * ret.dataRamEntrPerSet;
+        ret.dataRamAddrWidth = $clog2(ret.dataRamDepth);
+        ret.dataReqRatio = p.accessWords / p.reqWords;
+        ret.dataRamYCuts = p.ways / p.dataWaysPerRamWord;
+        ret.dataRamXCuts = p.accessWords;
 
         return ret;
     endfunction
