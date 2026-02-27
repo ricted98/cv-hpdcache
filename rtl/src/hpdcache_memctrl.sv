@@ -378,60 +378,45 @@ import hpdcache_pkg::*;
 
     //  Memory arrays
     //  {{{
+
+    hpdcache_memwrap #(
+        .HPDcacheCfg                  (HPDcacheCfg),
+        .hpdcache_way_vector_t        (hpdcache_way_vector_t),
+        .hpdcache_dir_addr_t          (hpdcache_dir_addr_t),
+        .hpdcache_dir_entry_t         (hpdcache_dir_entry_t),
+        .hpdcache_data_addr_t         (hpdcache_data_addr_t),
+        .hpdcache_data_enable_t       (hpdcache_data_enable_t),
+        .hpdcache_data_be_entry_t     (hpdcache_data_be_entry_t),
+        .hpdcache_data_entry_t        (hpdcache_data_entry_t),
+        .hpdcache_data_row_enable_t   (hpdcache_data_row_enable_t),
+        .hpdcache_data_ram_word_sel_t (hpdcache_data_ram_word_sel_t)
+    ) i_hpdcache_memwrap (
+        .clk_i              (clk_i),
+        .rst_ni             (rst_ni),
+
+        // Directory interface
+        .dir_cs_i           (dir_cs),
+        .dir_we_i           (dir_we),
+        .dir_addr_i         (dir_addr),
+        .dir_wentry_i       (dir_wentry),
+        .dir_rentry_o       (dir_rentry),
+        .dir_err_cor_o      (dir_err_cor_o),
+        .dir_err_unc_o      (dir_err_unc_o),
+        .dir_err_valid_o    (dir_err_valid_o),
+        .dir_err_dirty_o    (dir_err_dirty_o),
+
+        // Data interface
+        .data_addr_i        (data_addr),
+        .data_cs_i          (data_cs),
+        .data_we_i          (data_we),
+        .data_wbyteenable_i (data_wbyteenable),
+        .data_wentry_i      (data_wentry),
+        .data_rentry_o      (data_rentry),
+        .data_err_cor_o     (data_ecc_cor),
+        .data_err_unc_o     (data_ecc_unc)
+    );
+
     generate
-        genvar x, y, dir_w;
-
-        //  Directory
-        //
-        for (dir_w = 0; dir_w < int'(HPDcacheCfg.u.ways); dir_w++) begin : gen_dir_sram
-            hpdcache_sram #(
-                .ADDR_SIZE (HPDcacheCfg.dirRamAddrWidth),
-                .DATA_SIZE (HPDcacheCfg.dirRamWidth),
-                .NDATA     (1),
-                .ECC_EN    (HPDcacheCfg.u.eccEn)
-            ) dir_sram(
-                .clk           (clk_i),
-                .rst_n         (rst_ni),
-                .cs            (dir_cs[dir_w]),
-                .we            (dir_we[dir_w]),
-                .addr          (dir_addr),
-                .wdata         (dir_wentry[dir_w]),
-                .rdata         (dir_rentry[dir_w]),
-                .err_inj_i     (1'b0),
-                .err_inj_msk_i ('0),
-                .err_cor_o     (dir_err_cor_o[dir_w]),
-                .err_unc_o     (dir_err_unc_o[dir_w])
-            );
-            assign dir_err_valid_o[dir_w] = dir_rentry[dir_w].valid;
-            assign dir_err_dirty_o[dir_w] = dir_rentry[dir_w].dirty;
-        end
-
-        //  Data
-        //
-        for (y = 0; y < int'(HPDcacheCfg.dataRamYCuts); y++) begin : gen_data_sram_row
-            for (x = 0; x < int'(HPDcacheCfg.dataRamXCuts); x++) begin : gen_data_sram_col
-                hpdcache_sram_wbyteenable #(
-                    .ADDR_SIZE (HPDcacheCfg.dataRamAddrWidth),
-                    .DATA_SIZE (HPDcacheCfg.u.wordWidth),
-                    .NDATA     (HPDcacheCfg.u.dataWaysPerRamWord),
-                    .ECC_EN    (HPDcacheCfg.u.eccEn)
-                ) data_sram(
-                    .clk           (clk_i),
-                    .rst_n         (rst_ni),
-                    .cs            (data_cs[y][x]),
-                    .we            (data_we[y][x]),
-                    .addr          (data_addr[y][x]),
-                    .wdata         (data_wentry[y][x]),
-                    .wbyteenable   (data_wbyteenable[y][x]),
-                    .rdata         (data_rentry[y][x]),
-                    .err_inj_i     (1'b0),
-                    .err_inj_msk_i ('0),
-                    .err_cor_o     (data_ecc_cor[y][x]),
-                    .err_unc_o     (data_ecc_unc[y][x])
-                );
-            end
-        end
-
         if (HPDcacheCfg.u.eccEn) begin : gen_ecc_data_err
             hpdcache_data_row_enable_t data_read_sel_q;
 
