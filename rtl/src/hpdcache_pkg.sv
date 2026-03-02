@@ -450,6 +450,8 @@ package hpdcache_pkg;
         bit eccEn;
         //  Enable error correction scrubber
         bit eccScrubberEn;
+        //  Use external SRAM macros
+        bit externalSram;
     } hpdcache_user_cfg_t;
 
     typedef struct packed {

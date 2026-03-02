@@ -47,6 +47,12 @@ import hpdcache_pkg::*;
     parameter type hpdcache_mem_resp_w_t = logic,
     //  }}}
 
+    //      EXTERNAL SRAM req/resp
+    //      {{{
+    parameter type hpdcache_ext_sram_req_t = logic,
+    parameter type  hpdcache_ext_sram_resp_t = logic,
+    //      }}}
+
     localparam type hpdcache_nline_t = logic [HPDcacheCfg.nlineWidth-1:0]
 )
     //  }}}
@@ -133,7 +139,11 @@ import hpdcache_pkg::*;
     input  logic                          cfg_default_wb_i,
     input  logic                          cfg_scrub_enable_i,
     input  logic unsigned [5:0]           cfg_scrub_period_i,
-    input  logic                          cfg_scrub_restart_i
+    input  logic                          cfg_scrub_restart_i,
+
+    //   EXTERNAL SRAM req/resp
+    output hpdcache_ext_sram_req_t        ext_sram_req_o,
+    input  hpdcache_ext_sram_resp_t       ext_sram_resp_i
 );
     //  }}}
 
@@ -476,7 +486,9 @@ import hpdcache_pkg::*;
         .hpdcache_req_data_t                (hpdcache_req_data_t),
         .hpdcache_req_be_t                  (hpdcache_req_be_t),
         .hpdcache_req_t                     (hpdcache_req_t),
-        .hpdcache_rsp_t                     (hpdcache_rsp_t)
+        .hpdcache_rsp_t                     (hpdcache_rsp_t),
+        .hpdcache_ext_sram_req_t            (hpdcache_ext_sram_req_t),
+        .hpdcache_ext_sram_resp_t           (hpdcache_ext_sram_resp_t)
     ) hpdcache_ctrl_i(
         .clk_i,
         .rst_ni,
@@ -671,7 +683,10 @@ import hpdcache_pkg::*;
         .evt_req_on_hold_o,
         .evt_rtab_rollback_o,
         .evt_stall_refill_o,
-        .evt_stall_o
+        .evt_stall_o,
+
+        .ext_sram_req_o,
+        .ext_sram_resp_i
     );
     //  }}}
 
