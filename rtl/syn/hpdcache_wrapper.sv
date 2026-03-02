@@ -53,7 +53,8 @@ module hpdcache_wrapper
       wbEn: 1'b1,
       lowLatency: 1'b1,
       eccEn: 1'b0,
-      eccScrubberEn: 1'b0
+      eccScrubberEn: 1'b0,
+      externalSram: 1'b0
   },
 
   localparam hpdcache_pkg::hpdcache_cfg_t HPDcacheCfg = hpdcache_pkg::hpdcacheBuildConfig(
@@ -94,7 +95,10 @@ module hpdcache_wrapper
                            hpdcache_req_tid_t),
 
   localparam type hpdcache_wbuf_timecnt_t = logic [HPDcacheCfg.u.wbufTimecntWidth-1:0],
-  localparam type hpdcache_nline_t    = logic [HPDcacheCfg.nlineWidth-1:0]
+  localparam type hpdcache_nline_t    = logic [HPDcacheCfg.nlineWidth-1:0],
+
+  localparam type hpdcache_ext_sram_req_t = `HPDCACHE_DECL_EXT_SRAM_REQ_T(HPDcacheCfg),
+  localparam type hpdcache_ext_sram_resp_t = `HPDCACHE_DECL_EXT_SRAM_RESP_T(HPDcacheCfg)
 )
 
 (
@@ -138,26 +142,28 @@ module hpdcache_wrapper
 );
 
   hpdcache #(
-      .HPDcacheCfg          (HPDcacheCfg),
-      .wbuf_timecnt_t       (hpdcache_wbuf_timecnt_t),
-      .hpdcache_tag_t       (hpdcache_tag_t),
-      .hpdcache_data_word_t (hpdcache_data_word_t),
-      .hpdcache_data_be_t   (hpdcache_data_be_t),
-      .hpdcache_req_offset_t(hpdcache_req_offset_t),
-      .hpdcache_req_data_t  (hpdcache_req_data_t),
-      .hpdcache_req_be_t    (hpdcache_req_be_t),
-      .hpdcache_req_sid_t   (hpdcache_req_sid_t),
-      .hpdcache_req_tid_t   (hpdcache_req_tid_t),
-      .hpdcache_req_t       (hpdcache_req_t),
-      .hpdcache_rsp_t       (hpdcache_rsp_t),
-      .hpdcache_mem_addr_t  (hpdcache_mem_addr_t),
-      .hpdcache_mem_id_t    (hpdcache_mem_id_t),
-      .hpdcache_mem_data_t  (hpdcache_mem_data_t),
-      .hpdcache_mem_be_t    (hpdcache_mem_be_t),
-      .hpdcache_mem_req_t   (hpdcache_mem_req_t),
-      .hpdcache_mem_req_w_t (hpdcache_mem_req_w_t),
-      .hpdcache_mem_resp_r_t(hpdcache_mem_resp_r_t),
-      .hpdcache_mem_resp_w_t(hpdcache_mem_resp_w_t)
+      .HPDcacheCfg             (HPDcacheCfg),
+      .wbuf_timecnt_t          (hpdcache_wbuf_timecnt_t),
+      .hpdcache_tag_t          (hpdcache_tag_t),
+      .hpdcache_data_word_t    (hpdcache_data_word_t),
+      .hpdcache_data_be_t      (hpdcache_data_be_t),
+      .hpdcache_req_offset_t   (hpdcache_req_offset_t),
+      .hpdcache_req_data_t     (hpdcache_req_data_t),
+      .hpdcache_req_be_t       (hpdcache_req_be_t),
+      .hpdcache_req_sid_t      (hpdcache_req_sid_t),
+      .hpdcache_req_tid_t      (hpdcache_req_tid_t),
+      .hpdcache_req_t          (hpdcache_req_t),
+      .hpdcache_rsp_t          (hpdcache_rsp_t),
+      .hpdcache_mem_addr_t     (hpdcache_mem_addr_t),
+      .hpdcache_mem_id_t       (hpdcache_mem_id_t),
+      .hpdcache_mem_data_t     (hpdcache_mem_data_t),
+      .hpdcache_mem_be_t       (hpdcache_mem_be_t),
+      .hpdcache_mem_req_t      (hpdcache_mem_req_t),
+      .hpdcache_mem_req_w_t    (hpdcache_mem_req_w_t),
+      .hpdcache_mem_resp_r_t   (hpdcache_mem_resp_r_t),
+      .hpdcache_mem_resp_w_t   (hpdcache_mem_resp_w_t),
+      .hpdcache_ext_sram_req_t (hpdcache_ext_sram_req_t),
+      .hpdcache_ext_sram_resp_t(hpdcache_ext_sram_resp_t)
   ) i_hpdcache (
       .clk_i,
       .rst_ni,

@@ -450,6 +450,8 @@ package hpdcache_pkg;
         bit eccEn;
         //  Enable error correction scrubber
         bit eccScrubberEn;
+        //  Use external SRAM macros
+        bit externalSram;
     } hpdcache_user_cfg_t;
 
     typedef struct packed {
@@ -522,7 +524,7 @@ package hpdcache_pkg;
         ret.dirEntryWidth = ret.tagWidth + 4; // valid, wback, dirty, fetch
         ret.dirRamWidth = ret.dirEntryWidth;
         ret.dirRamAddrWidth = $clog2(p.sets);
-        ret.dataRamWayIdxBits = HPDcacheCfg.u.dataWaysPerRamWord > 1 ? $clog2(HPDcacheCfg.u.dataWaysPerRamWord) : 1;
+        ret.dataRamWayIdxBits = p.dataWaysPerRamWord > 1 ? $clog2(p.dataWaysPerRamWord) : 1;
         ret.dataRamEntrPerSet = p.clWords / p.accessWords;
         ret.dataRamDepth = p.sets * ret.dataRamEntrPerSet;
         ret.dataRamAddrWidth = $clog2(ret.dataRamDepth);

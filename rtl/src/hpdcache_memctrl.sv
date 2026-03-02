@@ -10,6 +10,9 @@
  *  Description   : HPDcache Directory and Data Memory RAMs Controller
  *  History       :
  */
+
+`include "hpdcache_typedef.svh"
+
 module hpdcache_memctrl
 import hpdcache_pkg::*;
     //  Parameters
@@ -31,7 +34,10 @@ import hpdcache_pkg::*;
     parameter type hpdcache_req_be_t = logic,
 
     parameter type hpdcache_access_data_t = logic,
-    parameter type hpdcache_access_be_t = logic
+    parameter type hpdcache_access_be_t = logic,
+
+    parameter type hpdcache_ext_sram_req_t = logic,
+    parameter type hpdcache_ext_sram_resp_t = logic
 )
     //  }}}
 
@@ -180,40 +186,20 @@ import hpdcache_pkg::*;
     input  logic                                data_err_read_i,
     output hpdcache_access_data_t               data_err_rdata_o,
     input  logic                                data_err_write_i,
-    input  hpdcache_access_data_t               data_err_wdata_i
+    input  hpdcache_access_data_t               data_err_wdata_i,
+    //      }}}
+
+    //      EXTERNAL SRAM req/resp
+    //      {{{
+    output hpdcache_ext_sram_req_t  ext_sram_req_o,
+    input  hpdcache_ext_sram_resp_t ext_sram_resp_i
     //      }}}
 );
     //  }}}
 
     //  Definition of constants and types
     //  {{{
-    typedef logic [HPDcacheCfg.dirRamAddrWidth-1:0] hpdcache_dir_addr_t;
-
-    typedef logic [HPDcacheCfg.dataRamAddrWidth-1:0] hpdcache_data_ram_addr_t;
-    typedef hpdcache_data_word_t[HPDcacheCfg.u.dataWaysPerRamWord-1:0] hpdcache_data_ram_data_t;
-    typedef hpdcache_data_be_t  [HPDcacheCfg.u.dataWaysPerRamWord-1:0] hpdcache_data_ram_be_t;
-    typedef logic [HPDcacheCfg.dataRamYCuts-1:0] hpdcache_data_ram_row_idx_t;
-    typedef logic [HPDcacheCfg.dataRamWayIdxBits-1:0] hpdcache_data_ram_way_idx_t;
-    typedef logic [HPDcacheCfg.dataRamXCuts-1:0] hpdcache_data_row_enable_t;
-    typedef hpdcache_data_row_enable_t [HPDcacheCfg.dataRamYCuts-1:0] hpdcache_data_enable_t;
-    typedef logic [HPDcacheCfg.u.dataWaysPerRamWord-1:0] hpdcache_data_ram_way_sel_t;
-
-    typedef hpdcache_data_ram_data_t
-          [HPDcacheCfg.dataRamYCuts-1:0]
-          [HPDcacheCfg.dataRamXCuts-1:0]
-          hpdcache_data_entry_t;
-    typedef hpdcache_data_ram_be_t
-          [HPDcacheCfg.dataRamYCuts-1:0]
-          [HPDcacheCfg.dataRamXCuts-1:0]
-          hpdcache_data_be_entry_t;
-    typedef hpdcache_data_ram_addr_t
-          [HPDcacheCfg.dataRamYCuts-1:0]
-          [HPDcacheCfg.dataRamXCuts-1:0]
-          hpdcache_data_addr_t;
-    typedef hpdcache_data_ram_way_sel_t
-          [HPDcacheCfg.dataRamYCuts-1:0]
-          [HPDcacheCfg.dataRamXCuts-1:0]
-          hpdcache_data_ram_word_sel_t;
+    `HPDCACHE_TYPEDEF_RAM_TYPES_T(hpdcache, HPDcacheCfg)
     //  }}}
 
     //  Definition of functions
@@ -378,43 +364,69 @@ import hpdcache_pkg::*;
 
     //  Memory arrays
     //  {{{
+    if (HPDcacheCfg.u.externalSram) begin : gen_ext_sram_bindings
+        // Directory interface request
+        assign ext_sram_req_o = hpdcache_ext_sram_req_t'({
+            dir_cs,
+            dir_we,
+            dir_addr,
+            dir_wentry,
+            data_addr,
+            data_cs,
+            data_we,
+            data_wbyteenable,
+            data_wentry
+        });
 
-    hpdcache_memwrap #(
-        .HPDcacheCfg                  (HPDcacheCfg),
-        .hpdcache_way_vector_t        (hpdcache_way_vector_t),
-        .hpdcache_dir_addr_t          (hpdcache_dir_addr_t),
-        .hpdcache_dir_entry_t         (hpdcache_dir_entry_t),
-        .hpdcache_data_addr_t         (hpdcache_data_addr_t),
-        .hpdcache_data_enable_t       (hpdcache_data_enable_t),
-        .hpdcache_data_be_entry_t     (hpdcache_data_be_entry_t),
-        .hpdcache_data_entry_t        (hpdcache_data_entry_t),
-        .hpdcache_data_row_enable_t   (hpdcache_data_row_enable_t),
-        .hpdcache_data_ram_word_sel_t (hpdcache_data_ram_word_sel_t)
-    ) i_hpdcache_memwrap (
-        .clk_i              (clk_i),
-        .rst_ni             (rst_ni),
+        // Directory interface response
+        assign {dir_rentry,
+                dir_err_cor_o,
+                dir_err_unc_o,
+                dir_err_valid_o,
+                dir_err_dirty_o,
+                data_rentry,
+                data_ecc_cor,
+                data_ecc_unc} = ext_sram_resp_i;
+    end else begin : gen_memwrap
+        hpdcache_memwrap #(
+            .HPDcacheCfg                  (HPDcacheCfg),
+            .hpdcache_way_vector_t        (hpdcache_way_vector_t),
+            .hpdcache_dir_addr_t          (hpdcache_dir_addr_t),
+            .hpdcache_dir_entry_t         (hpdcache_dir_entry_t),
+            .hpdcache_data_addr_t         (hpdcache_data_addr_t),
+            .hpdcache_data_enable_t       (hpdcache_data_enable_t),
+            .hpdcache_data_be_entry_t     (hpdcache_data_be_entry_t),
+            .hpdcache_data_entry_t        (hpdcache_data_entry_t),
+            .hpdcache_data_row_enable_t   (hpdcache_data_row_enable_t),
+            .hpdcache_data_ram_word_sel_t (hpdcache_data_ram_word_sel_t)
+        ) i_hpdcache_memwrap (
+            .clk_i              (clk_i),
+            .rst_ni             (rst_ni),
 
-        // Directory interface
-        .dir_cs_i           (dir_cs),
-        .dir_we_i           (dir_we),
-        .dir_addr_i         (dir_addr),
-        .dir_wentry_i       (dir_wentry),
-        .dir_rentry_o       (dir_rentry),
-        .dir_err_cor_o      (dir_err_cor_o),
-        .dir_err_unc_o      (dir_err_unc_o),
-        .dir_err_valid_o    (dir_err_valid_o),
-        .dir_err_dirty_o    (dir_err_dirty_o),
+            // Directory interface
+            .dir_cs_i           (dir_cs),
+            .dir_we_i           (dir_we),
+            .dir_addr_i         (dir_addr),
+            .dir_wentry_i       (dir_wentry),
+            .dir_rentry_o       (dir_rentry),
+            .dir_err_cor_o      (dir_err_cor_o),
+            .dir_err_unc_o      (dir_err_unc_o),
+            .dir_err_valid_o    (dir_err_valid_o),
+            .dir_err_dirty_o    (dir_err_dirty_o),
 
-        // Data interface
-        .data_addr_i        (data_addr),
-        .data_cs_i          (data_cs),
-        .data_we_i          (data_we),
-        .data_wbyteenable_i (data_wbyteenable),
-        .data_wentry_i      (data_wentry),
-        .data_rentry_o      (data_rentry),
-        .data_err_cor_o     (data_ecc_cor),
-        .data_err_unc_o     (data_ecc_unc)
-    );
+            // Data interface
+            .data_addr_i        (data_addr),
+            .data_cs_i          (data_cs),
+            .data_we_i          (data_we),
+            .data_wbyteenable_i (data_wbyteenable),
+            .data_wentry_i      (data_wentry),
+            .data_rentry_o      (data_rentry),
+            .data_err_cor_o     (data_ecc_cor),
+            .data_err_unc_o     (data_ecc_unc)
+        );
+
+        assign ext_sram_req_o = '0;
+    end
 
     generate
         if (HPDcacheCfg.u.eccEn) begin : gen_ecc_data_err

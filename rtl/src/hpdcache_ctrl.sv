@@ -46,7 +46,10 @@ import hpdcache_pkg::*;
     parameter type hpdcache_req_be_t = logic,
 
     parameter type hpdcache_req_t = logic,
-    parameter type hpdcache_rsp_t = logic
+    parameter type hpdcache_rsp_t = logic,
+
+    parameter type hpdcache_ext_sram_req_t = logic,
+    parameter type hpdcache_ext_sram_resp_t = logic
 )
     // }}}
 
@@ -259,7 +262,11 @@ import hpdcache_pkg::*;
     output logic                  evt_req_on_hold_o,
     output logic                  evt_rtab_rollback_o,
     output logic                  evt_stall_refill_o,
-    output logic                  evt_stall_o
+    output logic                  evt_stall_o,
+
+    //   EXTERNAL SRAM req/resp
+    output hpdcache_ext_sram_req_t  ext_sram_req_o,
+    input  hpdcache_ext_sram_resp_t ext_sram_resp_i
 );
     // }}}
 
@@ -979,7 +986,9 @@ import hpdcache_pkg::*;
         .hpdcache_req_data_t           (hpdcache_req_data_t),
         .hpdcache_req_be_t             (hpdcache_req_be_t),
         .hpdcache_access_data_t        (hpdcache_access_data_t),
-        .hpdcache_access_be_t          (hpdcache_access_be_t)
+        .hpdcache_access_be_t          (hpdcache_access_be_t),
+        .hpdcache_ext_sram_req_t       (hpdcache_ext_sram_req_t),
+        .hpdcache_ext_sram_resp_t      (hpdcache_ext_sram_resp_t)
     ) hpdcache_memctrl_i(
         .clk_i,
         .rst_ni,
@@ -1107,7 +1116,10 @@ import hpdcache_pkg::*;
         .data_err_read_i               (err_dat_read),
         .data_err_rdata_o              (err_dat_rdata_d),
         .data_err_write_i              (err_dat_write),
-        .data_err_wdata_i              (err_dat_wdata)
+        .data_err_wdata_i              (err_dat_wdata),
+
+        .ext_sram_req_o,
+        .ext_sram_resp_i
     );
 
     assign st1_dir_hit           = |st1_dir_hit_way;

@@ -104,4 +104,52 @@
 `define HPDCACHE_TYPEDEF_RSP_T(__name__, __data_t, __sid_t, __tid_t) \
     typedef `HPDCACHE_DECL_RSP_T(__data_t, __sid_t, __tid_t) __name__
 
+`define HPDCACHE_DECL_EXT_SRAM_REQ_T(__params) \
+    struct packed { \
+        logic unsigned [                                                       __params.u.ways-1:0] dir_cs; \
+        logic unsigned [                                                       __params.u.ways-1:0] dir_we; \
+        logic          [                                              __params.dirRamAddrWidth-1:0] dir_addr; \
+        logic          [                               __params.u.ways-1:0][__params.dirEntryWidth-1:0] dir_wentry; \
+        logic          [__params.dataRamYCuts-1:0][__params.dataRamXCuts-1:0][__params.dataRamAddrWidth-1:0] data_addr; \
+        logic          [__params.dataRamYCuts-1:0][__params.dataRamXCuts-1:0] data_cs; \
+        logic          [__params.dataRamYCuts-1:0][__params.dataRamXCuts-1:0] data_we; \
+        logic          [__params.dataRamYCuts-1:0][__params.dataRamXCuts-1:0][__params.u.dataWaysPerRamWord-1:0][__params.u.wordWidth/8-1:0] data_wbyteenable; \
+        logic          [__params.dataRamYCuts-1:0][__params.dataRamXCuts-1:0][__params.u.dataWaysPerRamWord-1:0][__params.u.wordWidth-1:0]   data_wentry; \
+    }
+`define HPDCACHE_TYPEDEF_EXT_SRAM_REQ_T(__name__, __params) \
+    typedef `HPDCACHE_DECL_EXT_SRAM_REQ_T(__params) __name__
+
+
+`define HPDCACHE_DECL_EXT_SRAM_RESP_T(__params) \
+    struct packed { \
+        logic          [                               __params.u.ways-1:0][__params.dirEntryWidth-1:0] dir_rentry; \
+        logic unsigned [                                                       __params.u.ways-1:0] dir_err_cor; \
+        logic unsigned [                                                       __params.u.ways-1:0] dir_err_unc; \
+        logic unsigned [                                                       __params.u.ways-1:0] dir_err_valid; \
+        logic unsigned [                                                       __params.u.ways-1:0] dir_err_dirty; \
+        logic          [__params.dataRamYCuts-1:0][__params.dataRamXCuts-1:0][__params.u.dataWaysPerRamWord-1:0][__params.u.wordWidth-1:0] data_rentry; \
+        logic          [__params.dataRamYCuts-1:0][__params.dataRamXCuts-1:0][__params.u.dataWaysPerRamWord-1:0] data_err_cor; \
+        logic          [__params.dataRamYCuts-1:0][__params.dataRamXCuts-1:0][__params.u.dataWaysPerRamWord-1:0] data_err_unc; \
+    }
+
+`define HPDCACHE_TYPEDEF_EXT_SRAM_RESP_T(__name__, __params) \
+    typedef `HPDCACHE_DECL_EXT_SRAM_RESP_T(__params) __name__
+
+`define HPDCACHE_TYPEDEF_RAM_TYPES_T(__name__, __params) \
+    typedef logic [                       __params.dirRamAddrWidth-1:0] __name__``_dir_addr_t; \
+    typedef logic [                      __params.dataRamAddrWidth-1:0] __name__``_data_ram_addr_t; \
+    typedef logic [__params.u.dataWaysPerRamWord-1:0][__params.u.wordWidth-1:0]   __name__``_data_ram_data_t; \
+    typedef logic [__params.u.dataWaysPerRamWord-1:0][__params.u.wordWidth/8-1:0] __name__``_data_ram_be_t; \
+    \
+    typedef logic [                          __params.dataRamYCuts-1:0] __name__``_data_ram_row_idx_t; \
+    typedef logic [                     __params.dataRamWayIdxBits-1:0] __name__``_data_ram_way_idx_t; \
+    typedef logic [                          __params.dataRamXCuts-1:0] __name__``_data_row_enable_t; \
+    typedef __name__``_data_row_enable_t [    __params.dataRamYCuts-1:0] __name__``_data_enable_t; \
+    typedef logic [                  __params.u.dataWaysPerRamWord-1:0] __name__``_data_ram_way_sel_t; \
+    \
+    typedef __name__``_data_ram_data_t   [__params.dataRamYCuts-1:0][__params.dataRamXCuts-1:0] __name__``_data_entry_t; \
+    typedef __name__``_data_ram_be_t     [__params.dataRamYCuts-1:0][__params.dataRamXCuts-1:0] __name__``_data_be_entry_t; \
+    typedef __name__``_data_ram_addr_t   [__params.dataRamYCuts-1:0][__params.dataRamXCuts-1:0] __name__``_data_addr_t; \
+    typedef __name__``_data_ram_way_sel_t [__params.dataRamYCuts-1:0][__params.dataRamXCuts-1:0] __name__``_data_ram_word_sel_t;
+
 `endif //  __HPDCACHE_TYPEDEF_SVH__

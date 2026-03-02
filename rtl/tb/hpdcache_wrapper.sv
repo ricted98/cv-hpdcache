@@ -54,7 +54,8 @@ import hpdcache_pkg::*;
         wbEn: `CONF_HPDCACHE_WB_ENABLE,
         lowLatency: `CONF_HPDCACHE_LOW_LATENCY,
         eccEn: `CONF_HPDCACHE_ECC_ENABLE,
-        eccScrubberEn: `CONF_HPDCACHE_ECC_SCRUBBER_ENABLE
+        eccScrubberEn: `CONF_HPDCACHE_ECC_SCRUBBER_ENABLE,
+        externalSram: 0
     },
 
     localparam hpdcache_cfg_t Cfg = hpdcacheBuildConfig(UserCfg),
@@ -201,6 +202,9 @@ import hpdcache_pkg::*;
     `HPDCACHE_TYPEDEF_MEM_RESP_R_T(hpdcache_mem_resp_r_t, hpdcache_mem_id_t, hpdcache_mem_data_t);
     `HPDCACHE_TYPEDEF_MEM_REQ_W_T(hpdcache_mem_req_w_t, hpdcache_mem_data_t, hpdcache_mem_be_t);
     `HPDCACHE_TYPEDEF_MEM_RESP_W_T(hpdcache_mem_resp_w_t, hpdcache_mem_id_t);
+    `HPDCACHE_TYPEDEF_EXT_SRAM_REQ_T(hpdcache_ext_sram_req_t, Cfg);
+    `HPDCACHE_TYPEDEF_EXT_SRAM_RESP_T(hpdcache_ext_sram_resp_t, Cfg);
+
     //  }}}
 
     //  Declaration of internal signals
@@ -308,7 +312,9 @@ import hpdcache_pkg::*;
         .hpdcache_mem_req_t                (hpdcache_mem_req_t),
         .hpdcache_mem_req_w_t              (hpdcache_mem_req_w_t),
         .hpdcache_mem_resp_r_t             (hpdcache_mem_resp_r_t),
-        .hpdcache_mem_resp_w_t             (hpdcache_mem_resp_w_t)
+        .hpdcache_mem_resp_w_t             (hpdcache_mem_resp_w_t),
+        .hpdcache_ext_sram_req_t           (hpdcache_ext_sram_req_t),
+        .hpdcache_ext_sram_resp_t          (hpdcache_ext_sram_resp_t)
     ) i_hpdcache(
         .clk_i,
         .rst_ni,
@@ -378,7 +384,10 @@ import hpdcache_pkg::*;
         .cfg_default_wb_i,
         .cfg_scrub_enable_i,
         .cfg_scrub_period_i,
-        .cfg_scrub_restart_i
+        .cfg_scrub_restart_i,
+
+        .ext_sram_req_o  (),
+        .ext_sram_resp_i ('0)
     );
 
     //  Assertions/Coverage
