@@ -83,6 +83,7 @@ public:
                      256,
                      "i_top.hpdcache_wrapper.i_hpdcache"
                      ".hpdcache_ctrl_i.hpdcache_memctrl_i"
+                     ".gen_memwrap.i_hpdcache_memwrap"
                      ".gen_dir_sram[%d].dir_sram.gen_sram_ecc"
                      ".i_sram.i_sram",
                      w);
@@ -98,6 +99,7 @@ public:
                          256,
                          "i_top.hpdcache_wrapper.i_hpdcache"
                          ".hpdcache_ctrl_i.hpdcache_memctrl_i"
+                         ".gen_memwrap.i_hpdcache_memwrap"
                          ".gen_data_sram_row[%d]"
                          ".gen_data_sram_col[%d]"
                          ".data_sram.gen_sram_ecc.ram_i.i_sram",
