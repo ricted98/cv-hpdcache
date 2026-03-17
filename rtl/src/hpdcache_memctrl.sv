@@ -366,29 +366,27 @@ import hpdcache_pkg::*;
     //  {{{
     if (HPDcacheCfg.u.externalSram) begin : gen_ext_sram_bindings
         // Directory interface request
-        assign ext_sram_req_o.dir_cs           = dir_cs;
-        assign ext_sram_req_o.dir_we           = dir_we;
-        assign ext_sram_req_o.dir_addr         = dir_addr;
-        assign ext_sram_req_o.dir_wentry       = dir_wentry;
-
-        // Data interface request
-        assign ext_sram_req_o.data_addr        = data_addr;
-        assign ext_sram_req_o.data_cs          = data_cs;
-        assign ext_sram_req_o.data_we          = data_we;
-        assign ext_sram_req_o.data_wbyteenable = data_wbyteenable;
-        assign ext_sram_req_o.data_wentry      = data_wentry;
+        assign ext_sram_req_o = hpdcache_ext_sram_req_t'({
+            dir_cs,
+            dir_we,
+            dir_addr,
+            dir_wentry,
+            data_addr,
+            data_cs,
+            data_we,
+            data_wbyteenable,
+            data_wentry
+        });
 
         // Directory interface response
-        assign dir_rentry      = ext_sram_resp_i.dir_rentry;
-        assign dir_err_cor_o   = ext_sram_resp_i.dir_err_cor;
-        assign dir_err_unc_o   = ext_sram_resp_i.dir_err_unc;
-        assign dir_err_valid_o = ext_sram_resp_i.dir_err_valid;
-        assign dir_err_dirty_o = ext_sram_resp_i.dir_err_dirty;
-
-        // Data interface response
-        assign data_rentry     = ext_sram_resp_i.data_rentry;
-        assign data_ecc_cor    = ext_sram_resp_i.data_err_cor;
-        assign data_ecc_unc    = ext_sram_resp_i.data_err_unc;
+        assign {dir_rentry,
+                dir_err_cor_o,
+                dir_err_unc_o,
+                dir_err_valid_o,
+                dir_err_dirty_o,
+                data_rentry,
+                data_ecc_cor,
+                data_ecc_unc} = ext_sram_resp_i;
     end else begin : gen_memwrap
         hpdcache_memwrap #(
             .HPDcacheCfg                  (HPDcacheCfg),
