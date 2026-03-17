@@ -95,13 +95,10 @@ module hpdcache_wrapper
                            hpdcache_req_tid_t),
 
   localparam type hpdcache_wbuf_timecnt_t = logic [HPDcacheCfg.u.wbufTimecntWidth-1:0],
-<<<<<<< HEAD
-  localparam type hpdcache_nline_t    = logic [HPDcacheCfg.nlineWidth-1:0]
-=======
+  localparam type hpdcache_nline_t    = logic [HPDcacheCfg.nlineWidth-1:0],
 
   localparam type hpdcache_ext_sram_req_t = `HPDCACHE_DECL_EXT_SRAM_REQ_T(HPDcacheCfg),
   localparam type hpdcache_ext_sram_resp_t = `HPDCACHE_DECL_EXT_SRAM_RESP_T(HPDcacheCfg)
->>>>>>> 9753522 (hpdcache: add external SRAM interface support)
 )
 
 (

@@ -61,7 +61,7 @@ import hpdcache_pkg::*;
             .ADDR_SIZE (HPDcacheCfg.dirRamAddrWidth),
             .DATA_SIZE (HPDcacheCfg.dirRamWidth),
             .NDATA     (1),
-            .ECC_EN    (HPDcacheCfg.u.eccDirEn)
+            .ECC_EN    (HPDcacheCfg.u.eccEn)
         ) dir_sram(
             .clk           (clk_i),
             .rst_n         (rst_ni),
@@ -87,7 +87,7 @@ import hpdcache_pkg::*;
                 .ADDR_SIZE (HPDcacheCfg.dataRamAddrWidth),
                 .DATA_SIZE (HPDcacheCfg.u.wordWidth),
                 .NDATA     (HPDcacheCfg.u.dataWaysPerRamWord),
-                .ECC_EN    (HPDcacheCfg.u.eccDataEn)
+                .ECC_EN    (HPDcacheCfg.u.eccEn)
             ) data_sram(
                 .clk           (clk_i),
                 .rst_n         (rst_ni),

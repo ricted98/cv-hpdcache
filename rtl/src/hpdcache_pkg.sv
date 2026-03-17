@@ -524,7 +524,7 @@ package hpdcache_pkg;
         ret.dirEntryWidth = ret.tagWidth + 4; // valid, wback, dirty, fetch
         ret.dirRamWidth = ret.dirEntryWidth;
         ret.dirRamAddrWidth = $clog2(p.sets);
-        ret.dataRamWayIdxBits = HPDcacheCfg.u.dataWaysPerRamWord > 1 ? $clog2(HPDcacheCfg.u.dataWaysPerRamWord) : 1;
+        ret.dataRamWayIdxBits = p.dataWaysPerRamWord > 1 ? $clog2(p.dataWaysPerRamWord) : 1;
         ret.dataRamEntrPerSet = p.clWords / p.accessWords;
         ret.dataRamDepth = p.sets * ret.dataRamEntrPerSet;
         ret.dataRamAddrWidth = $clog2(ret.dataRamDepth);

@@ -142,7 +142,7 @@
     typedef logic [__params.u.dataWaysPerRamWord-1:0][__params.u.wordWidth/8-1:0] __name__``_data_ram_be_t; \
     \
     typedef logic [                          __params.dataRamYCuts-1:0] __name__``_data_ram_row_idx_t; \
-    typedef logic [$clog2(__params.u.dataWaysPerRamWord)-1:0]           __name__``_data_ram_way_idx_t; \
+    typedef logic [                     __params.dataRamWayIdxBits-1:0] __name__``_data_ram_way_idx_t; \
     typedef logic [                          __params.dataRamXCuts-1:0] __name__``_data_row_enable_t; \
     typedef __name__``_data_row_enable_t [    __params.dataRamYCuts-1:0] __name__``_data_enable_t; \
     typedef logic [                  __params.u.dataWaysPerRamWord-1:0] __name__``_data_ram_way_sel_t; \
