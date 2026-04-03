@@ -47,6 +47,9 @@ import hpdcache_pkg::*;
     input  set_t                  updt_set_i,
     input  way_vector_t           updt_way_i,
 
+    //      Configuration interface
+    input  way_vector_t           cfg_dspm_ways_i,
+
     //      Victim selection interface
     input  logic                  sel_victim_i, /* unused */
     input  way_vector_t           sel_dir_valid_i,
@@ -70,10 +73,10 @@ import hpdcache_pkg::*;
 
     //  Victim way selection
     //  {{{
-    assign unused_ways = ~sel_dir_fetch_i & ~sel_dir_valid_i;
-    assign plru_ways   = ~sel_dir_fetch_i &  sel_dir_valid_i & ~plru_q[sel_victim_set_i];
-    assign clean_ways  = ~sel_dir_fetch_i &  sel_dir_valid_i & ~sel_dir_dirty_i;
-    assign dirty_ways  = ~sel_dir_fetch_i &  sel_dir_valid_i &  sel_dir_dirty_i;
+    assign unused_ways = ~cfg_dspm_ways_i & ~sel_dir_fetch_i & ~sel_dir_valid_i;
+    assign plru_ways   = ~cfg_dspm_ways_i & ~sel_dir_fetch_i &  sel_dir_valid_i & ~plru_q[sel_victim_set_i];
+    assign clean_ways  = ~cfg_dspm_ways_i & ~sel_dir_fetch_i &  sel_dir_valid_i & ~sel_dir_dirty_i;
+    assign dirty_ways  = ~cfg_dspm_ways_i & ~sel_dir_fetch_i &  sel_dir_valid_i &  sel_dir_dirty_i;
 
     hpdcache_prio_1hot_encoder #(.N(HPDcacheCfg.u.ways))
         unused_victim_select_i(
@@ -127,7 +130,7 @@ import hpdcache_pkg::*;
         //  When accessing a cache-line, set the corresponding PLRU bit
         //  If all PLRU bits of a given set are equal to 1, reset them all
         //  but the currently accessed way
-        if (updt_i) plru_d[updt_set_i] = &updt_plru ? updt_way_i : updt_plru;
+        if (updt_i) plru_d[updt_set_i] = &(updt_plru | cfg_dspm_ways_i) ? updt_way_i : updt_plru;
     end
     //  }}}
 

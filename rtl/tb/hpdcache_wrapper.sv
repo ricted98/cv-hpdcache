@@ -348,6 +348,14 @@ import hpdcache_pkg::*;
         .mem_resp_write_valid_i            (mem_resp_write_valid_i),
         .mem_resp_write_i                  (mem_resp_write),
 
+        .ispm_req_valid_o                  (),
+        .ispm_req_o                        (),
+        .ispm_req_abort_o                  (),
+        .ispm_req_tag_o                    (),
+        .ispm_req_pma_o                    (),
+        .ispm_rsp_valid_i                  (1'b0),
+        .ispm_rsp_i                        ('0),
+
         .evt_cache_write_miss_o,
         .evt_cache_read_miss_o,
         .evt_cache_dir_unc_err_o,
@@ -378,7 +386,14 @@ import hpdcache_pkg::*;
         .cfg_default_wb_i,
         .cfg_scrub_enable_i,
         .cfg_scrub_period_i,
-        .cfg_scrub_restart_i
+        .cfg_scrub_restart_i,
+        .cfg_enable_dspm_i ('0),
+        .cfg_enable_ispm_i ('0),
+        .cfg_dspm_ways_i   ('0),
+        .cfg_dspm_start_i  ('0),
+        .cfg_dspm_length_i ('0),
+        .cfg_ispm_start_i  ('0),
+        .cfg_ispm_length_i ('0)
     );
 
     //  Assertions/Coverage

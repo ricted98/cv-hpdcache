@@ -79,6 +79,18 @@ import hpdcache_pkg::*;
     input  logic                          mem_req_read_ready_i,
     output logic                          mem_req_read_valid_o,
     output hpdcache_mem_req_t             mem_req_read_o,
+    //      ISPM request interface
+    //         1st cycle
+    output logic                          ispm_req_valid_o,
+    output hpdcache_req_t                 ispm_req_o,
+    //         2nd cycle
+    output logic                          ispm_req_abort_o,
+    output hpdcache_tag_t                 ispm_req_tag_o,
+    output hpdcache_pma_t                 ispm_req_pma_o,
+
+    //      ISPM response interface
+    input  logic                          ispm_rsp_valid_i,
+    input  hpdcache_rsp_t                 ispm_rsp_i,
 
     output logic                          mem_resp_read_ready_o,
     input  logic                          mem_resp_read_valid_i,
@@ -133,7 +145,14 @@ import hpdcache_pkg::*;
     input  logic                          cfg_default_wb_i,
     input  logic                          cfg_scrub_enable_i,
     input  logic unsigned [5:0]           cfg_scrub_period_i,
-    input  logic                          cfg_scrub_restart_i
+    input  logic                          cfg_scrub_restart_i,
+    input  logic                          cfg_enable_dspm_i,
+    input  logic                          cfg_enable_ispm_i,
+    input  hpdcache_way_vector_t          cfg_dspm_ways_i,
+    input  hpdcache_req_addr_t            cfg_dspm_start_i,
+    input  hpdcache_req_addr_t            cfg_dspm_length_i,
+    input  hpdcache_req_addr_t            cfg_ispm_start_i,
+    input  hpdcache_req_addr_t            cfg_ispm_length_i
 );
     //  }}}
 
@@ -491,6 +510,15 @@ import hpdcache_pkg::*;
         .core_rsp_valid_o                   (core_rsp_valid),
         .core_rsp_o                         (core_rsp),
 
+        .ispm_req_valid_o,
+        .ispm_req_o,
+        .ispm_req_abort_o,
+        .ispm_req_tag_o,
+        .ispm_req_pma_o,
+
+        .ispm_rsp_valid_i,
+        .ispm_rsp_i,
+
         .wbuf_flush_i,
 
         .cachedir_hit_o                     (/* unused */),
@@ -655,6 +683,13 @@ import hpdcache_pkg::*;
         .cfg_scrub_enable_i,
         .cfg_scrub_period_i,
         .cfg_scrub_restart_i,
+        .cfg_enable_dspm_i,
+        .cfg_enable_ispm_i,
+        .cfg_dspm_ways_i,
+        .cfg_dspm_start_i,
+        .cfg_dspm_length_i,
+        .cfg_ispm_start_i,
+        .cfg_ispm_length_i,
 
         .evt_cache_write_miss_o,
         .evt_cache_read_miss_o,

@@ -42,6 +42,9 @@ import hpdcache_pkg::*;
     input  logic                  clk_i,
     input  logic                  rst_ni,
 
+    //      Configuration interface
+    input  hpdcache_way_vector_t  cfg_dspm_ways_i,
+
     //      Victim policy update interface
     input  logic                  updt_i,
     input  hpdcache_set_t         updt_set_i,
@@ -62,7 +65,7 @@ import hpdcache_pkg::*;
     //  Direct mapped cache (one way)
     if (HPDcacheCfg.u.ways == 1)
     begin : gen_single_way_victim_sel
-        assign sel_victim_way_o = ~sel_dir_fetch_i;
+        assign sel_victim_way_o = ~sel_dir_fetch_i & ~cfg_dspm_ways_i;
     end
 
     //  -----------------------------------------------------------------------
@@ -74,6 +77,8 @@ import hpdcache_pkg::*;
         ) victim_rand_i(
             .clk_i,
             .rst_ni,
+
+            .cfg_dspm_ways_i,
 
             .updt_i,
             .updt_set_i,
@@ -98,6 +103,8 @@ import hpdcache_pkg::*;
         ) victim_plru_i(
             .clk_i,
             .rst_ni,
+
+            .cfg_dspm_ways_i,
 
             .updt_i,
             .updt_set_i,

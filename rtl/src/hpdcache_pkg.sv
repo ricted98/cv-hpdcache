@@ -87,6 +87,14 @@ package hpdcache_pkg;
     } hpdcache_pma_t;
     //      }}}
 
+    // Possible request destinations
+    typedef enum logic [1:0] {
+        CACHE_REQ = 2'h0,
+        DSPM_REQ  = 2'h1,
+        ISPM_REQ  = 2'h2,
+        INVALID_REQ
+    } hpdcache_req_dest_t;
+
     //      Definition of functions
     //      {{{
     function automatic int unsigned hpdcache_max(int unsigned x, int unsigned y);
