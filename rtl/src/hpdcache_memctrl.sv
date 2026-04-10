@@ -734,10 +734,10 @@ import hpdcache_pkg::*;
                                  dir_req_set_q;
 
     for (gen_i = 0; gen_i < HPDcacheCfg.u.ways; gen_i++) begin : gen_dir_valid_bv
-        assign dir_valid[gen_i] = dir_rentry[gen_i].valid;
-        assign dir_wback[gen_i] = dir_rentry[gen_i].wback;
-        assign dir_dirty[gen_i] = dir_rentry[gen_i].dirty;
-        assign dir_fetch[gen_i] = dir_rentry[gen_i].fetch;
+        assign dir_valid[gen_i] = dir_rentry[gen_i].valid && !cfg_dspm_ways_i[gen_i];
+        assign dir_wback[gen_i] = dir_rentry[gen_i].wback && !cfg_dspm_ways_i[gen_i];
+        assign dir_dirty[gen_i] = dir_rentry[gen_i].dirty && !cfg_dspm_ways_i[gen_i];
+        assign dir_fetch[gen_i] = dir_rentry[gen_i].fetch && !cfg_dspm_ways_i[gen_i];
     end
 
 
@@ -921,6 +921,7 @@ import hpdcache_pkg::*;
                       data_flush_read_i   ? data_flush_read_way_i :
                       data_amo_write_i    ? data_amo_write_way_i :
                       data_req_write_i    ? data_req_write_way_i :
+                      dir_is_spm_access_i ? dir_spm_way :
                       data_err_read_i     ? data_err_way_i :
                       data_err_write_i    ? data_err_way_i : '0;
 

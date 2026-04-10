@@ -257,10 +257,6 @@ import hpdcache_pkg::*;
     input  logic                  cfg_enable_dspm_i,
     input  logic                  cfg_enable_ispm_i,
     input  hpdcache_way_vector_t  cfg_dspm_ways_i,
-    input  hpdcache_req_addr_t    cfg_dspm_start_i,
-    input  hpdcache_req_addr_t    cfg_dspm_length_i,
-    input  hpdcache_req_addr_t    cfg_ispm_start_i,
-    input  hpdcache_req_addr_t    cfg_ispm_length_i,
 
     //   Performance events
     output logic                  evt_cache_write_miss_o,
@@ -603,6 +599,10 @@ import hpdcache_pkg::*;
             if (!cfg_enable_i) begin
                 st0_req.req.pma.uncacheable = 1'b1;
             end
+            //  force uncacheable requests if all ways are in SPM mode
+            if (cfg_enable_dspm_i & &cfg_dspm_ways_i & core_req_i.phys_indexed) begin
+                st0_req.req.pma.uncacheable = ~core_req_i.pma.dspm & ~core_req_i.pma.ispm;
+            end
             //  if WT write-policy is not supported, force WB
             if (!HPDcacheCfg.u.wtEn) begin
                 st0_req.req.pma.wr_policy_hint = HPDCACHE_WR_POLICY_WB;
@@ -637,6 +637,10 @@ import hpdcache_pkg::*;
         if (!cfg_enable_i) begin
             st1_req_pma.uncacheable = 1'b1;
         end
+        //  force uncacheable requests if all ways are in SPM mode
+        if (cfg_enable_dspm_i & &cfg_dspm_ways_i) begin
+            st1_req_pma.uncacheable  = ~st1_req_pma.dspm & ~st1_req_pma.ispm;
+        end
         //  if WT write-policy is not supported, force WB
         if (!HPDcacheCfg.u.wtEn) begin
             st1_req_pma.wr_policy_hint = HPDCACHE_WR_POLICY_WB;
@@ -665,7 +669,8 @@ import hpdcache_pkg::*;
     //         previous cycle (stage 0). Useful in case of TLB miss for example
     assign st1_req_abort           = core_req_abort_i & ~st1_req.req.phys_indexed;
 
-    assign st1_req_is_uncacheable  = ~cfg_enable_i | st1_req.req.pma.uncacheable;
+    assign st1_req_is_uncacheable  = ~cfg_enable_i | st1_req.req.pma.uncacheable |
+                                     (cfg_enable_dspm_i & &cfg_dspm_ways_i & ~st1_req.req.pma.dspm & ~st1_req.req.pma.ispm);
     assign st1_req_is_load         =         is_load(st1_req.req.op) & ~st1_req.err_scrubbing;
     assign st1_req_is_store        =        is_store(st1_req.req.op);
     assign st1_req_is_amo          =          is_amo(st1_req.req.op);
@@ -692,22 +697,16 @@ import hpdcache_pkg::*;
     assign st1_req_wr_wb           = (st1_req.req.pma.wr_policy_hint == HPDCACHE_WR_POLICY_WB);
     assign st1_req_wr_auto         = (st1_req.req.pma.wr_policy_hint == HPDCACHE_WR_POLICY_AUTO);
 
-    // Decode the address (rather, the nline)
-    // of an incoming request
-    always_comb begin : req_dest_decoder
+    always_comb begin : spm_pma_comb
         st1_req_is_cache_req = 1'b0;
         st1_req_is_dspm_req  = 1'b0;
         st1_req_is_ispm_req  = 1'b0;
 
         unique case (1'b1)
-            cfg_enable_dspm_i &&
-            ({st1_req_nline, {HPDcacheCfg.clOffsetWidth{1'b0}}} >= cfg_dspm_start_i) &&
-            ({st1_req_nline, {HPDcacheCfg.clOffsetWidth{1'b0}}} <  (cfg_dspm_start_i + cfg_dspm_length_i)):
+            cfg_enable_dspm_i && st1_req.req.pma.dspm:
                 st1_req_is_dspm_req = 1'b1;
 
-            cfg_enable_ispm_i &&
-            ({st1_req_nline, {HPDcacheCfg.clOffsetWidth{1'b0}}} >= cfg_ispm_start_i) &&
-            ({st1_req_nline, {HPDcacheCfg.clOffsetWidth{1'b0}}} <  (cfg_ispm_start_i + cfg_dspm_length_i)):
+            cfg_enable_ispm_i && st1_req.req.pma.ispm:
                 st1_req_is_ispm_req = 1'b1;
 
             default:

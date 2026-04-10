@@ -389,11 +389,7 @@ import hpdcache_pkg::*;
         .cfg_scrub_restart_i,
         .cfg_enable_dspm_i ('0),
         .cfg_enable_ispm_i ('0),
-        .cfg_dspm_ways_i   ('0),
-        .cfg_dspm_start_i  ('0),
-        .cfg_dspm_length_i ('0),
-        .cfg_ispm_start_i  ('0),
-        .cfg_ispm_length_i ('0)
+        .cfg_dspm_ways_i   ('0)
     );
 
     //  Assertions/Coverage

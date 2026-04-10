@@ -150,11 +150,7 @@ import hpdcache_pkg::*;
     input  logic                          cfg_scrub_restart_i,
     input  logic                          cfg_enable_dspm_i,
     input  logic                          cfg_enable_ispm_i,
-    input  hpdcache_way_vector_t          cfg_dspm_ways_i,
-    input  hpdcache_req_addr_t            cfg_dspm_start_i,
-    input  hpdcache_req_addr_t            cfg_dspm_length_i,
-    input  hpdcache_req_addr_t            cfg_ispm_start_i,
-    input  hpdcache_req_addr_t            cfg_ispm_length_i
+    input  hpdcache_way_vector_t          cfg_dspm_ways_i
 );
     //  }}}
 
@@ -686,10 +682,6 @@ import hpdcache_pkg::*;
         .cfg_enable_dspm_i,
         .cfg_enable_ispm_i,
         .cfg_dspm_ways_i,
-        .cfg_dspm_start_i,
-        .cfg_dspm_length_i,
-        .cfg_ispm_start_i,
-        .cfg_ispm_length_i,
 
         .evt_cache_write_miss_o,
         .evt_cache_read_miss_o,

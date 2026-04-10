@@ -79,6 +79,8 @@ package hpdcache_pkg;
     //      {{{
     typedef struct packed
     {
+        logic dspm;
+        logic ispm;
         logic uncacheable;
         logic io; //  FIXME: for future use
 

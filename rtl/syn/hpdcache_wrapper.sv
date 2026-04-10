@@ -226,7 +226,10 @@ module hpdcache_wrapper
       .cfg_default_wb_i                   (1'b0),
       .cfg_scrub_enable_i                 (1'b0),
       .cfg_scrub_period_i                 (6'd10),
-      .cfg_scrub_restart_i                (1'b1)
+      .cfg_scrub_restart_i                (1'b1),
+      .cfg_enable_dspm_i                  ('0),
+      .cfg_enable_ispm_i                  ('0),
+      .cfg_dspm_ways_i                    ('0)
   );
 
 endmodule  /* hpdcache_wrapper */

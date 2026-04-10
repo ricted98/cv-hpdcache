@@ -526,6 +526,40 @@ import hpdcache_pkg::*;
                 end
                 //  }}}
 
+                //  SPM requests
+                //  {{{
+                    if(st1_req_is_dspm_req_i) begin
+                        if (st1_req_is_store_i) begin
+                             //  Respond to the core
+                            st1_rsp_valid_o = st1_req_need_rsp_i;
+
+                            //  Write in the data RAM
+                            st1_req_cachedata_write_o        = 1'b1;
+                            st1_req_cachedata_write_enable_o = 1'b1;
+
+                            //  Performance event
+                            evt_write_req_o = 1'b1;
+                        end
+
+                        if (st1_req_is_load_i) begin
+                                //  Respond to the core
+                                st1_rsp_valid_o = st1_req_need_rsp_i;
+
+                                //  If not lowLatency, data is read from the cache in stage 1
+                                if (!HPDcacheCfg.u.lowLatency) begin
+                                    //  Read data from the cache
+                                    st1_req_cachedata_read = 1'b1;
+                                end
+
+                                //  Performance event
+                                evt_read_req_o     = 1'b1;
+                        end
+                    end else if(st1_req_is_dspm_req_i) begin
+                        ispm_req_submit_o  = 1'b1;
+                        evt_read_req_o     = 1'b1;
+                    end
+                //  }}}
+
                 //  Cacheable request
                 //  {{{
                 else begin
@@ -652,106 +686,87 @@ import hpdcache_pkg::*;
                             //  If there is a match in the write buffer, send the entry right away
                             wbuf_read_flush_hit_o = 1'b1;
 
-                            if(st1_req_is_dspm_req_i) begin
-                                st1_rsp_valid_o = st1_req_need_rsp_i;
+                            //  Select a victim cacheline for cache misses
+                            st1_req_cachedir_sel_victim_o = 1'b1;
+
+                            //  Pending miss on the same line
+                            if (st1_mshr_hit_i) begin
+                                st1_rtab_alloc = 1'b1;
+                                st1_rtab_mshr_hit_o = 1'b1;
+                            end
+
+                            //  No available slot in the MSHR
+                            else if (st1_mshr_full_i) begin
+                                st1_rtab_alloc = 1'b1;
+                                st1_rtab_mshr_full_o = 1'b1;
+                            end
+
+                            //  All entries in the target set are being fetched
+                            else if (st1_dir_victim_unavailable_i) begin
+                                st1_rtab_alloc = 1'b1;
+                                st1_rtab_dir_unavailable_o = 1'b1;
+                            end
+
+                            //  Hit on an open entry of the write buffer: wait for the entry to be
+                            //  acknowledged
+                            else if (wbuf_read_hit_i) begin
+                                //  Put the request in the replay table
+                                st1_rtab_alloc = 1'b1;
+                                st1_rtab_wbuf_hit_o = 1'b1;
+                            end
+
+                            //  Miss Handler is not ready to send
+                            else if (!st1_mshr_alloc_ready_i) begin
+                                //  Put the request on hold if the MISS HANDLER is not
+                                //  ready to send a new miss request. This is to prevent
+                                //  a deadlock between the read request channel and the
+                                //  read response channel.
+                                //
+                                //  The request channel may be stalled by targets if they
+                                //  are not able to send a response (response is
+                                //  prioritary). Therefore, we need to put the request on
+                                //  hold to allow a possible refill read response to be
+                                //  accomplished.
+                                st1_rtab_alloc = 1'b1;
+                                st1_rtab_mshr_ready_o = 1'b1;
+                            end
+
+                            //  Flush pending on the miss cacheline
+                            else if (st1_flush_check_hit_i) begin
+                                st1_rtab_alloc = 1'b1;
+                                st1_rtab_flush_hit_o = 1'b1;
+                            end
+
+                            //  Flush needed but the controller is not ready
+                            else if (st1_dir_victim_dirty_i && !st1_flush_alloc_ready_i) begin
+                                st1_rtab_alloc = 1'b1;
+                                st1_rtab_flush_not_ready_o = 1'b1;
+                            end
+
+                            //  Forward the request to the next stage to allocate the
+                            //  entry in the MSHR and send the refill request
+                            else begin
+                                //  When the victim cacheline is dirty, flush its data to the
+                                //  memory
+                                st2_flush_alloc_o = st1_dir_victim_dirty_i;
+
                                 //  If the request comes from the replay table, free the
                                 //  corresponding RTAB entry
                                 st1_rtab_commit_o = st1_req_rtab_i;
 
-                                st1_nop = 1'b0;
+                                //  Request a MSHR allocation
+                                st2_mshr_alloc_o = 1'b1;
+                                st2_mshr_alloc_need_rsp_o = st1_req_need_rsp_i;
+                                st2_mshr_alloc_wback_o = (st1_req_wr_auto_i & cfg_default_wb_i) |
+                                                        st1_req_wr_wb_i;
+                                st2_mshr_alloc_dirty_o = 1'b0;
 
-                                //  Performance event
-                                evt_read_req_o     = ~st1_req_is_cmo_prefetch_i;
-                                evt_prefetch_req_o =  st1_req_is_cmo_prefetch_i;
-                            end
-                            else if(st1_req_is_ispm_req_i) begin
-                                ispm_req_submit_o  = 1'b1;
-                                evt_read_req_o     = 1'b1;
-                            end
-
-                            //  Select a victim cacheline for regular cache misses
-                            if (!st1_req_is_dspm_req_i && !st1_req_is_ispm_req_i) begin
-                                st1_req_cachedir_sel_victim_o = 1'b1;
-
-                                //  Pending miss on the same line
-                                if (st1_mshr_hit_i) begin
-                                    st1_rtab_alloc = 1'b1;
-                                    st1_rtab_mshr_hit_o = 1'b1;
-                                end
-
-                                //  No available slot in the MSHR
-                                else if (st1_mshr_full_i) begin
-                                    st1_rtab_alloc = 1'b1;
-                                    st1_rtab_mshr_full_o = 1'b1;
-                                end
-
-                                //  All entries in the target set are being fetched
-                                else if (st1_dir_victim_unavailable_i) begin
-                                    st1_rtab_alloc = 1'b1;
-                                    st1_rtab_dir_unavailable_o = 1'b1;
-                                end
-
-                                //  Hit on an open entry of the write buffer: wait for the entry to be
-                                //  acknowledged
-                                else if (wbuf_read_hit_i) begin
-                                    //  Put the request in the replay table
-                                    st1_rtab_alloc = 1'b1;
-                                    st1_rtab_wbuf_hit_o = 1'b1;
-                                end
-
-                                //  Miss Handler is not ready to send
-                                else if (!st1_mshr_alloc_ready_i) begin
-                                    //  Put the request on hold if the MISS HANDLER is not
-                                    //  ready to send a new miss request. This is to prevent
-                                    //  a deadlock between the read request channel and the
-                                    //  read response channel.
-                                    //
-                                    //  The request channel may be stalled by targets if they
-                                    //  are not able to send a response (response is
-                                    //  prioritary). Therefore, we need to put the request on
-                                    //  hold to allow a possible refill read response to be
-                                    //  accomplished.
-                                    st1_rtab_alloc = 1'b1;
-                                    st1_rtab_mshr_ready_o = 1'b1;
-                                end
-
-                                //  Flush pending on the miss cacheline
-                                else if (st1_flush_check_hit_i) begin
-                                    st1_rtab_alloc = 1'b1;
-                                    st1_rtab_flush_hit_o = 1'b1;
-                                end
-
-                                //  Flush needed but the controller is not ready
-                                else if (st1_dir_victim_dirty_i && !st1_flush_alloc_ready_i) begin
-                                    st1_rtab_alloc = 1'b1;
-                                    st1_rtab_flush_not_ready_o = 1'b1;
-                                end
-
-                                //  Forward the request to the next stage to allocate the
-                                //  entry in the MSHR and send the refill request
-                                else begin
-                                    //  When the victim cacheline is dirty, flush its data to the
-                                    //  memory
-                                    st2_flush_alloc_o = st1_dir_victim_dirty_i;
-
-                                    //  If the request comes from the replay table, free the
-                                    //  corresponding RTAB entry
-                                    st1_rtab_commit_o = st1_req_rtab_i;
-
-                                    //  Request a MSHR allocation
-                                    st2_mshr_alloc_o = 1'b1;
-                                    st2_mshr_alloc_need_rsp_o = st1_req_need_rsp_i;
-                                    st2_mshr_alloc_wback_o = (st1_req_wr_auto_i & cfg_default_wb_i) |
-                                                            st1_req_wr_wb_i;
-                                    st2_mshr_alloc_dirty_o = 1'b0;
-
-                                    //  Update the cache directory state to FETCHING
-                                    st2_dir_updt_o = 1'b1;
-                                    st2_dir_updt_valid_o = st1_dir_victim_valid_i;
-                                    st2_dir_updt_wback_o = st1_dir_victim_wback_i;
-                                    st2_dir_updt_dirty_o = 1'b0;
-                                    st2_dir_updt_fetch_o = 1'b1;
-                                end
+                                //  Update the cache directory state to FETCHING
+                                st2_dir_updt_o = 1'b1;
+                                st2_dir_updt_valid_o = st1_dir_victim_valid_i;
+                                st2_dir_updt_wback_o = st1_dir_victim_wback_i;
+                                st2_dir_updt_dirty_o = 1'b0;
+                                st2_dir_updt_fetch_o = 1'b1;
                             end
                         end
                         //  }}}
@@ -897,30 +912,9 @@ import hpdcache_pkg::*;
                         //  Cache miss
                         //  {{{
                         else if (!cachedir_hit_i) begin
-                            if(st1_req_is_dspm_req_i) begin
-                                //  If the request comes from the replay table, free the
-                                //  corresponding RTAB entry
-                                st1_rtab_commit_o = st1_req_rtab_i;
-
-                                //  Respond to the core
-                                st1_rsp_valid_o = st1_req_need_rsp_i;
-
-                                //  Write in the data RAM
-                                st1_req_cachedata_write_enable_o = 1'b1;
-
-                                //  Never propagate the write outwards
-                                wbuf_write_valid_o = 1'b0;
-
-                                //  Performance event
-                                evt_write_req_o = 1'b1;
-                            end
-                            else if(st1_req_is_ispm_req_i) begin
-                                ispm_req_submit_o  = 1'b1;
-                                evt_write_req_o    = 1'b1;
-                            end
                             //  Write is write-back
                             //  {{{
-                            else if (st1_req_wr_wb_i || (st1_req_wr_auto_i && cfg_default_wb_i))
+                            if (st1_req_wr_wb_i || (st1_req_wr_auto_i && cfg_default_wb_i))
                             begin
                                 //  Select a victim cacheline
                                 st1_req_cachedir_sel_victim_o = 1'b1;
