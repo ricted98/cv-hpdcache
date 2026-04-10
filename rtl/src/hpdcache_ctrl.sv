@@ -454,7 +454,6 @@ import hpdcache_pkg::*;
     logic                    st1_req_is_cache_req;
     logic                    st1_req_is_dspm_req;
     logic                    st1_req_is_ispm_req;
-    hpdcache_req_dest_t      st1_req_dest;
     logic                    st1_rtab_alloc;
     logic                    st1_rtab_alloc_and_link;
     logic                    st1_rtab_pop_try_commit;
@@ -569,44 +568,6 @@ import hpdcache_pkg::*;
           ispm_rsp_q       <= ispm_rsp_d;
           ispm_rsp_valid_q <= ispm_rsp_valid_d;
        end
-    end
-
-    // This defines which address ranges are attributed to the SPMs
-    // Any space between the DSPM and ISPM does not get an extra rule
-    // but is handled by the address decoders default index
-    // (which is set to CACHE)
-    addr_decode_rule_t [3:0] spm_addr_map;
-
-    always_comb begin
-      if (cfg_enable_dspm_i && cfg_enable_ispm_i) begin
-        spm_addr_map = {
-          {CACHE_REQ, hpdcache_req_addr_t'('0), cfg_dspm_start_i},
-          {DSPM_REQ, cfg_dspm_start_i, (cfg_dspm_start_i + cfg_dspm_length_i)},
-          {ISPM_REQ, cfg_ispm_start_i, (cfg_ispm_start_i + cfg_ispm_length_i)},
-          {CACHE_REQ, (cfg_ispm_start_i + cfg_ispm_length_i), hpdcache_req_addr_t'('0)}
-        };
-      end else if (cfg_enable_dspm_i) begin
-        spm_addr_map = {
-          {CACHE_REQ, hpdcache_req_addr_t'('0), cfg_dspm_start_i},
-          {DSPM_REQ, cfg_dspm_start_i, (cfg_dspm_start_i + cfg_dspm_length_i)},
-          {CACHE_REQ, (cfg_dspm_start_i + cfg_dspm_length_i), (cfg_dspm_start_i + cfg_dspm_length_i) + hpdcache_req_addr_t'(64'h32)},
-          {CACHE_REQ, (cfg_dspm_start_i + cfg_dspm_length_i) + hpdcache_req_addr_t'(64'h32), hpdcache_req_addr_t'('0)}
-        };
-      end else if (cfg_enable_ispm_i) begin
-        spm_addr_map = {
-          {CACHE_REQ, hpdcache_req_addr_t'('0), hpdcache_req_addr_t'(64'h32)},
-          {CACHE_REQ, hpdcache_req_addr_t'(64'h32), cfg_ispm_start_i},
-          {ISPM_REQ, cfg_ispm_start_i, (cfg_ispm_start_i + cfg_ispm_length_i)},
-          {CACHE_REQ, (cfg_ispm_start_i + cfg_ispm_length_i), hpdcache_req_addr_t'('0)}
-        };
-      end else begin
-        spm_addr_map = {
-          {CACHE_REQ, hpdcache_req_addr_t'('0), hpdcache_req_addr_t'(64'h32)},
-          {CACHE_REQ, hpdcache_req_addr_t'(64'h32), hpdcache_req_addr_t'(64'h64)},
-          {CACHE_REQ, hpdcache_req_addr_t'(64'h64), hpdcache_req_addr_t'(64'h96)},
-          {CACHE_REQ, hpdcache_req_addr_t'(64'h96), hpdcache_req_addr_t'('0)}
-        };
-      end
     end
     //  }}}
 
@@ -731,23 +692,28 @@ import hpdcache_pkg::*;
     assign st1_req_wr_wb           = (st1_req.req.pma.wr_policy_hint == HPDCACHE_WR_POLICY_WB);
     assign st1_req_wr_auto         = (st1_req.req.pma.wr_policy_hint == HPDCACHE_WR_POLICY_AUTO);
 
-    // Decode the address (rather, the address tag)
+    // Decode the address (rather, the nline)
     // of an incoming request
-    always_comb begin
-        st1_req_dest  = CACHE_REQ;
+    always_comb begin : req_dest_decoder
+        st1_req_is_cache_req = 1'b0;
+        st1_req_is_dspm_req  = 1'b0;
+        st1_req_is_ispm_req  = 1'b0;
 
-        for (int unsigned r = 0; r < 4; r++) begin
-            if (({st1_req_tag, {HPDcacheCfg.reqOffsetWidth{1'b0}}} >= spm_addr_map[r].start_addr) &&
-                (({st1_req_tag, {HPDcacheCfg.reqOffsetWidth{1'b0}}} <  spm_addr_map[r].end_addr)   ||
-                (spm_addr_map[r].end_addr == '0))) begin
-                st1_req_dest = hpdcache_req_dest_t'(spm_addr_map[r].idx);
-            end
-        end
+        unique case (1'b1)
+            cfg_enable_dspm_i &&
+            ({st1_req_nline, {HPDcacheCfg.clOffsetWidth{1'b0}}} >= cfg_dspm_start_i) &&
+            ({st1_req_nline, {HPDcacheCfg.clOffsetWidth{1'b0}}} <  (cfg_dspm_start_i + cfg_dspm_length_i)):
+                st1_req_is_dspm_req = 1'b1;
+
+            cfg_enable_ispm_i &&
+            ({st1_req_nline, {HPDcacheCfg.clOffsetWidth{1'b0}}} >= cfg_ispm_start_i) &&
+            ({st1_req_nline, {HPDcacheCfg.clOffsetWidth{1'b0}}} <  (cfg_ispm_start_i + cfg_dspm_length_i)):
+                st1_req_is_ispm_req = 1'b1;
+
+            default:
+                st1_req_is_cache_req = 1'b1;
+        endcase
     end
-
-    assign st1_req_is_cache_req = st1_req_dest == CACHE_REQ;
-    assign st1_req_is_dspm_req  = st1_req_dest == DSPM_REQ;
-    assign st1_req_is_ispm_req  = st1_req_dest == ISPM_REQ;
     //  }}}
 
     //  Cache controller protocol engine
@@ -1165,7 +1131,7 @@ import hpdcache_pkg::*;
         .dir_hit_wback_o               (st1_dir_hit_wback),
         .dir_hit_dirty_o               (st1_dir_hit_dirty),
         .dir_hit_fetch_o               (st1_dir_hit_fetch),
-        .dir_is_spm_access_i           (st1_req_dest == DSPM_REQ),
+        .dir_is_spm_access_i           (st1_req_is_dspm_req),
 
         .dir_updt_i                    (st2_dir_updt_q),
         .dir_updt_set_i                (st2_dir_updt_set_q),
