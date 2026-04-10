@@ -663,14 +663,14 @@ import hpdcache_pkg::*;
         assign cmo_hit[gen_i]   = (dir_tags[gen_i] == dir_cmo_check_nline_tag_i);
         assign inval_hit[gen_i] = (dir_tags[gen_i] == dir_inval_tag);
 
-        assign dir_hit_way_o[gen_i]                 = dir_valid[gen_i] & req_hit[gen_i];
+        assign dir_hit_way_o[gen_i]                 = dir_is_spm_access_i ? dir_spm_way[gen_i] :
+                                                      dir_valid[gen_i] & req_hit[gen_i];
         assign dir_cmo_check_nline_hit_way_o[gen_i] = dir_valid[gen_i] & cmo_hit[gen_i];
         assign dir_inval_hit_way[gen_i]             = dir_valid[gen_i] & inval_hit[gen_i];
 
         // The SPM way to use is immediately derived from the lower bits of the tag
-        assign dir_spm_way[gen_i] = (unsigned'(dir_match_tag_i[HPDcacheCfg.wayIndexWidth == unsigned'(gen_i)])) &
-                                    cfg_dspm_ways_i[gen_i] &
-                                    dir_is_spm_access_i;
+        assign dir_spm_way[gen_i] = (unsigned'(dir_match_tag_i[HPDcacheCfg.wayIndexWidth-1:0]) == unsigned'(gen_i)) &
+                                    cfg_dspm_ways_i[gen_i];
     end
 
     hpdcache_mux #(
@@ -921,7 +921,6 @@ import hpdcache_pkg::*;
                       data_flush_read_i   ? data_flush_read_way_i :
                       data_amo_write_i    ? data_amo_write_way_i :
                       data_req_write_i    ? data_req_write_way_i :
-                      dir_is_spm_access_i ? dir_spm_way :
                       data_err_read_i     ? data_err_way_i :
                       data_err_write_i    ? data_err_way_i : '0;
 

@@ -47,7 +47,9 @@ import hpdcache_pkg::*;
     parameter type hpdcache_mem_resp_w_t = logic,
     //  }}}
 
-    localparam type hpdcache_nline_t = logic [HPDcacheCfg.nlineWidth-1:0]
+    localparam type hpdcache_nline_t      = logic [HPDcacheCfg.nlineWidth-1:0],
+    localparam type hpdcache_way_vector_t = logic unsigned [HPDcacheCfg.u.ways-1:0],
+    localparam type hpdcache_req_addr_t   = logic [HPDcacheCfg.u.paWidth-1:0]
 )
     //  }}}
 
@@ -158,11 +160,9 @@ import hpdcache_pkg::*;
 
     //  Declaration of internal types
     //  {{{
-    typedef logic [HPDcacheCfg.u.paWidth-1:0] hpdcache_req_addr_t;
     typedef logic [HPDcacheCfg.setWidth-1:0] hpdcache_set_t;
     typedef logic [HPDcacheCfg.clOffsetWidth-1:0] hpdcache_offset_t;
     typedef logic unsigned [HPDcacheCfg.clWordIdxWidth-1:0] hpdcache_word_t;
-    typedef logic unsigned [HPDcacheCfg.u.ways-1:0] hpdcache_way_vector_t;
     typedef logic unsigned [HPDcacheCfg.wayIndexWidth-1:0] hpdcache_way_t;
 
     //  Cache Directory entry definition
