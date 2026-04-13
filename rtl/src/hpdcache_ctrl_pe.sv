@@ -528,7 +528,7 @@ import hpdcache_pkg::*;
 
                 //  SPM requests
                 //  {{{
-                    if(st1_req_is_dspm_req_i) begin
+                else if(st1_req_is_dspm_req_i) begin
                         if (st1_req_is_store_i) begin
                              //  Respond to the core
                             st1_rsp_valid_o = st1_req_need_rsp_i;
@@ -554,7 +554,7 @@ import hpdcache_pkg::*;
                                 //  Performance event
                                 evt_read_req_o     = 1'b1;
                         end
-                    end else if(st1_req_is_dspm_req_i) begin
+                    end else if(st1_req_is_ispm_req_i) begin
                         ispm_req_submit_o  = 1'b1;
                         evt_read_req_o     = 1'b1;
                     end

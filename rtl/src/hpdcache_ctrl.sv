@@ -541,8 +541,8 @@ import hpdcache_pkg::*;
        // are no refills or uncached responses pending
        if (ispm_rsp_valid_q) begin
           ispm_rsp_valid   = ispm_need_rsp_q &
-                ~refill_core_rsp_valid_i &
-                ~uc_core_rsp_valid_i;
+                            ~refill_core_rsp_valid_i &
+                            ~uc_core_rsp_valid_i;
           ispm_rsp_valid_d = ispm_need_rsp_q & ~ispm_rsp_valid;
           ispm_need_rsp_d  = ispm_need_rsp_q & ~ispm_rsp_valid;
        end
@@ -850,7 +850,7 @@ import hpdcache_pkg::*;
         .st1_mshr_cbuf_full_i               (st1_mshr_alloc_cbuf_full_i),
 
         .ispm_req_submit_o                  (ispm_req_submit_pe),
-        .ispm_req_pend_i                 (ispm_req_pend_ctrl),
+        .ispm_req_pend_i                    (ispm_req_pend_ctrl),
 
         .refill_busy_i,
         .refill_core_rsp_valid_i,
