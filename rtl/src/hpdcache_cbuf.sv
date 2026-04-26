@@ -33,6 +33,7 @@ import hpdcache_pkg::*;
 (
     input  logic               clk_i,
     input  logic               rst_ni,
+    input  logic               clear_i,
     input  logic               alloc_i,
     input  hpdcache_req_data_t alloc_wdata_i,
     input  hpdcache_req_be_t   alloc_be_i,
@@ -82,6 +83,9 @@ import hpdcache_pkg::*;
 
     always_ff @(posedge clk_i or negedge rst_ni) begin
         if (!rst_ni) begin
+            entries_q <= '0;
+            valid_q <= '0;
+        end else if (clear_i) begin
             entries_q <= '0;
             valid_q <= '0;
         end else begin

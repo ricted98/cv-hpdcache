@@ -51,6 +51,7 @@ import hpdcache_pkg::*;
     //  Clock and reset signals
     input  logic                  clk_i,
     input  logic                  rst_ni,
+    input  logic                  clear_i,
 
     //  Global control signals
     output logic                  empty_o,
@@ -702,6 +703,10 @@ import hpdcache_pkg::*;
     always_ff @(posedge clk_i or negedge rst_ni)
     begin : wbuf_state_ff
         if (!rst_ni) begin
+            wbuf_dir_q           <= '0;
+            wbuf_dir_state_q     <= {WBUF_DIR_NENTRIES{WBUF_FREE}};
+            wbuf_data_valid_q    <= '0;
+        end else if (clear_i) begin
             wbuf_dir_q           <= '0;
             wbuf_dir_state_q     <= {WBUF_DIR_NENTRIES{WBUF_FREE}};
             wbuf_data_valid_q    <= '0;

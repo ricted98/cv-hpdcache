@@ -52,6 +52,7 @@ import hpdcache_pkg::*;
 (
     input  logic                  clk_i,
     input  logic                  rst_ni,
+    input  logic                  clear_i,
 
     //      Global control signals
     //      {{{
@@ -247,6 +248,9 @@ import hpdcache_pkg::*;
         if (!rst_ni) begin
             flush_fsm_q   <= FLUSH_IDLE;
             flush_word_q  <= '0;
+        end else if (clear_i) begin
+            flush_fsm_q   <= FLUSH_IDLE;
+            flush_word_q  <= '0;
         end else begin
             flush_fsm_q   <= flush_fsm_d;
             flush_word_q  <= flush_word_d;
@@ -259,6 +263,8 @@ import hpdcache_pkg::*;
     always_ff @(posedge clk_i or negedge rst_ni)
     begin : flush_dir_valid_ff
         if (!rst_ni) begin
+            flush_dir_valid_q <= '0;
+        end else if (clear_i) begin
             flush_dir_valid_q <= '0;
         end else begin
             flush_dir_valid_q <= (~flush_dir_valid_q &  flush_dir_alloc_bv) |
@@ -364,6 +370,8 @@ import hpdcache_pkg::*;
     always_ff @(posedge clk_i or negedge rst_ni)
     begin
         if (!rst_ni) begin
+            write_flits_cnt_q <= 0;
+        end else if (clear_i) begin
             write_flits_cnt_q <= 0;
         end else begin
             if (mem_req_write_data_valid_o && mem_req_write_data_ready_i) begin

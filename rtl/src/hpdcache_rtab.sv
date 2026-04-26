@@ -34,6 +34,7 @@ import hpdcache_pkg::*;
     //  Clock and reset signals
     input  logic                  clk_i,
     input  logic                  rst_ni,
+    input  logic                  clear_i,
 
     //  Global control signals
     output logic                  empty_o,  // RTAB is empty
@@ -620,6 +621,13 @@ import hpdcache_pkg::*;
             tail_q  <= '0;
             deps_q  <= '0;
             next_q  <= '0;
+        end else if (clear_i) begin
+            valid_q <= '0;
+            error_q <= '0;
+            head_q  <= '0;
+            tail_q  <= '0;
+            deps_q  <= '0;
+            next_q  <= '0;
         end else begin
             valid_q <= (~valid_q & valid_set) | (valid_q & ~valid_rst);
 
@@ -646,6 +654,9 @@ import hpdcache_pkg::*;
     always_ff @(posedge clk_i or negedge rst_ni)
     begin : pop_try_ff
         if (!rst_ni) begin
+            pop_try_state_q <= POP_TRY_HEAD;
+            pop_try_next_q  <= '0;
+        end else if (clear_i) begin
             pop_try_state_q <= POP_TRY_HEAD;
             pop_try_next_q  <= '0;
         end else begin

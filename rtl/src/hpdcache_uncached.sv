@@ -46,6 +46,7 @@ import hpdcache_pkg::*;
 (
     input  logic                  clk_i,
     input  logic                  rst_ni,
+    input  logic                  clear_i,
 
     //  Cache-side request interface
     //  {{{
@@ -856,6 +857,14 @@ import hpdcache_pkg::*;
             req_need_rsp_q <= 1'b0;
             req_hit_way_q <= '0;
             req_old_data_q <= '0;
+        end else if (clear_i) begin
+            req_op_q <= '0;
+            req_addr_q <= '0;
+            req_size_q <= '0;
+            req_uc_q <= 1'b0;
+            req_need_rsp_q <= 1'b0;
+            req_hit_way_q <= '0;
+            req_old_data_q <= '0;
         end else if (req_valid_i && req_ready_o) begin
             req_op_q <= req_op_i;
             req_addr_q <= req_addr_i;
@@ -878,6 +887,9 @@ import hpdcache_pkg::*;
     always_ff @(posedge clk_i or negedge rst_ni)
     begin : uc_fsm_ff
         if (!rst_ni) begin
+            uc_fsm_q          <= UC_IDLE;
+            lrsc_rsrv_valid_q <= 1'b0;
+        end else if (clear_i) begin
             uc_fsm_q          <= UC_IDLE;
             lrsc_rsrv_valid_q <= 1'b0;
         end else begin
@@ -908,6 +920,8 @@ import hpdcache_pkg::*;
     always_ff @(posedge clk_i or negedge rst_ni)
     begin
         if (!rst_ni) begin
+            rsp_error_q <= 1'b0;
+        end else if (clear_i) begin
             rsp_error_q <= 1'b0;
         end else begin
             rsp_error_q <= (~rsp_error_q &  rsp_error_set) |

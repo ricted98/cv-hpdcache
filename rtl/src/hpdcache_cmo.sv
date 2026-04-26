@@ -50,6 +50,7 @@ import hpdcache_pkg::*;
 (
     input  logic                  clk_i,
     input  logic                  rst_ni,
+    input  logic                  clear_i,
 
     //  Global control signals
     //  {{{
@@ -574,6 +575,10 @@ import hpdcache_pkg::*;
     always_ff @(posedge clk_i or negedge rst_ni)
     begin
         if (!rst_ni) begin
+            core_rsp_send_q        <= 1'b0;
+            cmoh_flush_req_valid_q <= 1'b0;
+            cmoh_fsm_q             <= CMOH_IDLE;
+        end else if (clear_i) begin
             core_rsp_send_q        <= 1'b0;
             cmoh_flush_req_valid_q <= 1'b0;
             cmoh_fsm_q             <= CMOH_IDLE;
