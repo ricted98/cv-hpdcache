@@ -63,6 +63,7 @@ import hpdcache_pkg::*;
     //      Clock and reset signals
     input  logic                          clk_i,
     input  logic                          rst_ni,
+    input  logic                          clear_i,
 
     //      Force the write buffer to send all pending writes
     input  logic                          wbuf_flush_i,
@@ -431,6 +432,7 @@ import hpdcache_pkg::*;
     ) core_req_arbiter_i (
         .clk_i,
         .rst_ni,
+        .clear_i,
 
         .core_req_valid_i,
         .core_req_ready_o,
@@ -492,6 +494,7 @@ import hpdcache_pkg::*;
     ) hpdcache_ctrl_i(
         .clk_i,
         .rst_ni,
+        .clear_i,
 
         .core_req_valid_i                   (arb_req_valid),
         .core_req_ready_o                   (arb_req_ready),
@@ -704,6 +707,7 @@ import hpdcache_pkg::*;
         ) hpdcache_wbuf_i(
             .clk_i,
             .rst_ni,
+            .clear_i,
 
             .empty_o                            (wbuf_empty_o),
             .full_o                             (/* unused */),
@@ -790,6 +794,7 @@ import hpdcache_pkg::*;
     ) hpdcache_miss_handler_i(
         .clk_i,
         .rst_ni,
+        .clear_i,
 
         .mshr_empty_o                       (miss_mshr_empty),
         .mshr_full_o                        (/* unused */),
@@ -878,6 +883,7 @@ import hpdcache_pkg::*;
     ) hpdcache_uc_i(
         .clk_i,
         .rst_ni,
+        .clear_i,
 
         .req_valid_i                   (uc_req_valid),
         .req_ready_o                   (uc_ready),
@@ -958,6 +964,7 @@ import hpdcache_pkg::*;
     ) hpdcache_cmo_i(
         .clk_i,
         .rst_ni,
+        .clear_i,
 
         .wbuf_empty_i                  (wbuf_empty_o),
         .mshr_empty_i                  (miss_mshr_empty),
@@ -1047,6 +1054,7 @@ import hpdcache_pkg::*;
         ) flush_i(
             .clk_i,
             .rst_ni,
+            .clear_i,
 
             .flush_empty_o                 (flush_empty),
             .flush_full_o                  (/* open */),
@@ -1131,6 +1139,7 @@ import hpdcache_pkg::*;
     ) hpdcache_mem_req_read_arbiter_i(
         .clk_i,
         .rst_ni,
+        .clear_i,
 
         .mem_req_read_ready_o  (arb_mem_req_read_ready),
         .mem_req_read_valid_i  (arb_mem_req_read_valid),
@@ -1252,6 +1261,7 @@ import hpdcache_pkg::*;
     ) hpdcache_mem_req_write_arbiter_i (
         .clk_i,
         .rst_ni,
+        .clear_i,
 
         .mem_req_write_ready_o         (arb_mem_req_write_ready),
         .mem_req_write_valid_i         (arb_mem_req_write_valid),

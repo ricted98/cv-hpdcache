@@ -52,6 +52,7 @@ import hpdcache_pkg::*;
 (
     input  logic                  clk_i,
     input  logic                  rst_ni,
+    input  logic                  clear_i,
 
     //      Global control signals
     //      {{{
@@ -247,6 +248,9 @@ import hpdcache_pkg::*;
         if (!rst_ni) begin
             flush_fsm_q   <= FLUSH_IDLE;
             flush_word_q  <= '0;
+        end else if (clear_i) begin
+            flush_fsm_q   <= FLUSH_IDLE;
+            flush_word_q  <= '0;
         end else begin
             flush_fsm_q   <= flush_fsm_d;
             flush_word_q  <= flush_word_d;
@@ -259,6 +263,8 @@ import hpdcache_pkg::*;
     always_ff @(posedge clk_i or negedge rst_ni)
     begin : flush_dir_valid_ff
         if (!rst_ni) begin
+            flush_dir_valid_q <= '0;
+        end else if (clear_i) begin
             flush_dir_valid_q <= '0;
         end else begin
             flush_dir_valid_q <= (~flush_dir_valid_q &  flush_dir_alloc_bv) |
@@ -295,6 +301,7 @@ import hpdcache_pkg::*;
     hpdcache_fxarb #(.N(FlushEntries)) flush_dir_free_arb_i(
         .clk_i,
         .rst_ni,
+        .clear_i,
         .req_i          (~flush_dir_valid_q),
         .gnt_o          (flush_dir_free_bv),
         .ready_i        (flush_alloc)
@@ -325,6 +332,7 @@ import hpdcache_pkg::*;
     ) mem_req_meta_fifo_i(
         .clk_i,
         .rst_ni,
+        .clear_i,
         .w_i            (flush_mem_req_w),
         .wok_o          (flush_mem_req_wok),
         .wdata_i        (flush_mem_req_wmeta),
@@ -342,6 +350,7 @@ import hpdcache_pkg::*;
     ) flush_data_resizer_i(
         .clk_i,
         .rst_ni,
+        .clear_i,
 
         .w_i            (flush_resizer_w),
         .wok_o          (flush_resizer_wok),
@@ -364,6 +373,8 @@ import hpdcache_pkg::*;
     always_ff @(posedge clk_i or negedge rst_ni)
     begin
         if (!rst_ni) begin
+            write_flits_cnt_q <= 0;
+        end else if (clear_i) begin
             write_flits_cnt_q <= 0;
         end else begin
             if (mem_req_write_data_valid_o && mem_req_write_data_ready_i) begin

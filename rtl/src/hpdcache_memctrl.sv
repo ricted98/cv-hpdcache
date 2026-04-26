@@ -48,6 +48,7 @@ import hpdcache_pkg::*;
     //      {{{
     input  logic                                clk_i,
     input  logic                                rst_ni,
+    input  logic                                clear_i,
     //      }}}
 
     //      Global control signals
@@ -355,6 +356,9 @@ import hpdcache_pkg::*;
         if (!rst_ni) begin
             init_q      <= 1'b0;
             init_set_q  <= 0;
+        end else if (clear_i) begin
+            init_q      <= 1'b0;
+            init_set_q  <= 0;
         end else begin
             init_q      <= init_d;
             init_set_q  <= init_set_d;
@@ -435,6 +439,8 @@ import hpdcache_pkg::*;
             always_ff @(posedge clk_i or negedge rst_ni)
             begin : data_read_sel_ff
                 if (!rst_ni) begin
+                    data_read_sel_q <= '0;
+                end else if (clear_i) begin
                     data_read_sel_q <= '0;
                 end else begin
                     data_read_sel_q <= data_read ? word_sel_rd : '0;
@@ -609,6 +615,8 @@ import hpdcache_pkg::*;
         begin : dir_err_way_ff
             if (!rst_ni) begin
                 dir_err_way_q <= '0;
+            end else if (clear_i) begin
+                dir_err_way_q <= '0;
             end else begin
                 if (dir_err_read_i) begin
                     dir_err_way_q <= dir_err_way_i;
@@ -715,6 +723,7 @@ import hpdcache_pkg::*;
     ) victim_sel_i(
         .clk_i,
         .rst_ni,
+        .clear_i,
 
         .updt_i                   (updt_sel_victim),
         .updt_set_i               (updt_sel_victim_set),

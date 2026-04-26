@@ -38,6 +38,7 @@ module hpdcache_mem_req_read_arbiter
 (
     input  logic                      clk_i,
     input  logic                      rst_ni,
+    input  logic                      clear_i,
 
     output logic              [N-1:0] mem_req_read_ready_o,
     input  logic              [N-1:0] mem_req_read_valid_i,
@@ -65,6 +66,7 @@ module hpdcache_mem_req_read_arbiter
     ) hpdcache_fxarb_mem_req_write_i (
         .clk_i,
         .rst_ni,
+        .clear_i,
         .req_i               (mem_req_read_valid_i),
         .gnt_o               (mem_read_arb_req_gnt),
         .ready_i             (mem_req_read_ready_i)

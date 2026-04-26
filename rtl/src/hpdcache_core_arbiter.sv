@@ -42,6 +42,7 @@ import hpdcache_pkg::*;
     //      Clock and reset signals
     input  logic                          clk_i,
     input  logic                          rst_ni,
+    input  logic                          clear_i,
 
     //      Core request interface
     //         1st cycle
@@ -103,6 +104,7 @@ import hpdcache_pkg::*;
     (
         .clk_i,
         .rst_ni,
+        .clear_i,
         .req_i          (core_req_valid),
         .gnt_o          (arb_req_gnt_d),
         .ready_i        (arb_req_ready_i)
@@ -155,8 +157,9 @@ import hpdcache_pkg::*;
     //      Save the grant signal for the tag in the next cycle
     always_ff @(posedge clk_i or negedge rst_ni)
     begin : arb_req_gnt_ff
-        if (!rst_ni) arb_req_gnt_q <= '0;
-        else         arb_req_gnt_q <= arb_req_gnt_d;
+        if (!rst_ni)   arb_req_gnt_q <= '0;
+        else if (clear_i) arb_req_gnt_q <= '0;
+        else           arb_req_gnt_q <= arb_req_gnt_d;
     end
 
     assign arb_req_valid_o = |arb_req_gnt_d;

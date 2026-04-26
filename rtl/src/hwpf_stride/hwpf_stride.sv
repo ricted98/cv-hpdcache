@@ -44,6 +44,7 @@ import hpdcache_pkg::*;
 (
     input  logic                        clk_i,
     input  logic                        rst_ni,
+    input  logic                        clear_i,
 
     // CSR
     input  logic                        csr_base_set_i,
@@ -162,6 +163,14 @@ import hpdcache_pkg::*;
             shadow_throttle_q <= '0;
             request_nline_q <= '0;
             state_q <= IDLE;
+        end else if (clear_i) begin
+            csr_base_q <= '0;
+            csr_param_q <= '0;
+            shadow_base_q <= '0;
+            shadow_param_q <= '0;
+            shadow_throttle_q <= '0;
+            request_nline_q <= '0;
+            state_q <= IDLE;
         end else begin
             if      (csr_base_set_i) csr_base_q <= csr_base_i;
             else if (csr_base_update) csr_base_q <= shadow_base_d;
@@ -194,6 +203,11 @@ import hpdcache_pkg::*;
 
     always_ff @(posedge clk_i or negedge rst_ni) begin
         if (!rst_ni) begin
+            nblocks_cnt_q  <= '0;
+            nlines_cnt_q <= '0;
+            nwait_cnt_q <= '0;
+            inflight_cnt_q <= '0;
+        end else if (clear_i) begin
             nblocks_cnt_q  <= '0;
             nlines_cnt_q <= '0;
             nwait_cnt_q <= '0;

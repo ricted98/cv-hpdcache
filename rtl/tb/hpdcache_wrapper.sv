@@ -321,6 +321,8 @@ import hpdcache_pkg::*;
 
         .wbuf_flush_i,
 
+        .clear_i                           (1'b0),
+
         .core_req_valid_i                  (core_req_valid),
         .core_req_ready_o                  (core_req_ready),
         .core_req_i                        (core_req),

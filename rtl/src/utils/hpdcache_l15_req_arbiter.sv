@@ -39,7 +39,8 @@ module hpdcache_l15_req_arbiter import hpdcache_pkg::*;
 (
     input    logic                 clk_i,
     input    logic                 rst_ni,
-   
+    input    logic                 clear_i,
+
     output   logic                 mem_req_ready_o      [N-1:0],
     input    logic                 mem_req_valid_i      [N-1:0],
     input    req_portid_t          mem_req_pid_i        [N-1:0],
@@ -100,6 +101,7 @@ module hpdcache_l15_req_arbiter import hpdcache_pkg::*;
     ) hpdcache_fxarb_mem_req_i (
         .clk_i,
         .rst_ni,
+        .clear_i,
         .req_i               (mem_arb_req_valid),
         .gnt_o               (mem_arb_req_gnt),
         .ready_i             (mem_arb_req_ready)
@@ -165,6 +167,8 @@ module hpdcache_l15_req_arbiter import hpdcache_pkg::*;
     always_ff @(posedge clk_i or negedge rst_ni)
     begin : req_send_fsm_ff
         if (!rst_ni) begin
+            req_send_fsm_q <= REQ_IDLE;
+        end else if (clear_i) begin
             req_send_fsm_q <= REQ_IDLE;
         end else begin
             req_send_fsm_q <= req_send_fsm_d;

@@ -36,6 +36,7 @@ module hpdcache_fxarb
 (
     input  logic                  clk_i,
     input  logic                  rst_ni,
+    input  logic                  clear_i,
     input  logic [N-1:0]          req_i,
     output logic [N-1:0]          gnt_o,
     input  logic                  ready_i
@@ -63,6 +64,9 @@ module hpdcache_fxarb
     always_ff @(posedge clk_i or negedge rst_ni)
     begin
         if (!rst_ni) begin
+            wait_q <= 1'b0;
+            gnt_q  <= '0;
+        end else if (clear_i) begin
             wait_q <= 1'b0;
             gnt_q  <= '0;
         end else begin

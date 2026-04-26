@@ -57,6 +57,7 @@ module hpdcache_to_l15 import hpdcache_pkg::*, l15_pkg::*;
 (
     input   logic                          clk_i,
     input   logic                          rst_ni,
+    input   logic                          clear_i,
 
     output  logic                          req_ready_o,
     input   logic                          req_valid_i,
@@ -332,9 +333,15 @@ module hpdcache_to_l15 import hpdcache_pkg::*, l15_pkg::*;
      if (!rst_ni) begin
             th_state_q     <= IDLE;
             for (int i = 0; i < NUM_THREAD_IDS; i++) begin
-        	    hpdc_tid_q[i] <= '0;
-        	    hpdc_pid_q[i] <= '0;
-	        end
+                hpdc_tid_q[i] <= '0;
+                hpdc_pid_q[i] <= '0;
+            end
+        end else if (clear_i) begin
+            th_state_q     <= IDLE;
+            for (int i = 0; i < NUM_THREAD_IDS; i++) begin
+                hpdc_tid_q[i] <= '0;
+                hpdc_pid_q[i] <= '0;
+            end
         end else begin
             th_state_q     <= th_state_d;
             for (int i = 0; i < NUM_THREAD_IDS; i++) begin
@@ -362,6 +369,7 @@ module hpdcache_to_l15 import hpdcache_pkg::*, l15_pkg::*;
     ) i_free_threadid_fifo (
             .clk_i,
             .rst_ni,
+            .clear_i,
             // Valid input if its a valid response
             .w_i                (resp_ready_i && l15_rtrn_i.l15_val && ~mem_only_inval),
             .wok_o              (/*unused*/), // Should always be ready to write

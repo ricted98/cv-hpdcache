@@ -37,6 +37,7 @@ module hpdcache_fifo_reg_initialized
 (
     input  logic                        clk_i,
     input  logic                        rst_ni,
+    input  logic                        clear_i,
     input  logic                        w_i,
     output logic                        wok_o,
     input  fifo_data_t                  wdata_i,
@@ -113,6 +114,8 @@ module hpdcache_fifo_reg_initialized
     begin
         if (!rst_ni) begin
             fifo_mem_q <= initial_value_i;
+        end else if (clear_i) begin
+            fifo_mem_q <= initial_value_i;
         end else if (wexec) fifo_mem_q[wptr_q] <= wdata_i;
     end
 
@@ -124,6 +127,10 @@ module hpdcache_fifo_reg_initialized
     always_ff @(posedge clk_i or negedge rst_ni)
     begin
         if (!rst_ni) begin
+            rptr_q      <= 0;
+            wptr_q      <= 0;
+            crossover_q <= 1'b1;
+        end else if (clear_i) begin
             rptr_q      <= 0;
             wptr_q      <= 0;
             crossover_q <= 1'b1;

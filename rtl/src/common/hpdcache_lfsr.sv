@@ -38,6 +38,7 @@ module hpdcache_lfsr
 (
     input  logic        clk_i,
     input  logic        rst_ni,
+    input  logic        clear_i,
     input  logic        shift_i,
     output data_t       val_o
 );
@@ -76,6 +77,8 @@ assign val_o = lfsr_q;
 always_ff @(posedge clk_i or negedge rst_ni)
 begin : lfsr_ff
     if (!rst_ni) begin
+        lfsr_q <= '1;
+    end else if (clear_i) begin
         lfsr_q <= '1;
     end else begin
         if (shift_i) lfsr_q <= lfsr_d;

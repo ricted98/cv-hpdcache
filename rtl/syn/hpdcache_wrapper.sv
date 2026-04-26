@@ -105,6 +105,8 @@ module hpdcache_wrapper
   input  logic                        clk_i,
   input  logic                        rst_ni,
 
+  input  logic                        clear_i,
+
   input  logic                        wbuf_flush_i,
   output logic                        wbuf_empty_o,
 
@@ -169,6 +171,8 @@ module hpdcache_wrapper
       .rst_ni,
 
       .wbuf_flush_i,
+
+      .clear_i (1'b0),
 
       .core_req_valid_i,
       .core_req_ready_o,

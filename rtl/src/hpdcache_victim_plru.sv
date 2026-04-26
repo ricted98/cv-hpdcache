@@ -41,6 +41,7 @@ import hpdcache_pkg::*;
 (
     input  logic                  clk_i,
     input  logic                  rst_ni,
+    input  logic                  clear_i,
 
     //      PLRU update interface
     input  logic                  updt_i,
@@ -136,6 +137,8 @@ import hpdcache_pkg::*;
     always_ff @(posedge clk_i or negedge rst_ni)
     begin : lru_ff
         if (!rst_ni) begin
+           plru_q <= '0;
+        end else if (clear_i) begin
            plru_q <= '0;
         end else begin
            if (updt_i) plru_q <= plru_d;

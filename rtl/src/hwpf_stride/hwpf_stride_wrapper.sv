@@ -54,6 +54,7 @@ import hpdcache_pkg::*;
 (
     input  logic                                        clk_i,
     input  logic                                        rst_ni,
+    input  logic                                        clear_i,
 
     //  CSR
     //  {{{
@@ -170,6 +171,9 @@ import hpdcache_pkg::*;
             if (!rst_ni) begin
                 snoop_valid_q[j]       <= 1'b0;
                 snoop_addr_offset_q[j] <= '0;
+            end else if (clear_i) begin
+                snoop_valid_q[j]       <= 1'b0;
+                snoop_addr_offset_q[j] <= '0;
             end else begin
                 if (snoop_phys_indexed_i[j]) begin
                     snoop_valid_q[j]       <= snoop_valid_i[j];
@@ -216,6 +220,7 @@ import hpdcache_pkg::*;
         ) hwpf_stride_i(
             .clk_i,
             .rst_ni,
+            .clear_i,
 
             .csr_base_set_i       (hwpf_stride_base_set_i[i]),
             .csr_base_i           (hwpf_stride_base_i[i]),
@@ -265,6 +270,7 @@ import hpdcache_pkg::*;
     ) hwpf_stride_arb_i (
         .clk_i,
         .rst_ni,
+        .clear_i,
 
         // DCache input interface
         .hwpf_stride_req_valid_i  (hwpf_stride_arb_in_req_valid),

@@ -50,6 +50,7 @@ import hpdcache_pkg::*;
 (
     input  logic                  clk_i,
     input  logic                  rst_ni,
+    input  logic                  clear_i,
 
     //  Global control signals
     //  {{{
@@ -189,6 +190,7 @@ import hpdcache_pkg::*;
     ) cmoh_core_rsp_buffer_i(
         .clk_i,
         .rst_ni,
+        .clear_i,
         .w_i         (core_rsp_w),
         .wok_o       (/*unused*/),
         .wdata_i     (core_rsp),
@@ -577,6 +579,10 @@ import hpdcache_pkg::*;
             core_rsp_send_q        <= 1'b0;
             cmoh_flush_req_valid_q <= 1'b0;
             cmoh_fsm_q             <= CMOH_IDLE;
+        end else if (clear_i) begin
+            core_rsp_send_q        <= 1'b0;
+            cmoh_flush_req_valid_q <= 1'b0;
+            cmoh_fsm_q             <= CMOH_IDLE;
         end else begin
             core_rsp_send_q        <= core_rsp_send_d;
             cmoh_flush_req_valid_q <= cmoh_flush_req_valid_d;
@@ -631,6 +637,7 @@ import hpdcache_pkg::*;
         ) flush_req_fifo_i(
             .clk_i,
             .rst_ni,
+            .clear_i,
             .w_i     (cmoh_flush_req_w),
             .wok_o   (cmoh_flush_req_wok),
             .wdata_i (cmoh_flush_req_wdata),

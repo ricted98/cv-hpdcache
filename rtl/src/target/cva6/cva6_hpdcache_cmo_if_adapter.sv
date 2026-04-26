@@ -40,6 +40,7 @@ import hpdcache_pkg::*;
   //  Clock and active-low reset pins
   input  logic                            clk_i,
   input  logic                            rst_ni,
+  input  logic                            clear_i,
 
   //  Port ID
   input  hpdcache_pkg::hpdcache_req_sid_t dcache_req_sid_i,
@@ -128,6 +129,9 @@ import hpdcache_pkg::*;
   always_ff @(posedge clk_i or negedge rst_ni)
   begin : forward_ff
     if (!rst_ni) begin
+      forward_state_q <= FORWARD_IDLE;
+      cmo_tid_q <= '0;
+    end else if (clear_i) begin
       forward_state_q <= FORWARD_IDLE;
       cmo_tid_q <= '0;
     end else begin

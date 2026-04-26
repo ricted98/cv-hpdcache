@@ -52,6 +52,7 @@ import hpdcache_pkg::*;
     //  Clock and reset signals
     input  logic                  clk_i,
     input  logic                  rst_ni,
+    input  logic                  clear_i,
 
     //  Global control signals
     output logic                  empty_o,
@@ -296,6 +297,10 @@ import hpdcache_pkg::*;
             mshr_valid_q <= '0;
             ack_way_q <= '0;
             check_cache_set_q <= '0;
+        end else if (clear_i) begin
+            mshr_valid_q <= '0;
+            ack_way_q <= '0;
+            check_cache_set_q <= '0;
         end else begin
             mshr_valid_q <= (~mshr_valid_q & mshr_valid_set) | (mshr_valid_q & ~mshr_valid_rst);
             if (ack_i) ack_way_q <= ack_way_i;
@@ -406,6 +411,8 @@ import hpdcache_pkg::*;
     begin
         if (!rst_ni) begin
           mshr_cache_set_q <= '0;
+        end else if (clear_i) begin
+            mshr_cache_set_q <= '0;
         end else begin
             if (alloc_i) begin
                 mshr_cache_set_q[mshr_alloc_slot] <= alloc_nline_i[0 +: HPDcacheCfg.setWidth];

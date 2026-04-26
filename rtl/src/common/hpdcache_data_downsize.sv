@@ -42,6 +42,7 @@ import hpdcache_pkg::*;
 (
     input  logic   clk_i,
     input  logic   rst_ni,
+    input  logic   clear_i,
 
     input  logic   w_i,
     output logic   wok_o,
@@ -141,6 +142,11 @@ import hpdcache_pkg::*;
             wrptr_q <= 0;
             used_q <= 0;
             words_q <= 0;
+        end else if (clear_i) begin
+            rdptr_q <= 0;
+            wrptr_q <= 0;
+            used_q <= 0;
+            words_q <= 0;
         end else begin
             rdptr_q <= rdptr_d;
             wrptr_q <= wrptr_d;
@@ -155,6 +161,8 @@ import hpdcache_pkg::*;
     always_ff @(posedge clk_i or negedge rst_ni)
     begin : buf_ff
         if (!rst_ni) begin
+            buf_q <= '0;
+        end else if (clear_i) begin
             buf_q <= '0;
         end else begin
             if (words_set) begin

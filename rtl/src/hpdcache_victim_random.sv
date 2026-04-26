@@ -41,6 +41,7 @@ import hpdcache_pkg::*;
 (
     input  logic                  clk_i,
     input  logic                  rst_ni,
+    input  logic                  clear_i,
 
     //      Update interface
     input  logic                  updt_i, /* unused */
@@ -77,6 +78,7 @@ import hpdcache_pkg::*;
         lfsr_i(
             .clk_i,
             .rst_ni,
+            .clear_i,
             .shift_i   (sel_victim_i & ~unused_available & rand_available),
             .val_o     (lfsr_val)
         );

@@ -40,6 +40,7 @@ import hpdcache_pkg::*;
 (
     input  logic                                clk_i,
     input  logic                                rst_ni,
+    input  logic                                clear_i,
 
     // Dcache input interface
     input  logic          [NUM_HW_PREFETCH-1:0] hwpf_stride_req_valid_i,
@@ -82,6 +83,7 @@ import hpdcache_pkg::*;
     ) hwpf_stride_req_arbiter_i (
         .clk_i,
         .rst_ni,
+        .clear_i,
         .req_i          (hwpf_stride_req_valid),
         .gnt_o          (arb_req_gnt),
         .ready_i        (hpdcache_req_ready_i)

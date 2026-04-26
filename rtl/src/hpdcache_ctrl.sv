@@ -58,6 +58,7 @@ import hpdcache_pkg::*;
 (
     input  logic                  clk_i,
     input  logic                  rst_ni,
+    input  logic                  clear_i,
 
     //      Core request interface
     input  logic                  core_req_valid_i,
@@ -820,6 +821,7 @@ import hpdcache_pkg::*;
     ) hpdcache_rtab_i(
         .clk_i,
         .rst_ni,
+        .clear_i,
 
         .empty_o                            (rtab_empty_o),
         .full_o                             (rtab_full),
@@ -883,6 +885,9 @@ import hpdcache_pkg::*;
         if (!rst_ni) begin
             st1_req_valid_q        <= 1'b0;
             st1_rtab_pop_try_ptr_q <= '0;
+        end else if (clear_i) begin
+            st1_req_valid_q        <= 1'b0;
+            st1_rtab_pop_try_ptr_q <= '0;
         end else begin
             st1_req_valid_q <= st1_req_valid_d;
             if (st0_rtab_pop_try_ready) begin
@@ -928,6 +933,10 @@ import hpdcache_pkg::*;
     always_ff @(posedge clk_i or negedge rst_ni)
     begin : st2_valid_ff
         if (!rst_ni) begin
+            st2_mshr_alloc_q  <= 1'b0;
+            st2_flush_alloc_q <= 1'b0;
+            st2_dir_updt_q    <= 1'b0;
+        end else if (clear_i) begin
             st2_mshr_alloc_q  <= 1'b0;
             st2_flush_alloc_q <= 1'b0;
             st2_dir_updt_q    <= 1'b0;
@@ -992,6 +1001,7 @@ import hpdcache_pkg::*;
     ) hpdcache_memctrl_i(
         .clk_i,
         .rst_ni,
+        .clear_i,
 
         .ready_o                       (hpdcache_init_ready),
         .rd_wr_conflict_o              (rd_wr_conflict),
@@ -1350,6 +1360,15 @@ import hpdcache_pkg::*;
                 err_dat_unc_q  <= '0;
                 err_dat_cor_q  <= '0;
                 err_dat_word_q <= '0;
+            end else if (clear_i) begin
+                err_fsm_q      <= ERR_IDLE;
+                err_way_q      <= '0;
+                err_set_q      <= '0;
+                err_dir_unc_q  <= '0;
+                err_dir_cor_q  <= '0;
+                err_dat_unc_q  <= '0;
+                err_dat_cor_q  <= '0;
+                err_dat_word_q <= '0;
             end else begin
                 err_fsm_q      <= err_fsm_d;
                 err_way_q      <= err_way_d;
@@ -1508,6 +1527,11 @@ import hpdcache_pkg::*;
                 scrub_wait_q  <= '0;
                 scrub_set_q   <= '0;
                 scrub_chunk_q <= '0;
+            end else if (clear_i) begin
+                scrub_fsm_q   <= SCRUB_IDLE;
+                scrub_wait_q  <= '0;
+                scrub_set_q   <= '0;
+                scrub_chunk_q <= '0;
             end else begin
                 scrub_fsm_q   <= scrub_fsm_d;
                 scrub_wait_q  <= scrub_wait_d;
@@ -1583,6 +1607,10 @@ import hpdcache_pkg::*;
                 cmo_dirty_set_en_q <= 1'b0;
                 cmo_dirty_min_set_q <= 0;
                 cmo_dirty_max_set_q <= 0;
+            end else if (clear_i) begin
+                cmo_dirty_set_en_q <= 1'b0;
+                cmo_dirty_min_set_q <= 0;
+                cmo_dirty_max_set_q <= 0;
             end else begin
                 cmo_dirty_set_en_q <= cmo_dirty_set_en_d;
                 cmo_dirty_min_set_q <= cmo_dirty_min_set_d;
@@ -1642,6 +1670,10 @@ import hpdcache_pkg::*;
             cmo_valid_set_en_q <= 1'b0;
             cmo_valid_min_set_q <= 0;
             cmo_valid_max_set_q <= 0;
+        end else if (clear_i) begin
+            cmo_valid_set_en_q <= 1'b0;
+            cmo_valid_min_set_q <= 0;
+            cmo_valid_max_set_q <= 0;
         end else begin
             cmo_valid_set_en_q <= cmo_valid_set_en_d;
             cmo_valid_min_set_q <= cmo_valid_min_set_d;
@@ -1676,6 +1708,12 @@ import hpdcache_pkg::*;
         always_ff @(posedge clk_i or negedge rst_ni)
         begin : st2_core_rsp_ff
             if (!rst_ni) begin
+                core_rsp_valid <= 1'b0;
+                core_rsp_aborted <= 1'b0;
+                core_rsp_error <= 1'b0;
+                core_rsp_sid <= 'h0;
+                core_rsp_tid <= 'h0;
+            end else if (clear_i) begin
                 core_rsp_valid <= 1'b0;
                 core_rsp_aborted <= 1'b0;
                 core_rsp_error <= 1'b0;

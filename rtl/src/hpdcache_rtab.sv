@@ -34,6 +34,7 @@ import hpdcache_pkg::*;
     //  Clock and reset signals
     input  logic                  clk_i,
     input  logic                  rst_ni,
+    input  logic                  clear_i,
 
     //  Global control signals
     output logic                  empty_o,  // RTAB is empty
@@ -308,6 +309,7 @@ import hpdcache_pkg::*;
     ) waiters_mshr_full_arb_i (
         .clk_i,
         .rst_ni,
+        .clear_i,
         .req_i          (waiters_mshr_full),
         .gnt_o          (waiters_mshr_full_gnt),
         .ready_i        (refill_i)
@@ -319,6 +321,7 @@ import hpdcache_pkg::*;
     ) waiters_dir_unavailable_arb_i (
         .clk_i,
         .rst_ni,
+        .clear_i,
         .req_i          (waiters_dir_unavailable),
         .gnt_o          (waiters_dir_unavailable_gnt),
         .ready_i        (refill_i)
@@ -347,6 +350,7 @@ import hpdcache_pkg::*;
     ) wbuf_rd_pending_arb_i (
         .clk_i,
         .rst_ni,
+        .clear_i,
         .req_i          (wbuf_rd_pending),
         .gnt_o          (wbuf_rd_gnt),
         .ready_i        (wbuf_gnt[0] & wbuf_ready)
@@ -357,6 +361,7 @@ import hpdcache_pkg::*;
     ) wbuf_wr_pending_arb_i (
         .clk_i,
         .rst_ni,
+        .clear_i,
         .req_i          (wbuf_wr_pending),
         .gnt_o          (wbuf_wr_gnt),
         .ready_i        (wbuf_gnt[1] & wbuf_ready)
@@ -370,6 +375,7 @@ import hpdcache_pkg::*;
     ) wbuf_pending_arb_i (
         .clk_i,
         .rst_ni,
+        .clear_i,
         .req_i          (wbuf_pending),
         .gnt_o          (wbuf_gnt),
         .ready_i        (wbuf_ready)
@@ -457,6 +463,7 @@ import hpdcache_pkg::*;
     ) pop_arb_i (
         .clk_i,
         .rst_ni,
+        .clear_i,
         .req_i          (ready),
         .gnt_o          (pop_gnt),
         .ready_i        (pop_head)
@@ -620,6 +627,13 @@ import hpdcache_pkg::*;
             tail_q  <= '0;
             deps_q  <= '0;
             next_q  <= '0;
+        end else if (clear_i) begin
+            valid_q <= '0;
+            error_q <= '0;
+            head_q  <= '0;
+            tail_q  <= '0;
+            deps_q  <= '0;
+            next_q  <= '0;
         end else begin
             valid_q <= (~valid_q & valid_set) | (valid_q & ~valid_rst);
 
@@ -646,6 +660,9 @@ import hpdcache_pkg::*;
     always_ff @(posedge clk_i or negedge rst_ni)
     begin : pop_try_ff
         if (!rst_ni) begin
+            pop_try_state_q <= POP_TRY_HEAD;
+            pop_try_next_q  <= '0;
+        end else if (clear_i) begin
             pop_try_state_q <= POP_TRY_HEAD;
             pop_try_next_q  <= '0;
         end else begin

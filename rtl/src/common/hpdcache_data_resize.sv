@@ -42,6 +42,7 @@ import hpdcache_pkg::*;
 (
     input  logic   clk_i,
     input  logic   rst_ni,
+    input  logic   clear_i,
 
     input  logic   w_i,
     output logic   wok_o,
@@ -65,6 +66,7 @@ if (WR_WIDTH < RD_WIDTH) begin : gen_upsize
     ) upsizer_i(
         .clk_i,
         .rst_ni,
+        .clear_i,
 
         .w_i,
         .wlast_i,
@@ -89,6 +91,7 @@ else if (WR_WIDTH > RD_WIDTH) begin : gen_downsize
     ) downsize_i(
         .clk_i,
         .rst_ni,
+        .clear_i,
 
         .w_i,
         .wok_o,
@@ -111,6 +114,7 @@ else begin : gen_noresize
     ) fifo_i(
         .clk_i,
         .rst_ni,
+        .clear_i,
 
         .w_i,
         .wok_o,

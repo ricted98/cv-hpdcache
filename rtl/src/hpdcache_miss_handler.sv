@@ -64,6 +64,7 @@ import hpdcache_pkg::*;
 (
     input  logic                  clk_i,
     input  logic                  rst_ni,
+    input  logic                  clear_i,
 
     //      Global control signals
     //      {{{
@@ -312,6 +313,8 @@ import hpdcache_pkg::*;
     always_ff @(posedge clk_i or negedge rst_ni)
     begin : miss_req_fsm_ff
         if (!rst_ni) begin
+            miss_req_fsm_q <= MISS_REQ_IDLE;
+        end else if (clear_i) begin
             miss_req_fsm_q <= MISS_REQ_IDLE;
         end else begin
             miss_req_fsm_q <= miss_req_fsm_d;
@@ -583,6 +586,7 @@ import hpdcache_pkg::*;
     ) i_refill_core_rsp_buf(
         .clk_i,
         .rst_ni,
+        .clear_i,
         .w_i         (refill_core_rsp_valid),
         .wok_o       (/*unused*/),
         .wdata_i     (refill_core_rsp),
@@ -623,6 +627,7 @@ import hpdcache_pkg::*;
     ) i_r_metadata_fifo (
         .clk_i,
         .rst_ni,
+        .clear_i,
 
         .w_i    (refill_fifo_resp_meta_w),
         .wok_o  (refill_fifo_resp_meta_wok),
@@ -640,6 +645,7 @@ import hpdcache_pkg::*;
     ) i_data_resize(
         .clk_i,
         .rst_ni,
+        .clear_i,
 
         .w_i    (refill_fifo_resp_data_w),
         .wok_o  (refill_fifo_resp_data_wok),
@@ -723,6 +729,8 @@ import hpdcache_pkg::*;
     begin : miss_resp_fsm_ff
         if (!rst_ni) begin
             refill_fsm_q <= REFILL_IDLE;
+        end else if (clear_i) begin
+            refill_fsm_q <= REFILL_IDLE;
         end else begin
             refill_fsm_q <= refill_fsm_d;
         end
@@ -769,6 +777,7 @@ import hpdcache_pkg::*;
     ) hpdcache_mshr_i(
         .clk_i,
         .rst_ni,
+        .clear_i,
 
         .empty_o                  (mshr_empty),
         .full_o                   (mshr_full_o),
@@ -842,6 +851,7 @@ import hpdcache_pkg::*;
         ) hpdcache_cbuf_i(
             .clk_i,
             .rst_ni,
+            .clear_i,
 
             .alloc_i       (cbuf_alloc),
             .alloc_wdata_i (mshr_alloc_wdata_i),

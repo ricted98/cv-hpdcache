@@ -37,6 +37,7 @@ module hpdcache_mem_req_write_arbiter
 (
     input  logic                        clk_i,
     input  logic                        rst_ni,
+    input  logic                        clear_i,
 
     output logic                [N-1:0] mem_req_write_ready_o,
     input  logic                [N-1:0] mem_req_write_valid_i,
@@ -118,6 +119,7 @@ module hpdcache_mem_req_write_arbiter
     ) hpdcache_fxarb_mem_req_write_i(
         .clk_i,
         .rst_ni,
+        .clear_i,
         .req_i         (mem_req_write_valid_i),
         .gnt_o         (mem_write_arb_req_gnt),
         .ready_i       (mem_write_arb_req_ready)
@@ -133,6 +135,7 @@ module hpdcache_mem_req_write_arbiter
     ) req_fifo_i(
         .clk_i,
         .rst_ni,
+        .clear_i,
         .w_i           (mem_req_write_w),
         .wok_o         (mem_req_write_wok),
         .wdata_i       (mem_req_write),
@@ -151,6 +154,7 @@ module hpdcache_mem_req_write_arbiter
     ) req_gnt_fifo_i(
         .clk_i,
         .rst_ni,
+        .clear_i,
         .w_i           (mem_write_arb_req_w),
         .wok_o         (mem_write_arb_req_wok),
         .wdata_i       (mem_write_arb_req_gnt),

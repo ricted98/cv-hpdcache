@@ -41,6 +41,7 @@ import hpdcache_pkg::*;
 (
     input  logic                  clk_i,
     input  logic                  rst_ni,
+    input  logic                  clear_i,
 
     //      Victim policy update interface
     input  logic                  updt_i,
@@ -74,6 +75,7 @@ import hpdcache_pkg::*;
         ) victim_rand_i(
             .clk_i,
             .rst_ni,
+            .clear_i,
 
             .updt_i,
             .updt_set_i,
@@ -98,6 +100,7 @@ import hpdcache_pkg::*;
         ) victim_plru_i(
             .clk_i,
             .rst_ni,
+            .clear_i,
 
             .updt_i,
             .updt_set_i,

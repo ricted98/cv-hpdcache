@@ -37,6 +37,7 @@ module hpdcache_fifo_reg
 (
     input  logic                  clk_i,
     input  logic                  rst_ni,
+    input  logic                  clear_i,
     input  logic                  w_i,
     output logic                  wok_o,
     input  fifo_data_t            wdata_i,
@@ -70,6 +71,7 @@ module hpdcache_fifo_reg
         ) i_sync_buffer (
             .clk_i,
             .rst_ni,
+            .clear_i,
             .w_i,
             .wok_o,
             .wdata_i,
@@ -152,6 +154,10 @@ module hpdcache_fifo_reg
         always_ff @(posedge clk_i or negedge rst_ni)
         begin
             if (!rst_ni) begin
+                rptr_q      <= 0;
+                wptr_q      <= 0;
+                crossover_q <= 1'b0;
+            end else if (clear_i) begin
                 rptr_q      <= 0;
                 wptr_q      <= 0;
                 crossover_q <= 1'b0;

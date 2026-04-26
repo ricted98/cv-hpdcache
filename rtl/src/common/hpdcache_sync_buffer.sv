@@ -36,6 +36,7 @@ module hpdcache_sync_buffer
 (
     input  logic        clk_i,
     input  logic        rst_ni,
+    input  logic        clear_i,
     input  logic        w_i,
     output logic        wok_o,
     input  data_t       wdata_i,
@@ -80,6 +81,8 @@ module hpdcache_sync_buffer
     always_ff @(posedge clk_i or negedge rst_ni)
     begin
         if (!rst_ni) begin
+            valid_q <= 1'b0;
+        end else if (clear_i) begin
             valid_q <= 1'b0;
         end else begin
             valid_q <= valid_d;
