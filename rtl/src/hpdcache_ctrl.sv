@@ -144,6 +144,7 @@ import hpdcache_pkg::*;
     output hpdcache_nline_t       flush_alloc_nline_o,
     output hpdcache_way_vector_t  flush_alloc_way_o,
     output logic                  flush_alloc_evict_o,
+    output logic                  flush_alloc_nodata_o,
     input  logic                  flush_data_read_i,
     input  hpdcache_set_t         flush_data_read_set_i,
     input  hpdcache_word_t        flush_data_read_word_i,
@@ -362,6 +363,7 @@ import hpdcache_pkg::*;
 
     logic                    st2_flush_alloc_q, st2_flush_alloc_d;
     logic                    st2_flush_alloc_evict_q, st2_flush_alloc_evict_d;
+    logic                    st2_flush_alloc_nodata_q, st2_flush_alloc_nodata_d;
     hpdcache_nline_t         st2_flush_alloc_nline_q;
     hpdcache_way_vector_t    st2_flush_alloc_way_q;
 
@@ -775,6 +777,8 @@ import hpdcache_pkg::*;
         .st2_flush_alloc_o                  (st2_flush_alloc_d),
         .st2_flush_alloc_evict_i            (st2_flush_alloc_evict_q),
         .st2_flush_alloc_evict_o            (st2_flush_alloc_evict_d),
+        .st2_flush_alloc_nodata_i           (st2_flush_alloc_nodata_q),
+        .st2_flush_alloc_nodata_o           (st2_flush_alloc_nodata_d),
 
         .rtab_full_i                        (rtab_full),
         .rtab_fence_i                       (rtab_fence),
@@ -1005,6 +1009,7 @@ import hpdcache_pkg::*;
             st2_flush_alloc_nline_q <= st1_dir_hit ? st1_req_nline   : st1_victim_nline;
             st2_flush_alloc_way_q   <= st1_dir_hit ? st1_dir_hit_way : st1_dir_victim_way;
             st2_flush_alloc_evict_q <= st2_flush_alloc_evict_d;
+            st2_flush_alloc_nodata_q <= st2_flush_alloc_nodata_d;
         end
 
         if (st2_dir_updt_d) begin
@@ -1462,6 +1467,7 @@ import hpdcache_pkg::*;
     assign flush_alloc_nline_o = st2_flush_alloc_nline_q;
     assign flush_alloc_way_o   = st2_flush_alloc_way_q;
     assign flush_alloc_evict_o = st2_flush_alloc_evict_q;
+    assign flush_alloc_nodata_o = st2_flush_alloc_nodata_q;
     //  }}}
 
     //  Snoop handler outputs
@@ -1590,6 +1596,17 @@ import hpdcache_pkg::*;
     assert property (@(posedge clk_i) disable iff (rst_ni !== 1'b1)
         st2_mshr_alloc_q |-> $onehot(st2_mshr_alloc_victim_way_q)) else
             $error("ctrl: no victim way selected during MSHR allocation");
+
+    //  A snoop filter mirrors this directory, so every line that leaves it must be
+    //  announced. Replacing a valid victim therefore always allocates a flush:
+    //  a dirty one leaves as a WriteBack, a clean one as an Evict
+    if (HPDcacheCfg.u.snoopFilterEn) begin : gen_silent_evict_assert
+        assert property (@(posedge clk_i) disable iff (rst_ni !== 1'b1)
+            st2_dir_updt_d && !st1_dir_hit && st1_dir_victim_valid |-> st2_flush_alloc_d) else
+                $error("ctrl: a valid line left the directory with no flush (set %0d, way %h, tag %h)",
+                       st1_req_set, st1_dir_victim_way, st1_dir_victim_tag);
+    end
 `endif
+
     //  }}}
 endmodule

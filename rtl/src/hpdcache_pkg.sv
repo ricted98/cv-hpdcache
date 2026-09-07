@@ -565,6 +565,8 @@ package hpdcache_pkg;
         bit lowLatency;
         //  Enable coherence features
         bit coherenceEn;
+        //  Announce clean evictions, so a snoop filter can de-allocate the line
+        bit snoopFilterEn;
     } hpdcache_user_cfg_t;
 
     typedef struct packed {

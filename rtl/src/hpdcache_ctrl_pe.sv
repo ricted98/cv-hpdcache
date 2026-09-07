@@ -207,6 +207,8 @@ import hpdcache_pkg::*;
     output logic                   st2_flush_alloc_o,
     input  logic                   st2_flush_alloc_evict_i,
     output logic                   st2_flush_alloc_evict_o,
+    input  logic                   st2_flush_alloc_nodata_i,
+    output logic                   st2_flush_alloc_nodata_o,
 
     //   Uncacheable request handler
     //   {{{
@@ -381,6 +383,7 @@ import hpdcache_pkg::*;
 
         st2_flush_alloc_o                   = st2_flush_alloc_i;
         st2_flush_alloc_evict_o             = st2_flush_alloc_evict_i;
+        st2_flush_alloc_nodata_o            = st2_flush_alloc_nodata_i;
 
         st2_dir_updt_o                      = st2_dir_updt_i;
         st2_dir_updt_valid_o                = st2_dir_updt_valid_i;
@@ -474,6 +477,7 @@ import hpdcache_pkg::*;
                 //  Reset cache directory update request
                 st2_flush_alloc_o = 1'b0;
                 st2_flush_alloc_evict_o = 1'b0;
+                st2_flush_alloc_nodata_o = 1'b0;
 
                 //  Introduce a NOP in the next cycle to prevent a hazard on the cache data
                 st2_nop = 1'b1;
@@ -605,6 +609,7 @@ import hpdcache_pkg::*;
                                     //  When the hit cacheline is dirty, flush its data to the memory
                                     st2_flush_alloc_o = st1_dir_hit_dirty_i;
                                     st2_flush_alloc_evict_o = 1'b0;
+                                    st2_flush_alloc_nodata_o = 1'b0;
 
                                     //  Update the directory: an AMO request clears the dirty bit
                                     //  because it triggers a flush of the cacheline before actually
@@ -721,7 +726,10 @@ import hpdcache_pkg::*;
                             end
 
                             //  Flush needed but the controller is not ready
-                            else if (st1_dir_victim_dirty_i && !st1_flush_alloc_ready_i) begin
+                            else if ((st1_dir_victim_dirty_i ||
+                                      (HPDcacheCfg.u.snoopFilterEn && !cachedir_hit_i &&
+                                       st1_dir_victim_valid_i)) &&
+                                     !st1_flush_alloc_ready_i) begin
                                 st1_rtab_alloc = 1'b1;
                                 st1_rtab_flush_not_ready_o = 1'b1;
                             end
@@ -731,8 +739,11 @@ import hpdcache_pkg::*;
                             else begin
                                 //  When the victim cacheline is dirty, flush its data to the
                                 //  memory
-                                st2_flush_alloc_o = !cachedir_hit_i && st1_dir_victim_dirty_i;
+                                st2_flush_alloc_o = !cachedir_hit_i &&
+                                    (HPDcacheCfg.u.snoopFilterEn ? st1_dir_victim_valid_i
+                                                                 : st1_dir_victim_dirty_i);
                                 st2_flush_alloc_evict_o = 1'b1;
+                                st2_flush_alloc_nodata_o = ~st1_dir_victim_dirty_i;
 
                                 //  If the request comes from the replay table, free the
                                 //  corresponding RTAB entry
@@ -826,6 +837,7 @@ import hpdcache_pkg::*;
                                         //  Cacheline is dirty, flush its data to the memory
                                         st2_flush_alloc_o = st1_dir_hit_dirty_i;
                                         st2_flush_alloc_evict_o = 1'b0;
+                                        st2_flush_alloc_nodata_o = 1'b0;
 
                                         st1_nop = 1'b1;
                                     end
@@ -951,7 +963,9 @@ import hpdcache_pkg::*;
                                 end
 
                                 //  Flush needed but the controller is not ready
-                                else if (st1_dir_victim_dirty_i && !st1_flush_alloc_ready_i) begin
+                                else if ((HPDcacheCfg.u.snoopFilterEn ? st1_dir_victim_valid_i
+                                                                      : st1_dir_victim_dirty_i) &&
+                                         !st1_flush_alloc_ready_i) begin
                                     st1_rtab_alloc = 1'b1;
                                     st1_rtab_flush_not_ready_o = 1'b1;
                                 end
@@ -959,8 +973,10 @@ import hpdcache_pkg::*;
                                 else begin
                                     //  When the victim cacheline is dirty, flush its data to the
                                     //  memory
-                                    st2_flush_alloc_o = st1_dir_victim_dirty_i;
+                                    st2_flush_alloc_o = HPDcacheCfg.u.snoopFilterEn ?
+                                        st1_dir_victim_valid_i : st1_dir_victim_dirty_i;
                                     st2_flush_alloc_evict_o = 1'b1;
+                                    st2_flush_alloc_nodata_o = ~st1_dir_victim_dirty_i;
 
                                     //  Update the directory state of the cacheline to FETCHING
                                     st2_dir_updt_o = 1'b1;
@@ -1185,6 +1201,7 @@ import hpdcache_pkg::*;
                                     //  Flush cacheline data to the memory
                                     st2_flush_alloc_o = 1'b1;
                                     st2_flush_alloc_evict_o = 1'b0;
+                                    st2_flush_alloc_nodata_o = 1'b0;
 
                                     //  Update the state to WT in the directory
                                     st2_dir_updt_o = 1'b1;

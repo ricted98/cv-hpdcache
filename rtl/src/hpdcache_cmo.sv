@@ -134,7 +134,8 @@ import hpdcache_pkg::*;
     input  logic                  flush_alloc_ready_i,
     output hpdcache_nline_t       flush_alloc_nline_o,
     output hpdcache_way_vector_t  flush_alloc_way_o,
-    output logic                  flush_alloc_evict_o
+    output logic                  flush_alloc_evict_o,
+    output logic                  flush_alloc_nodata_o
     // }}}
 );
 //  }}}
@@ -655,6 +656,7 @@ import hpdcache_pkg::*;
         assign flush_alloc_nline_o = cmoh_flush_req_rdata.nline;
         assign flush_alloc_way_o   = cmoh_flush_req_rdata.way;
         assign flush_alloc_evict_o = cmoh_flush_req_rdata.evict;
+        assign flush_alloc_nodata_o = 1'b0;
     end else begin : gen_cmo_no_flush_fifo
         assign cmoh_flush_req_w    = 1'b0;
         assign cmoh_flush_req_wok  = 1'b1;
@@ -662,6 +664,7 @@ import hpdcache_pkg::*;
         assign flush_alloc_nline_o = '0;
         assign flush_alloc_way_o   = '0;
         assign flush_alloc_evict_o = 1'b0;
+        assign flush_alloc_nodata_o = 1'b0;
     end
 //  }}}
 
