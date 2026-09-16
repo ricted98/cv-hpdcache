@@ -177,6 +177,9 @@ import hpdcache_pkg::*;
     logic                 cmoh_flush_req_wok;
     hpdcache_set_t        cmoh_flush_req_set;
     hpdcache_tag_t        cmoh_flush_req_tag;
+    //  A clean line still has to be announced when a snoop filter mirrors this
+    //  directory; it leaves as an Evict rather than a WriteBack
+    logic                 cmoh_flush_req_dirty;
     hpdcache_way_vector_t cmoh_flush_req_way;
 
     logic                 core_rsp_w, core_rsp_r, core_rsp_rok;
@@ -270,6 +273,7 @@ import hpdcache_pkg::*;
         cmoh_flush_req_set = '0;
         cmoh_flush_req_way = '0;
         cmoh_flush_req_tag = '0;
+        cmoh_flush_req_dirty = 1'b0;
 
         core_rsp_w      = 1'b0;
         core_rsp_send_d = core_rsp_send_q;
@@ -325,7 +329,12 @@ import hpdcache_pkg::*;
                 if (mshr_empty_i && rtab_empty_i && ctrl_empty_i && !snoop_busy_i) begin
                     unique if (cmoh_op_q.is_inval_by_nline) begin
                         if (valid_set_en_i) begin
-                            cmoh_fsm_d = CMOH_INVAL_CHECK_NLINE;
+                            if (HPDcacheCfg.u.snoopFilterEn) begin
+                                cmoh_flush_req_inval_d = 1'b1;
+                                cmoh_fsm_d = CMOH_FLUSH_NLINE_FIRST;
+                            end else begin
+                                cmoh_fsm_d = CMOH_INVAL_CHECK_NLINE;
+                            end
                         end else begin
                             core_rsp_send_d = core_rsp_rok;
                             cmoh_fsm_d = CMOH_IDLE;
@@ -333,7 +342,15 @@ import hpdcache_pkg::*;
                     end else if (cmoh_op_q.is_inval_all) begin
                         if (valid_set_en_i) begin
                             cmoh_inval_set_reset = 1'b1;
-                            cmoh_fsm_d = CMOH_INVAL_SET;
+                            //  A filter mirrors this directory, so the walk has
+                            //  to go through the flush path, which announces
+                            //  every line it drops
+                            if (HPDcacheCfg.u.snoopFilterEn) begin
+                                cmoh_flush_req_inval_d = 1'b1;
+                                cmoh_fsm_d = CMOH_FLUSH_ALL_FIRST;
+                            end else begin
+                                cmoh_fsm_d = CMOH_INVAL_SET;
+                            end
                         end else begin
                             core_rsp_send_d = core_rsp_rok;
                             cmoh_fsm_d = CMOH_IDLE;
@@ -459,6 +476,7 @@ import hpdcache_pkg::*;
                     cmoh_flush_req_set = cmoh_flush_req_set_q;
                     cmoh_flush_req_way = cmoh_flush_req_way_q;
                     cmoh_flush_req_tag = dir_check_entry_tag_i;
+                    cmoh_flush_req_dirty = dir_check_entry_dirty_i & ~cmoh_op_q.is_inval_all;
 
                     //  The CMO handler needs to dedicate one cycle to
                     //  check the directory and one cycle to update that entry.
@@ -495,6 +513,7 @@ import hpdcache_pkg::*;
                     cmoh_flush_req_set = cmoh_flush_req_set_q;
                     cmoh_flush_req_way = cmoh_flush_req_way_q;
                     cmoh_flush_req_tag = dir_check_entry_tag_i;
+                    cmoh_flush_req_dirty = dir_check_entry_dirty_i & ~cmoh_op_q.is_inval_all;
                 end
 
                 //  Make sure that all requests have been processed
@@ -536,6 +555,7 @@ import hpdcache_pkg::*;
                     cmoh_flush_req_set = cmoh_set;
                     cmoh_flush_req_tag = cmoh_tag;
                     cmoh_flush_req_way = dir_check_nline_hit_way_i;
+                    cmoh_flush_req_dirty = dir_check_nline_dirty_i & ~cmoh_op_q.is_inval_by_nline;
                 end
 
                 //  Make sure that all requests have been processed
@@ -614,6 +634,7 @@ import hpdcache_pkg::*;
         hpdcache_nline_t      nline;
         hpdcache_way_vector_t way;
         logic                 evict;
+        logic                 dirty;
     } cmoh_flush_req_t;
 
     if (HPDcacheCfg.u.wbEn) begin : gen_cmo_flush_fifo
@@ -624,10 +645,20 @@ import hpdcache_pkg::*;
             cmoh_flush_req_w = 1'b0;
             if (cmoh_flush_req_valid_q) begin
                 unique case (cmoh_fsm_q)
+                    //  With a snoop filter mirroring this directory every valid
+                    //  line *leaving* it must be announced, not only a dirty
+                    //  one. Only an invalidating flush drops the line: a plain
+                    //  flush keeps it, so it owes no announcement - and a clean
+                    //  line enqueued with evict=0 would ask for a WriteClean
+                    //  and supply no data, stalling the write channel
                     CMOH_FLUSH_ALL_NEXT, CMOH_FLUSH_ALL_LAST:
-                        cmoh_flush_req_w = dir_check_entry_valid_i & dir_check_entry_dirty_i;
+                        cmoh_flush_req_w = dir_check_entry_valid_i &
+                            (dir_check_entry_dirty_i |
+                             (HPDcacheCfg.u.snoopFilterEn & cmoh_flush_req_inval_q));
                     CMOH_FLUSH_NLINE_NEXT:
-                        cmoh_flush_req_w = cmoh_dir_check_nline_hit & dir_check_nline_dirty_i;
+                        cmoh_flush_req_w = cmoh_dir_check_nline_hit &
+                            (dir_check_nline_dirty_i |
+                             (HPDcacheCfg.u.snoopFilterEn & cmoh_flush_req_inval_q));
                 endcase
             end
         end
@@ -635,7 +666,8 @@ import hpdcache_pkg::*;
         assign cmoh_flush_req_wdata = '{
             nline : {cmoh_flush_req_tag, cmoh_flush_req_set},
             way   :  cmoh_flush_req_way,
-            evict : cmoh_flush_req_inval_q
+            evict : cmoh_flush_req_inval_q,
+            dirty : cmoh_flush_req_dirty
         };
 
         hpdcache_fifo_reg #(
@@ -656,7 +688,7 @@ import hpdcache_pkg::*;
         assign flush_alloc_nline_o = cmoh_flush_req_rdata.nline;
         assign flush_alloc_way_o   = cmoh_flush_req_rdata.way;
         assign flush_alloc_evict_o = cmoh_flush_req_rdata.evict;
-        assign flush_alloc_nodata_o = 1'b0;
+        assign flush_alloc_nodata_o = ~cmoh_flush_req_rdata.dirty;
     end else begin : gen_cmo_no_flush_fifo
         assign cmoh_flush_req_w    = 1'b0;
         assign cmoh_flush_req_wok  = 1'b1;
