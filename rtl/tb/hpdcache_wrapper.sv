@@ -68,7 +68,8 @@ import hpdcache_pkg::*;
         wtEn: `CONF_HPDCACHE_WT_ENABLE,
         wbEn: `CONF_HPDCACHE_WB_ENABLE,
         lowLatency: `CONF_HPDCACHE_LOW_LATENCY,
-        coherenceEn: `CONF_HPDCACHE_COHERENCE_ENABLE
+        coherenceEn: `CONF_HPDCACHE_COHERENCE_ENABLE,
+        snoopFilterEn: `CONF_HPDCACHE_SNOOP_FILTER_ENABLE
     },
 
     localparam hpdcache_cfg_t Cfg = hpdcacheBuildConfig(UserCfg),

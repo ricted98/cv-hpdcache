@@ -631,6 +631,11 @@ package hpdcache_pkg;
                 $error ("[hpdcache_pkg] Hardware coherency is supported only in WB mode only.");
         end
 
+        if (p.snoopFilterEn) begin
+            if (!p.coherenceEn)
+                $error ("[hpdcache_pkg] Snoop filter support requires hardware coherency.");
+        end
+
         return ret;
     endfunction
     //  }}}
