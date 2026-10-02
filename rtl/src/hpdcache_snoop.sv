@@ -83,15 +83,10 @@ import hpdcache_pkg::*;
 
     //  Flush acknowledgement interface
     //  {{{
-    //  Pulsed for one cycle when a WriteBack B response is received for a
-    //  flushed cache line.  The snoop handler uses this to exit
-    //  SNOOP_WAIT_FLUSH once the in-progress writeback has completed.
+    //  Pulsed on the WriteBack B, which is what releases SNOOP_WAIT_FLUSH
     input  logic                      flush_ack_i,
     input  hpdcache_nline_t           flush_ack_nline_i,
-    //  High at acceptance time when the flush controller has an in-flight
-    //  WriteBack for this line (AW sent, B pending). Distinct from
-    //  req_dir_fetch_i which is also set for coherence upgrades and clean
-    //  evictions that do not generate a writeback.
+    //  A WriteBack is in flight: AW sent, B pending
     input  logic                      req_flush_pending_i,
     //  }}}
 
@@ -205,14 +200,9 @@ import hpdcache_pkg::*;
                                   || req_op_i.is_clean_invalid
                                   || req_op_i.is_clean_shared
                                   || req_op_i.is_make_invalid)) begin
-                        //  A WriteBack is in-flight (AW sent, B pending). Stall
-                        //  until B if we cannot answer correctly now: the line is
-                        //  mid-eviction (invalid in dir, dirty data still in flight
-                        //  to memory, so answering "miss" would expose stale memory),
-                        //  or the snoop grants write permission / triggers a memory
-                        //  write. Reads on a still-valid line are answered from SRAM
-                        //  below. ACE permits stalling a snoop while a same-line
-                        //  WriteBack is in progress (IHI0022E C14.1).
+                        //  Answering now would expose memory the in-flight
+                        //  WriteBack has not reached yet; a read of a still-valid
+                        //  line is served from SRAM below instead
                         snoop_fsm_d = SNOOP_WAIT_FLUSH;
                     end else begin
                         // Cache hit
@@ -280,15 +270,11 @@ import hpdcache_pkg::*;
                 end
             end
 
-            //  WriteBack was in-flight on arrival; wait for flush B.
-            //  Once landed: pass_dirty=0 (memory is authoritative),
-            //  data_transfer=0 except for ReadUnique (data still in SRAM).
+            //  The B has made memory authoritative, so nothing is passed dirty
             SNOOP_WAIT_FLUSH: begin
                 if (flush_ack_match) begin
                     resp_w = 1'b1;
-                    //  Parked while the line was evicting (invalid in dir): after B
-                    //  memory is authoritative, so answer as a plain miss (resp_wdata
-                    //  defaults to 0) with no SRAM read and no dir update.
+                    //  The line was evicting, so a plain miss is the whole answer
                     if (!req_dir_valid_q) begin
                         snoop_fsm_d = SNOOP_IDLE;
                     end else begin

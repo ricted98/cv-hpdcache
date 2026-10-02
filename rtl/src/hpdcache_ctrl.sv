@@ -1597,9 +1597,7 @@ import hpdcache_pkg::*;
         st2_mshr_alloc_q |-> $onehot(st2_mshr_alloc_victim_way_q)) else
             $error("ctrl: no victim way selected during MSHR allocation");
 
-    //  A snoop filter mirrors this directory, so every line that leaves it must be
-    //  announced. Replacing a valid victim therefore always allocates a flush:
-    //  a dirty one leaves as a WriteBack, a clean one as an Evict
+    //  A snoop filter needs every line leaving the directory announced
     if (HPDcacheCfg.u.snoopFilterEn) begin : gen_silent_evict_assert
         assert property (@(posedge clk_i) disable iff (rst_ni !== 1'b1)
             st2_dir_updt_d && !st1_dir_hit && st1_dir_victim_valid |-> st2_flush_alloc_d) else

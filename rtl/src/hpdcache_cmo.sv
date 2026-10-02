@@ -177,8 +177,7 @@ import hpdcache_pkg::*;
     logic                 cmoh_flush_req_wok;
     hpdcache_set_t        cmoh_flush_req_set;
     hpdcache_tag_t        cmoh_flush_req_tag;
-    //  A clean line still has to be announced when a snoop filter mirrors this
-    //  directory; it leaves as an Evict rather than a WriteBack
+    //  Clear on a clean line, so it leaves as an Evict rather than a WriteBack
     logic                 cmoh_flush_req_dirty;
     hpdcache_way_vector_t cmoh_flush_req_way;
 
@@ -342,9 +341,8 @@ import hpdcache_pkg::*;
                     end else if (cmoh_op_q.is_inval_all) begin
                         if (valid_set_en_i) begin
                             cmoh_inval_set_reset = 1'b1;
-                            //  A filter mirrors this directory, so the walk has
-                            //  to go through the flush path, which announces
-                            //  every line it drops
+                            //  A snoop filter needs the dropped lines announced,
+                            //  which only the flush path does
                             if (HPDcacheCfg.u.snoopFilterEn) begin
                                 cmoh_flush_req_inval_d = 1'b1;
                                 cmoh_fsm_d = CMOH_FLUSH_ALL_FIRST;
@@ -645,12 +643,8 @@ import hpdcache_pkg::*;
             cmoh_flush_req_w = 1'b0;
             if (cmoh_flush_req_valid_q) begin
                 unique case (cmoh_fsm_q)
-                    //  With a snoop filter mirroring this directory every valid
-                    //  line *leaving* it must be announced, not only a dirty
-                    //  one. Only an invalidating flush drops the line: a plain
-                    //  flush keeps it, so it owes no announcement - and a clean
-                    //  line enqueued with evict=0 would ask for a WriteClean
-                    //  and supply no data, stalling the write channel
+                    //  A snoop filter needs clean lines announced too, not
+                    //  only dirty ones
                     CMOH_FLUSH_ALL_NEXT, CMOH_FLUSH_ALL_LAST:
                         cmoh_flush_req_w = dir_check_entry_valid_i &
                             (dir_check_entry_dirty_i |
