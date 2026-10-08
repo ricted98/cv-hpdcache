@@ -259,6 +259,7 @@ import hpdcache_pkg::*;
     logic                  miss_mshr_alloc_refill;
     logic                  miss_mshr_alloc_lr;
     logic                  miss_mshr_alloc_sc;
+    logic                  miss_mshr_alloc_held_dirty;
 
     logic                  wbuf_flush_all;
     logic                  wbuf_write;
@@ -606,6 +607,7 @@ import hpdcache_pkg::*;
         .st2_mshr_alloc_refill_o            (miss_mshr_alloc_refill),
         .st2_mshr_alloc_lr_o                (miss_mshr_alloc_lr),
         .st2_mshr_alloc_sc_o                (miss_mshr_alloc_sc),
+        .st2_mshr_alloc_held_dirty_o        (miss_mshr_alloc_held_dirty),
 
         .refill_req_valid_i                 (refill_req_valid),
         .refill_req_ready_o                 (refill_req_ready),
@@ -937,6 +939,7 @@ import hpdcache_pkg::*;
         .mshr_alloc_refill_i                (miss_mshr_alloc_refill),
         .mshr_alloc_lr_i                    (miss_mshr_alloc_lr),
         .mshr_alloc_sc_i                    (miss_mshr_alloc_sc),
+        .mshr_alloc_held_dirty_i            (miss_mshr_alloc_held_dirty),
         .mshr_alloc_dirty_i                 (miss_mshr_alloc_dirty),
         .mshr_alloc_wdata_i                 (miss_mshr_alloc_wdata),
         .mshr_alloc_be_i                    (miss_mshr_alloc_be),

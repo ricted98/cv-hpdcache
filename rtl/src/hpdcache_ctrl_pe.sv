@@ -280,8 +280,8 @@ import hpdcache_pkg::*;
             st0_req_is_cacheable_amo_load = st0_req_is_amo_i & ~st0_req_is_uncacheable_i & ~st0_req_is_amo_sc_i;
             if (st1_req_is_amo_sc_i & (~cachedir_hit_i | ~uc_lrsc_snoop_hit_i)) begin
                 //  The AMO SC has no valid reservation
-            end else if (cachedir_hit_i & ~st1_dir_hit_shared_i) begin
-                //  The cacheline is unique
+            end else if (cachedir_hit_i & (~st1_dir_hit_shared_i | st1_req_is_amo_lr_i)) begin
+                //  The cacheline is unique, or an LR reads its held copy (ACE C9.2.1)
             end else begin
                 st1_req_is_cacheable_amo = 1'b0;
                 st1_req_is_cacheable_amo_refill = st1_req_is_amo_i & ~st1_req_is_uncacheable_i;
@@ -660,9 +660,9 @@ import hpdcache_pkg::*;
                           st1_req_is_cmo_prefetch_i,
                           st1_req_is_amo_lr_i && st1_req_is_cacheable_amo_refill})
                     begin
-                        //  Cache miss or shared AMO LR refill
+                        //  Cache miss
                         //  {{{
-                        if (!cachedir_hit_i || st1_req_is_amo_lr_i) begin
+                        if (!cachedir_hit_i) begin
                             //  A cache miss inserts a nop into the pipeline
                             st1_nop = 1'b1;
 
@@ -670,7 +670,7 @@ import hpdcache_pkg::*;
                             wbuf_read_flush_hit_o = 1'b1;
 
                             //  Select a victim cacheline
-                            st1_req_cachedir_sel_victim_o = !st1_req_is_amo_lr_i;
+                            st1_req_cachedir_sel_victim_o = 1'b1;
 
                             if (st1_req_is_amo_lr_i && !st1_no_pend_trans_i) begin
                                 st1_rtab_alloc = 1'b1;
@@ -762,20 +762,11 @@ import hpdcache_pkg::*;
 
                                 //  Update the cache directory state to FETCHING
                                 st2_dir_updt_o = 1'b1;
-                                if (!st1_req_is_amo_lr_i) begin
-                                    st2_dir_updt_valid_o  = st1_dir_victim_valid_i;
-                                    st2_dir_updt_wback_o  = st1_dir_victim_wback_i;
-                                    st2_dir_updt_dirty_o  = 1'b0;
-                                    st2_dir_updt_shared_o = st1_dir_victim_shared_i;
-                                    st2_dir_updt_fetch_o  = 1'b1;
-                                end else begin
-                                    // Cacheable and coherent AMO LR
-                                    st2_dir_updt_valid_o  = 1'b1;
-                                    st2_dir_updt_wback_o  = st1_dir_hit_wback_i;
-                                    st2_dir_updt_dirty_o  = st1_dir_hit_dirty_i;
-                                    st2_dir_updt_shared_o = st1_dir_hit_shared_i;
-                                    st2_dir_updt_fetch_o  = 1'b1;
-                                end
+                                st2_dir_updt_valid_o  = st1_dir_victim_valid_i;
+                                st2_dir_updt_wback_o  = st1_dir_victim_wback_i;
+                                st2_dir_updt_dirty_o  = 1'b0;
+                                st2_dir_updt_shared_o = st1_dir_victim_shared_i;
+                                st2_dir_updt_fetch_o  = 1'b1;
                             end
                         end
                         //  }}}

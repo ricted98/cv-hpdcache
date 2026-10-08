@@ -116,6 +116,7 @@ import hpdcache_pkg::*;
     output logic                  st2_mshr_alloc_refill_o,
     output logic                  st2_mshr_alloc_lr_o,
     output logic                  st2_mshr_alloc_sc_o,
+    output logic                  st2_mshr_alloc_held_dirty_o,
 
     //      Refill interface
     input  logic                  refill_req_valid_i,
@@ -354,6 +355,7 @@ import hpdcache_pkg::*;
     logic                    st2_mshr_alloc_refill_q, st2_mshr_alloc_refill_d;
     logic                    st2_mshr_alloc_lr_q;
     logic                    st2_mshr_alloc_sc_q;
+    logic                    st2_mshr_alloc_held_dirty_q;
     hpdcache_req_addr_t      st2_mshr_alloc_addr_q;
     hpdcache_req_sid_t       st2_mshr_alloc_sid_q;
     hpdcache_req_tid_t       st2_mshr_alloc_tid_q;
@@ -1003,6 +1005,7 @@ import hpdcache_pkg::*;
             st2_mshr_alloc_refill_q      <= st2_mshr_alloc_refill_d;
             st2_mshr_alloc_lr_q          <= st1_req_is_amo_lr && HPDcacheCfg.u.coherenceEn;
             st2_mshr_alloc_sc_q          <= st1_req_is_amo_sc && HPDcacheCfg.u.coherenceEn;
+            st2_mshr_alloc_held_dirty_q  <= st1_dir_hit && st1_dir_hit_dirty;
         end
 
         if (st2_flush_alloc_d) begin
@@ -1258,6 +1261,7 @@ import hpdcache_pkg::*;
     assign st2_mshr_alloc_refill_o      = st2_mshr_alloc_refill_q;
     assign st2_mshr_alloc_lr_o          = st2_mshr_alloc_lr_q;
     assign st2_mshr_alloc_sc_o          = st2_mshr_alloc_sc_q;
+    assign st2_mshr_alloc_held_dirty_o  = st2_mshr_alloc_held_dirty_q;
     //  }}}
 
     //  Uncacheable request handler outputs
@@ -1604,6 +1608,11 @@ import hpdcache_pkg::*;
                 $error("ctrl: a valid line left the directory with no flush (set %0d, way %h, tag %h)",
                        st1_req_set, st1_dir_victim_way, st1_dir_victim_tag);
     end
+
+    //  A refill overwrites the line data, so an LR must not refill a line it holds
+    assert property (@(posedge clk_i) disable iff (rst_ni !== 1'b1)
+        st2_mshr_alloc_d && st1_req_is_amo_lr |-> !st1_dir_hit) else
+            $error("ctrl: LR refill of a held line");
 `endif
 
     //  }}}

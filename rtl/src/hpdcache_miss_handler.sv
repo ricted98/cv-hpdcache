@@ -106,6 +106,7 @@ import hpdcache_pkg::*;
     input  logic                  mshr_alloc_refill_i,
     input  logic                  mshr_alloc_lr_i,
     input  logic                  mshr_alloc_sc_i,
+    input  logic                  mshr_alloc_held_dirty_i,
     input  hpdcache_req_data_t    mshr_alloc_wdata_i,
     input  hpdcache_req_be_t      mshr_alloc_be_i,
 
@@ -174,6 +175,7 @@ import hpdcache_pkg::*;
         logic inval;    // Gain ownership of the cache line
         logic refill;   // Read cache line from memory
         logic sc;       // Store conditional
+        logic held_dirty; // The hit line was dirty
     } mshr_op_t;
 
     typedef struct packed {
@@ -223,6 +225,7 @@ import hpdcache_pkg::*;
     logic                    refill_is_atomic;
     logic                    refill_failed_sc;
     logic                    refill_failed_sc_q, refill_failed_sc_d;
+    logic                    refill_held_dirty_q;
 
     mem_resp_metadata_t      refill_fifo_resp_meta_wdata, refill_fifo_resp_meta_rdata;
     logic                    refill_fifo_resp_meta_w, refill_fifo_resp_meta_wok;
@@ -639,11 +642,14 @@ import hpdcache_pkg::*;
     //  Write the new entry in the cache directory
     //  In case of error in the refill response or a refill discarded due to snooping,
     //  invalidate pre-allocated cache directory entry
+    //  A CleanUnique keeps the hit line's dirty bit; a failed SC keeps its Shared copy (ACE C9.2.3)
     assign refill_dir_entry_o = '{
-        valid   : ~(refill_is_error_o | refill_discard_q | refill_failed_sc_q),
-        wback   : ~(refill_is_error_o | refill_discard_q | refill_failed_sc_q) & refill_wback_q,
-        dirty   : ~(refill_is_error_o | refill_discard_q | refill_failed_sc_q) & (refill_dirty_q  | refill_fifo_resp_meta_rdata.is_dirty),
-        shared  : ~(refill_is_error_o | refill_discard_q | refill_inval_q) & refill_fifo_resp_meta_rdata.is_shared,
+        valid   : ~(refill_is_error_o | refill_discard_q),
+        wback   : ~(refill_is_error_o | refill_discard_q) & refill_wback_q,
+        dirty   : ~(refill_is_error_o | refill_discard_q) &
+                  (refill_dirty_q | refill_fifo_resp_meta_rdata.is_dirty | refill_held_dirty_q),
+        shared  : ~(refill_is_error_o | refill_discard_q) &
+                  (refill_failed_sc_q | (~refill_inval_q & refill_fifo_resp_meta_rdata.is_shared)),
         fetch   : 1'b0,
         tag     : refill_tag_q,
         default :'0
@@ -828,6 +834,7 @@ import hpdcache_pkg::*;
             refill_discard_q <= refill_discard_d;
             refill_inval_q <= refill_inval_d;
             refill_failed_sc_q <= refill_failed_sc_d;
+            refill_held_dirty_q <= mshr_ack_op.held_dirty;
         end
         refill_cnt_q <= refill_cnt_d;
     end
@@ -922,7 +929,8 @@ import hpdcache_pkg::*;
     assign mshr_alloc_op = '{
         refill: mshr_alloc_refill_i,
         inval: mshr_alloc_inval_i,
-        sc: mshr_alloc_sc_i
+        sc: mshr_alloc_sc_i,
+        held_dirty: mshr_alloc_held_dirty_i
     };
     //  }}}
 
@@ -965,6 +973,11 @@ import hpdcache_pkg::*;
     //  Assertions
     //  {{{
 `ifndef HPDCACHE_ASSERT_OFF
+    //  A failed SC keeps its line as Shared, which holds only for a CleanUnique from a Shared hit
+    assert property (@(posedge clk_i) disable iff (rst_ni !== 1'b1)
+        (refill_fsm_q == REFILL_WRITE) && (refill_cnt_q == 0) && refill_failed_sc_d
+            |-> refill_inval_d) else
+                $error("miss_handler: failed SC was not an invalidation");
 `endif
     //  }}}
 
