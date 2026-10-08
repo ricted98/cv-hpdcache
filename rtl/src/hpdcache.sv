@@ -315,6 +315,9 @@ import hpdcache_pkg::*;
     hpdcache_req_addr_t    uc_lrsc_snoop_addr;
     hpdcache_req_size_t    uc_lrsc_snoop_size;
     logic                  uc_lrsc_snoop_hit;
+    logic                  uc_lrsc_evict;
+    hpdcache_nline_t       uc_lrsc_evict_nline;
+    logic                  uc_lrsc_evict_all;
     logic                  uc_core_rsp_ready;
     logic                  uc_core_rsp_valid;
     hpdcache_rsp_t         uc_core_rsp;
@@ -672,6 +675,9 @@ import hpdcache_pkg::*;
         .uc_lrsc_snoop_addr_o               (uc_lrsc_snoop_addr),
         .uc_lrsc_snoop_size_o               (uc_lrsc_snoop_size),
         .uc_lrsc_snoop_hit_i                (uc_lrsc_snoop_hit),
+        .uc_lrsc_evict_o                    (uc_lrsc_evict),
+        .uc_lrsc_evict_nline_o              (uc_lrsc_evict_nline),
+        .uc_lrsc_evict_all_o                (uc_lrsc_evict_all),
         .uc_req_valid_o                     (uc_req_valid),
         .uc_req_op_o                        (uc_req_op),
         .uc_req_addr_o                      (uc_req_addr),
@@ -1050,6 +1056,9 @@ import hpdcache_pkg::*;
         .lrsc_snoop_size_i             (uc_lrsc_snoop_size),
         .lrsc_snoop_hit_o              (uc_lrsc_snoop_hit),
         .refill_lrsc_rst_i             (refill_lrsc_rst),
+        .lrsc_evict_i                  (uc_lrsc_evict),
+        .lrsc_evict_nline_i            (uc_lrsc_evict_nline),
+        .lrsc_evict_all_i              (uc_lrsc_evict_all),
 
         .core_rsp_ready_i              (uc_core_rsp_ready),
         .core_rsp_valid_o              (uc_core_rsp_valid),

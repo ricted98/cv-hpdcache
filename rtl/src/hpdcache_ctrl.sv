@@ -186,6 +186,9 @@ import hpdcache_pkg::*;
     output hpdcache_req_addr_t    uc_lrsc_snoop_addr_o,
     output hpdcache_req_size_t    uc_lrsc_snoop_size_o,
     input  logic                  uc_lrsc_snoop_hit_i,
+    output logic                  uc_lrsc_evict_o,
+    output hpdcache_nline_t       uc_lrsc_evict_nline_o,
+    output logic                  uc_lrsc_evict_all_o,
     output logic                  uc_req_valid_o,
     output hpdcache_uc_op_t       uc_req_op_o,
     output hpdcache_req_addr_t    uc_req_addr_o,
@@ -444,6 +447,8 @@ import hpdcache_pkg::*;
     logic                    st1_req_is_cmo_flush;
     logic                    st1_req_is_cmo_fence;
     logic                    st1_req_is_cmo_prefetch;
+    logic                    st1_cmo_evict_nline;
+    logic                    st1_cmo_evict_all;
     logic                    st1_req_is_snoop;
     logic                    st1_req_is_snoop_make_inval;
     logic                    st1_req_is_snoop_clean_inval;
@@ -1267,11 +1272,22 @@ import hpdcache_pkg::*;
     //  Uncacheable request handler outputs
     //  {{{
 
-    //  In the coherence configuration, a cache miss caused by an SC operation should immediately result in SC failure.
-    assign uc_lrsc_snoop_rst_o        = st1_req_valid_q & (st1_req_is_store | st1_req_lrsc_snoop_rst | (st2_mshr_alloc_q & HPDcacheCfg.u.coherenceEn)),
+    //  Lines leaving the cache end the reservation; a plain flush keeps them. An LR victim is not
+    //  checked: the LR replaces the reservation in the same cycle
+    assign st1_cmo_evict_nline = cmo_req_valid_o & (is_cmo_inval_by_nline(st1_req.op) |
+                                                    is_cmo_flush_inval_by_nline(st1_req.op));
+    assign st1_cmo_evict_all   = cmo_req_valid_o & (is_cmo_inval_all(st1_req.op) |
+                                                    is_cmo_flush_inval_all(st1_req.op));
+
+    assign uc_lrsc_evict_o       = (st2_mshr_alloc_d & ~st1_dir_hit & st1_dir_victim_valid &
+                                    ~st1_req_is_amo_lr) | st1_cmo_evict_nline,
+           uc_lrsc_evict_nline_o = st1_cmo_evict_nline ? st1_req_nline : st1_victim_nline,
+           uc_lrsc_evict_all_o   = st1_cmo_evict_all;
+
+    assign uc_lrsc_snoop_rst_o        = st1_req_valid_q & (st1_req_is_store | st1_req_lrsc_snoop_rst),
            uc_lrsc_snoop_set_o        = st1_req_valid_q & st1_req_is_amo_lr,
-           uc_lrsc_snoop_only_nline_o = st1_req_lrsc_snoop_rst | (st2_mshr_alloc_q & HPDcacheCfg.u.coherenceEn),
-           uc_lrsc_snoop_addr_o       = st2_mshr_alloc_q & HPDcacheCfg.u.coherenceEn ? st2_mshr_alloc_addr_q : st1_req_addr,
+           uc_lrsc_snoop_only_nline_o = st1_req_lrsc_snoop_rst,
+           uc_lrsc_snoop_addr_o       = st1_req_addr,
            uc_lrsc_snoop_size_o       = st1_req.size,
            uc_req_addr_o              = st1_req_addr,
            uc_req_size_o              = st1_req.size,

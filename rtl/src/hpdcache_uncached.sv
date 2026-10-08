@@ -114,6 +114,9 @@ import hpdcache_pkg::*;
     input  hpdcache_req_size_t    lrsc_snoop_size_i,
     output logic                  lrsc_snoop_hit_o,
     input  logic                  refill_lrsc_rst_i,
+    input  logic                  lrsc_evict_i,
+    input  hpdcache_nline_t       lrsc_evict_nline_i,
+    input  logic                  lrsc_evict_all_i,
     //  }}}
 
     //  Core response interface
@@ -282,6 +285,7 @@ import hpdcache_pkg::*;
     logic               lrsc_snoop_nline_hit;
     logic               lrsc_snoop_word_hit;
     logic               lrsc_snoop_reset;
+    logic               lrsc_evict_reset;
 
     hpdcache_nline_t    lrsc_uc_nline;
     hpdcache_offset_t   lrsc_uc_word;
@@ -310,6 +314,10 @@ import hpdcache_pkg::*;
     assign lrsc_snoop_reset = refill_lrsc_rst_i |
                               (lrsc_snoop_rst_i & lrsc_snoop_nline_hit &
                               (lrsc_snoop_only_nline_i | lrsc_snoop_word_hit));
+
+    //  An evicted line is no longer snooped, so its reservation cannot be tracked (ACE C9.2.3)
+    assign lrsc_evict_reset = lrsc_evict_all_i |
+                              (lrsc_evict_i & (lrsc_rsrv_nline == lrsc_evict_nline_i));
 
     //  Check hit on LR/SC reservation for AMOs and SC
     assign lrsc_uc_nline    = req_addr_i[HPDcacheCfg.clOffsetWidth +: HPDcacheCfg.nlineWidth];
@@ -956,7 +964,7 @@ import hpdcache_pkg::*;
     logic lrsc_rsrv_valid_set, lrsc_rsrv_valid_reset;
 
     assign lrsc_rsrv_valid_set   = lrsc_uc_set,
-           lrsc_rsrv_valid_reset = lrsc_uc_reset | lrsc_snoop_reset;
+           lrsc_rsrv_valid_reset = lrsc_uc_reset | lrsc_snoop_reset | lrsc_evict_reset;
 
     always_ff @(posedge clk_i or negedge rst_ni)
     begin : uc_fsm_ff
