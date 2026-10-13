@@ -761,8 +761,9 @@ import hpdcache_pkg::*;
                                 st2_mshr_alloc_inval_o = 1'b0;
 
                                 //  Update the cache directory state to FETCHING
+                                //  A filter stops snooping the victim at its eviction, so it stops hitting now
                                 st2_dir_updt_o = 1'b1;
-                                st2_dir_updt_valid_o  = st1_dir_victim_valid_i;
+                                st2_dir_updt_valid_o  = !HPDcacheCfg.u.snoopFilterEn && st1_dir_victim_valid_i;
                                 st2_dir_updt_wback_o  = st1_dir_victim_wback_i;
                                 st2_dir_updt_dirty_o  = 1'b0;
                                 st2_dir_updt_shared_o = st1_dir_victim_shared_i;
@@ -970,8 +971,9 @@ import hpdcache_pkg::*;
                                     st2_flush_alloc_nodata_o = ~st1_dir_victim_dirty_i;
 
                                     //  Update the directory state of the cacheline to FETCHING
+                                    //  A filter stops snooping the victim at its eviction, so it stops hitting now
                                     st2_dir_updt_o = 1'b1;
-                                    st2_dir_updt_valid_o  = st1_dir_victim_valid_i;
+                                    st2_dir_updt_valid_o  = !HPDcacheCfg.u.snoopFilterEn && st1_dir_victim_valid_i;
                                     st2_dir_updt_wback_o  = st1_dir_victim_wback_i;
                                     st2_dir_updt_dirty_o  = 1'b0;
                                     st2_dir_updt_shared_o = st1_dir_victim_shared_i;
