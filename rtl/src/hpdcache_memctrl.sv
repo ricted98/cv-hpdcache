@@ -1051,11 +1051,17 @@ import hpdcache_pkg::*;
             if (data_flush_read_i || (HPDcacheCfg.u.eccEn && data_err_read_i)) begin
                 data_flush_row_index_q <= data_ram_row;
             end
-            if (HPDcacheCfg.u.eccEn) begin
-                data_flush_read_q <= data_flush_read_i;
-            end
         end
     end
+
+    if (HPDcacheCfg.u.eccEn) begin : gen_data_flush_read_ff
+        always_ff @(posedge clk_i)
+            data_flush_read_q <= data_flush_read_i;
+    end else begin : gen_data_flush_read_tieoff
+        assign data_flush_read_q = '0;
+    end
+        
+        
 
     hpdcache_mux #(
         .NINPUT      (HPDcacheCfg.u.ways/HPDcacheCfg.u.dataWaysPerRamWord),
