@@ -1189,8 +1189,9 @@ import hpdcache_pkg::*;
             ctrl_flush_alloc ? ctrl_flush_alloc_way : cmo_flush_alloc_way;
         assign flush_alloc_evict =
             ctrl_flush_alloc ? ctrl_flush_alloc_evict : cmo_flush_alloc_evict;
-        assign flush_alloc_nodata =
-            ctrl_flush_alloc ? ctrl_flush_alloc_nodata : cmo_flush_alloc_nodata;
+        //  Only a snoop filter needs Evicts; without one every flush is dirty
+        assign flush_alloc_nodata = HPDcacheCfg.u.snoopFilterEn &&
+            (ctrl_flush_alloc ? ctrl_flush_alloc_nodata : cmo_flush_alloc_nodata);
 
         hpdcache_flush #(
             .HPDcacheCfg                   (HPDcacheCfg),
