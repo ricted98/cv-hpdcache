@@ -470,10 +470,10 @@ import hpdcache_pkg::*;
     //  {{{
 
     //  Sync metadata response with interface signals
-    //
-    hpdcache_sync_buffer #(
+    hpdcache_fifo_reg #(
+        .FIFO_DEPTH  (2),
         .FEEDTHROUGH (1'b0),
-        .data_t      (hpdcache_snoop_meta_t)
+        .fifo_data_t (hpdcache_snoop_meta_t)
     ) snoop_resp_buffer_i (
         .clk_i,
         .rst_ni,
