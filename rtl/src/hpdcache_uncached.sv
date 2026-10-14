@@ -315,7 +315,7 @@ import hpdcache_pkg::*;
                               (lrsc_snoop_rst_i & lrsc_snoop_nline_hit &
                               (lrsc_snoop_only_nline_i | lrsc_snoop_word_hit));
 
-    //  An evicted line is no longer snooped, so its reservation cannot be tracked (ACE C9.2.3)
+    //  An evicted line is no longer snooped, so its reservation cannot be tracked (ACE C9.2)
     assign lrsc_evict_reset = lrsc_evict_all_i |
                               (lrsc_evict_i & (lrsc_rsrv_nline == lrsc_evict_nline_i));
 

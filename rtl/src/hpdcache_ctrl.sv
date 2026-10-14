@@ -1272,15 +1272,16 @@ import hpdcache_pkg::*;
     //  Uncacheable request handler outputs
     //  {{{
 
-    //  Lines leaving the cache end the reservation; a plain flush keeps them. An LR victim is not
-    //  checked: the LR replaces the reservation in the same cycle
-    assign st1_cmo_evict_nline = cmo_req_valid_o & (is_cmo_inval_by_nline(st1_req.op) |
-                                                    is_cmo_flush_inval_by_nline(st1_req.op));
-    assign st1_cmo_evict_all   = cmo_req_valid_o & (is_cmo_inval_all(st1_req.op) |
-                                                    is_cmo_flush_inval_all(st1_req.op));
+    //  With coherence, lines leaving the cache end the reservation; a plain flush keeps them. An LR
+    //  victim is not checked: the LR replaces the reservation in the same cycle
+    assign st1_cmo_evict_nline = HPDcacheCfg.u.coherenceEn & cmo_req_valid_o &
+                                 (is_cmo_inval_by_nline(st1_req.op) |
+                                  is_cmo_flush_inval_by_nline(st1_req.op));
+    assign st1_cmo_evict_all   = HPDcacheCfg.u.coherenceEn & cmo_req_valid_o &
+                                 (is_cmo_inval_all(st1_req.op) | is_cmo_flush_inval_all(st1_req.op));
 
-    assign uc_lrsc_evict_o       = (st2_mshr_alloc_d & ~st1_dir_hit & st1_dir_victim_valid &
-                                    ~st1_req_is_amo_lr) | st1_cmo_evict_nline,
+    assign uc_lrsc_evict_o       = (HPDcacheCfg.u.coherenceEn & st2_mshr_alloc_d & ~st1_dir_hit &
+                                    st1_dir_victim_valid & ~st1_req_is_amo_lr) | st1_cmo_evict_nline,
            uc_lrsc_evict_nline_o = st1_cmo_evict_nline ? st1_req_nline : st1_victim_nline,
            uc_lrsc_evict_all_o   = st1_cmo_evict_all;
 
