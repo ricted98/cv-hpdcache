@@ -10,9 +10,29 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Removed
 
+- Remove unused dataRamByteEnable parameter
+  (IMPORTANT: requires changes to existing integrations)
+
 ### Changed
 
 ### Fixed
+
+## [6.1.0] 2026-10-16
+
+### Added
+
+- Add Support read-only configuration (only read/CMO requests accepted by the cache)
+- Recover from uncorrectable error when cache is WT by invalidating the cacheline
+
+### Changed
+
+- README and CONTRIBUTING improved (guidelines for contributors)
+- Process cacheline-based CMOs directly in the cache's pipeline
+
+### Fixed
+
+- Fix FSM transition in the error controller (when error correction is enabled)
+- Fix missing set of the fetch bit in the dir to 0 in case of uncacheable access
 
 ## [6.0.0] 2026-03-13
 
