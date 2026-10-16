@@ -1055,8 +1055,13 @@ import hpdcache_pkg::*;
     end
 
     if (HPDcacheCfg.u.eccEn) begin : gen_data_flush_read_ff
-        always_ff @(posedge clk_i)
-            data_flush_read_q <= data_flush_read_i;
+        always_ff @(posedge clk_i or negedge rst_ni) begin : data_flush_read_ff
+            if (!rst_ni) begin
+                data_flush_read_q <= '0;
+            end else begin
+                data_flush_read_q <= data_flush_read_i;
+            end
+        end
     end else begin : gen_data_flush_read_tieoff
         assign data_flush_read_q = '0;
     end
