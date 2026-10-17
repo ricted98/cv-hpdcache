@@ -155,8 +155,9 @@ import hpdcache_pkg::*;
     mshr_set_t  mshr_addr;
     logic check;
 
-    logic          [HPDcacheCfg.u.mshrSets*HPDcacheCfg.u.mshrWays-1:0] mshr_make_inval_q;
-    logic [HPDcacheCfg.u.mshrSets*HPDcacheCfg.u.mshrWays-1:0] mshr_make_inval_set, mshr_make_inval_rst;
+    logic [HPDcacheCfg.u.mshrSets*HPDcacheCfg.u.mshrWays-1:0] mshr_make_inval_q;
+    logic [HPDcacheCfg.u.mshrSets*HPDcacheCfg.u.mshrWays-1:0] mshr_make_inval_set;
+    logic [HPDcacheCfg.u.mshrSets*HPDcacheCfg.u.mshrWays-1:0] mshr_make_inval_rst;
     //  }}}
 
     //  Control part for the allocation and check operations
@@ -336,7 +337,8 @@ import hpdcache_pkg::*;
             check_cache_set_q <= '0;
         end else begin
             mshr_valid_q <= (~mshr_valid_q & mshr_valid_set) | (mshr_valid_q & ~mshr_valid_rst);
-            mshr_make_inval_q <= (~mshr_make_inval_q & mshr_make_inval_set) | (mshr_make_inval_q & ~mshr_make_inval_rst);
+            mshr_make_inval_q <= (~mshr_make_inval_q & mshr_make_inval_set) |
+                                 (mshr_make_inval_q & ~mshr_make_inval_rst);
             if (ack_i) ack_way_q <= ack_way_i;
             if (check) check_cache_set_q <= check_set_i;
         end

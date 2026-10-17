@@ -38,8 +38,8 @@ import hpdcache_pkg::*;
     //  Global control signals
     output logic                  empty_o,      // RTAB is empty
     output logic                  full_o,       // RTAB is full
-    output logic                  fence_o,      // There is a pending instruction with fence in the RTAB
-    output logic                  fence_only_o, // There is ONLY a pending instruction with fence in the RTAB
+    output logic                  fence_o,      // Pending instruction with fence in the RTAB
+    output logic                  fence_only_o, // ONLY pending instruction with fence in the RTAB
 
     //  Check RTAB signals
     //     This interface allows to check if there is an address-overlapping

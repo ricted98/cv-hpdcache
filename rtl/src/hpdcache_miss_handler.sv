@@ -315,7 +315,8 @@ import hpdcache_pkg::*;
     assign mem_req_o.mem_req_len = mem_req_coherence_q == HPDCACHE_MEM_COHERENCE_CLEAN_UNIQUE ?
                                    '0 : hpdcache_mem_len_t'(REFILL_REQ_LEN-1);
     assign mem_req_o.mem_req_size = hpdcache_mem_size_t'(REFILL_REQ_SIZE);
-    assign mem_req_o.mem_req_command = mem_req_lr_q || mem_req_sc_q ? HPDCACHE_MEM_ATOMIC : HPDCACHE_MEM_READ;
+    assign mem_req_o.mem_req_command = mem_req_lr_q || mem_req_sc_q ? HPDCACHE_MEM_ATOMIC :
+                                                                      HPDCACHE_MEM_READ;
     assign mem_req_o.mem_req_atomic = mem_req_lr_q ? HPDCACHE_MEM_ATOMIC_LDEX :
                                       mem_req_sc_q ? HPDCACHE_MEM_ATOMIC_STEX :
                                                      HPDCACHE_MEM_ATOMIC_ADD;
@@ -615,8 +616,10 @@ import hpdcache_pkg::*;
     assign refill_inval_d = mshr_ack_op.inval && !mshr_ack_op.refill;
 
     //  The refill is a failed shareable SC, invalidate the reservation
-    assign refill_failed_sc_d = mshr_ack_op.sc & (refill_is_error_o | !refill_is_atomic) & ~refill_discard_d;
-    assign refill_lrsc_rst_o = (refill_fsm_q == REFILL_WRITE) & (refill_cnt_q == 0) & refill_failed_sc_d;
+    assign refill_failed_sc_d = mshr_ack_op.sc & (refill_is_error_o | !refill_is_atomic) &
+                                ~refill_discard_d;
+    assign refill_lrsc_rst_o = (refill_fsm_q == REFILL_WRITE) & (refill_cnt_q == 0) &
+                               refill_failed_sc_d;
 
     assign refill_busy_o  = (refill_fsm_q != REFILL_IDLE);
     assign refill_nline_o = {refill_tag_q, refill_set_q};
@@ -967,7 +970,8 @@ import hpdcache_pkg::*;
         logic cbuf_alloc, cbuf_ack;
 
         assign cbuf_alloc = mshr_alloc_dirty_i && mshr_alloc && mshr_alloc_refill_i;
-        assign cbuf_ack   = mshr_ack_dirty && mshr_ack_op.refill && (refill_fsm_q == REFILL_WRITE) && (refill_cnt_q == 0);
+        assign cbuf_ack   = mshr_ack_dirty && mshr_ack_op.refill &&
+                            (refill_fsm_q == REFILL_WRITE) && (refill_cnt_q == 0);
 
         hpdcache_cbuf #(
             .HPDcacheCfg         (HPDcacheCfg),

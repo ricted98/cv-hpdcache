@@ -1394,14 +1394,17 @@ import hpdcache_pkg::*;
                                  (is_cmo_inval_by_nline(st1_req.req.op) |
                                   is_cmo_flush_inval_by_nline(st1_req.req.op));
     assign st1_cmo_evict_all   = HPDcacheCfg.u.coherenceEn & cmo_req_valid_o &
-                                 (is_cmo_inval_all(st1_req.req.op) | is_cmo_flush_inval_all(st1_req.req.op));
+                                 (is_cmo_inval_all(st1_req.req.op) |
+                                  is_cmo_flush_inval_all(st1_req.req.op));
 
-    assign uc_lrsc_evict_o       = (HPDcacheCfg.u.coherenceEn & st2_mshr_alloc_d & ~st1_dir_hit &
-                                    st1_dir_victim_valid & ~st1_req_is_amo_lr) | st1_cmo_evict_nline,
+    assign uc_lrsc_evict_o       = (HPDcacheCfg.u.coherenceEn & st2_mshr_alloc_d &
+                                    ~st1_dir_hit & st1_dir_victim_valid & ~st1_req_is_amo_lr) |
+                                   st1_cmo_evict_nline,
            uc_lrsc_evict_nline_o = st1_cmo_evict_nline ? st1_req_nline : st1_victim_nline,
            uc_lrsc_evict_all_o   = st1_cmo_evict_all;
 
-    assign uc_lrsc_snoop_rst_o        = st1_req_valid_q & (st1_req_is_store | st1_req_lrsc_snoop_rst),
+    assign uc_lrsc_snoop_rst_o        = st1_req_valid_q &
+                                        (st1_req_is_store | st1_req_lrsc_snoop_rst),
            uc_lrsc_snoop_set_o        = st1_req_valid_q & st1_req_is_amo_lr,
            uc_lrsc_snoop_only_nline_o = st1_req_lrsc_snoop_rst,
            uc_lrsc_snoop_addr_o       = st1_req_addr,
@@ -1993,7 +1996,8 @@ import hpdcache_pkg::*;
     //  Check that the cache controller is being used by one and only one among a core request, the
     //  RTAB or the miss handler.
     assert property (@(posedge clk_i) disable iff (rst_ni !== 1'b1)
-            $onehot0({core_req_ready_o, st0_rtab_pop_try_ready, refill_req_ready_o, snoop_req_ready_o})) else
+            $onehot0({core_req_ready_o, st0_rtab_pop_try_ready,
+                      refill_req_ready_o, snoop_req_ready_o})) else
                     $error("ctrl: only one request can be served per cycle");
 
     //  Check that requests have a valid size field. The check is not necessary for the fence,
@@ -2055,7 +2059,7 @@ import hpdcache_pkg::*;
     if (HPDcacheCfg.u.snoopFilterEn) begin : gen_silent_evict_assert
         assert property (@(posedge clk_i) disable iff (rst_ni !== 1'b1)
             st2_dir_updt_d && !st1_dir_hit && st1_dir_victim_valid |-> st2_flush_alloc_d) else
-                $error("ctrl: a valid line left the directory with no flush (set %0d, way %h, tag %h)",
+                $error("ctrl: valid line left directory with no flush (set %0d, way %h, tag %h)",
                        st1_req_set, st1_dir_victim_way, st1_dir_victim_tag);
     end
 

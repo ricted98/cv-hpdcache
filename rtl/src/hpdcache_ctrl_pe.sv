@@ -290,7 +290,8 @@ import hpdcache_pkg::*;
         if (HPDcacheCfg.u.coherenceEn) begin
             //  Cacheable and coherent ATOPs and LDEX operations
             //  read both data and directory
-            st0_req_is_cacheable_amo_load = st0_req_is_amo_i & ~st0_req_is_uncacheable_i & ~st0_req_is_amo_sc_i;
+            st0_req_is_cacheable_amo_load = st0_req_is_amo_i & ~st0_req_is_uncacheable_i &
+                                            ~st0_req_is_amo_sc_i;
             if (st1_req_is_amo_sc_i & (~st1_dir_hit_i | ~uc_lrsc_snoop_hit_i)) begin
                 //  The AMO SC has no valid reservation
             end else if (st1_dir_hit_i & (~st1_dir_hit_shared_i | st1_req_is_amo_lr_i)) begin
@@ -646,7 +647,9 @@ import hpdcache_pkg::*;
                     //  request is not being replayed.
                     //  When an uncacheable request is replayed, it is guaranteed
                     //  that there is no other pending transaction.
-                    if (!st1_no_pend_trans_i && (HPDcacheCfg.u.coherenceEn || !st1_req_rtab_i)) begin
+                    if (!st1_no_pend_trans_i &&
+                        (HPDcacheCfg.u.coherenceEn || !st1_req_rtab_i))
+                    begin
                         wbuf_flush_all_o = 1'b1;
                         st1_rtab_alloc = 1'b1;
                         st1_nop = 1'b1;
@@ -794,7 +797,9 @@ import hpdcache_pkg::*;
                         //  request is not being replayed.
                         //  When an AMO request is replayed, it is guaranteed that there
                         //  is no other pending transaction.
-                        if (!st1_no_pend_trans_i && (HPDcacheCfg.u.coherenceEn || !st1_req_rtab_i)) begin
+                        if (!st1_no_pend_trans_i &&
+                            (HPDcacheCfg.u.coherenceEn || !st1_req_rtab_i))
+                        begin
                             wbuf_flush_all_o = 1'b1;
                             st1_rtab_alloc = 1'b1;
                             st1_nop = 1'b1;
@@ -838,7 +843,9 @@ import hpdcache_pkg::*;
                                 end else begin
                                     uc_req_valid_o = 1'b1;
                                     //  If not lowLatency, data is read from the cache in stage 1
-                                    if (!HPDcacheCfg.u.lowLatency && HPDcacheCfg.u.coherenceEn) begin
+                                    if (!HPDcacheCfg.u.lowLatency &&
+                                        HPDcacheCfg.u.coherenceEn)
+                                    begin
                                         //  Read data from the cache
                                         st1_req_cachedata_read = 1'b1;
                                     end
@@ -962,7 +969,8 @@ import hpdcache_pkg::*;
                                 //  Update the cache directory state to FETCHING
                                 //  A filter stops snooping the victim at its eviction, so it stops hitting now
                                 st2_dir_updt_o = 1'b1;
-                                st2_dir_updt_valid_o  = !HPDcacheCfg.u.snoopFilterEn && st1_dir_victim_valid_i;
+                                st2_dir_updt_valid_o  = !HPDcacheCfg.u.snoopFilterEn &&
+                                                        st1_dir_victim_valid_i;
                                 st2_dir_updt_wback_o  = st1_dir_victim_wback_i;
                                 st2_dir_updt_dirty_o  = 1'b0;
                                 st2_dir_updt_shared_o = st1_dir_victim_shared_i;
@@ -1073,7 +1081,8 @@ import hpdcache_pkg::*;
                         // with the write
                         else begin
                             st1_nop = (st1_req_rtab_i & ~rtab_req_valid_i) |
-                                      (rd_wr_conflict_i & (st0_req_is_load_i | st0_req_is_cacheable_amo_load));
+                                      (rd_wr_conflict_i &
+                                       (st0_req_is_load_i | st0_req_is_cacheable_amo_load));
 
                             if (HPDcacheCfg.u.eccEn) begin
                                 if (rd_wr_conflict_i) begin
@@ -1101,7 +1110,9 @@ import hpdcache_pkg::*;
                         end
 
                         //  AMO transactions need to drain all other transactions
-                        if ((st1_req_is_amo_atop_i || st1_req_is_amo_sc_i) && !st1_no_pend_trans_i) begin
+                        if ((st1_req_is_amo_atop_i || st1_req_is_amo_sc_i) &&
+                            !st1_no_pend_trans_i)
+                        begin
                             st1_rtab_alloc = 1'b1;
                             st1_rtab_pend_trans_o = 1'b1;
                             st1_nop = 1'b1;
@@ -1191,7 +1202,8 @@ import hpdcache_pkg::*;
                                     //  Update the directory state of the cacheline to FETCHING
                                     //  A filter stops snooping the victim at its eviction, so it stops hitting now
                                     st2_dir_updt_o = 1'b1;
-                                    st2_dir_updt_valid_o  = !HPDcacheCfg.u.snoopFilterEn && st1_dir_victim_valid_i;
+                                    st2_dir_updt_valid_o  = !HPDcacheCfg.u.snoopFilterEn &&
+                                                            st1_dir_victim_valid_i;
                                     st2_dir_updt_wback_o  = st1_dir_victim_wback_i;
                                     st2_dir_updt_dirty_o  = 1'b0;
                                     st2_dir_updt_shared_o = st1_dir_victim_shared_i;
@@ -1558,7 +1570,8 @@ import hpdcache_pkg::*;
                                 st0_req_cachedata_read |= st0_req_is_scrub_i;
                             end
                         end else begin
-                            st0_req_cachedata_read = st0_req_is_load_i | st0_req_is_cacheable_amo_load;
+                            st0_req_cachedata_read = st0_req_is_load_i |
+                                                     st0_req_is_cacheable_amo_load;
                         end
                     end
                 end

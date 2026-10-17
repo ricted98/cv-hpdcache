@@ -365,7 +365,8 @@ import hpdcache_pkg::*;
                                     //  set a new reservation
                                     lrsc_uc_set = 1'b1;
                                     lrsc_rsrv_addr_d = req_addr_i;
-                                    uc_fsm_d = HPDcacheCfg.u.lowLatency ? UC_CORE_RSP : UC_AMO_WAIT_RDATA;
+                                    uc_fsm_d = HPDcacheCfg.u.lowLatency ? UC_CORE_RSP :
+                                                                          UC_AMO_WAIT_RDATA;
                                 end else begin
                                     uc_fsm_d = UC_AMO_UPDT_DIR;
                                 end

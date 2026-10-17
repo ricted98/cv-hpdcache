@@ -390,7 +390,7 @@ import hpdcache_pkg::*;
 
         data_read_o = 1'b0;
 
-        case (snoop_data_busy_q)
+        unique case (snoop_data_busy_q)
             1'b0: begin
                 // First data read is always carried out
                 resp_data_w = 1'b0;
